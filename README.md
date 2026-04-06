@@ -12,20 +12,20 @@ Phyra is a purely academic open-source project. Commercial use and any derived c
 
 ## Installation
 
-### Recommended: Plugin Directory
-
-```bash
-git clone https://github.com/OrientoNubo/Phyra.git
-claude --plugin-dir ./Phyra
-```
-
-To always load Phyra, add the flag to your shell alias or config.
-
-### Alternative: Marketplace
+### Marketplace (Recommended)
 
 ```
 /plugin marketplace add OrientoNubo/Phyra
 /plugin install phyra@phyra
+```
+
+> **Troubleshooting:** If you encounter schema validation errors during install, they may come from other installed marketplaces. Run `/plugin marketplace remove claude-plugins-official` first, install Phyra, then re-add the official marketplace.
+
+### Alternative: Plugin Directory
+
+```bash
+git clone https://github.com/OrientoNubo/Phyra.git
+claude --plugin-dir ./Phyra
 ```
 
 ## Commands
