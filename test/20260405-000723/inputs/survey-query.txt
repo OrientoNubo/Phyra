@@ -1,1 +1,0 @@
-Recent advances in vision-language models for zero-shot object detection, focusing on methods that combine CLIP-based features with detection architectures
