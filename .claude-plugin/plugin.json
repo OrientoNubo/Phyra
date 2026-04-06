@@ -1,0 +1,12 @@
+{
+  "name": "phyra",
+  "version": "0.3.0",
+  "description": "Academic research plugin for Claude Code. Multi-agent pipelines for paper reading, peer review, literature survey, citation graph analysis, and paper writing. Targets computer science and AI research.",
+  "author": {
+    "name": "OrientoNubo",
+    "email": "d11922023@csie.ntu.edu.tw"
+  },
+  "repository": "https://github.com/OrientoNubo/Phyra",
+  "license": "CC-BY-NC-4.0",
+  "keywords": ["academic", "research", "paper-review", "paper-reading", "literature-survey", "citation-network", "paper-writing", "computer-vision", "machine-learning"]
+}

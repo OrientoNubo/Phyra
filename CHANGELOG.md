@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.0 (2026-04-06)
+
+### Restructured as Official Claude Code Plugin
+- Migrated to official Claude Code plugin format with `.claude-plugin/plugin.json` manifest
+- Added marketplace support (`.claude-plugin/marketplace.json`)
+- Removed `phyra-` prefix from all component names (plugin namespace `phyra:` handles namespacing)
+- Translated all content from Chinese/English mixed to English-only (`main` branch)
+- Chinese version preserved in `zh-hant` branch
+- Removed custom install/uninstall scripts (replaced by plugin system)
+- Removed `src/` wrapper directory (files now at plugin root)
+- Removed `doc/` directory (content merged into README.md)
+- Commands now invoked as `/phyra:paper-read`, `/phyra:paper-review`, etc.
+
 ## [0.2.1] - 2026-04-06
 
 ### Changed

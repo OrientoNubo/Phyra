@@ -1,4 +1,5 @@
+test/
+.DS_Store
+*.log
 .phyra/drafts/
 .phyra/logs/
-*.phyra-*.md
-.DS_Store
