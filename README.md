@@ -16,7 +16,7 @@ Phyra is a purely academic open-source project. Commercial use and any derived c
 
 ```
 /plugin marketplace add OrientoNubo/Phyra
-/plugin install phyra@phyra-marketplace
+/plugin install phyra@phyra
 ```
 
 ### Local Development
