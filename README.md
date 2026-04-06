@@ -251,6 +251,20 @@ Subagents are specialized workers invoked by commands. They can also be used ind
 | **experiment-planner** | Designs experiments with hypotheses, baselines, ablation plans, and failure mode analysis. | experiment-design |
 | **paper-writer** | Executes paper writing or revision. Never overwrites original files. | paper-writing |
 
+## Token Usage Reference
+
+Approximate token consumption for a 15-page paper using `/phyra:paper-read` (NT mode):
+
+| Agent | Tokens |
+|---|---|
+| paper-parser (inline) | ~15,000 |
+| content-analyst | ~20,800 |
+| html-reporter | ~100,000 |
+| md-reporter | ~34,900 |
+| **Total** | **~170,700** |
+
+Other commands vary. `paper-review` is typically higher due to dual reviewers + chair. `paper-survey` and `paper-graph` depend on the number of papers analyzed.
+
 ## Requirements
 
 - Claude Code CLI (latest version recommended)
