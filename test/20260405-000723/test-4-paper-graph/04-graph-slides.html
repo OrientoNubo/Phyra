@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DETR Family Paper Graph | Phyra</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e4e9;
+    --text-dim: #8b8fa3;
+    --accent: #6c8aff;
+    --accent-dim: rgba(108,138,255,0.15);
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --rose: #fb7185;
+    --cyan: #22d3ee;
+    --purple: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .header p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .graph-container {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  svg.graph {
+    max-width: 900px;
+    width: 100%;
+    height: auto;
+  }
+  .node-circle {
+    cursor: pointer;
+    transition: filter 0.2s;
+  }
+  .node-circle:hover {
+    filter: brightness(1.3);
+  }
+  .edge-line {
+    stroke-width: 1.5;
+    fill: none;
+  }
+  .edge-label {
+    font-size: 9px;
+    fill: var(--text-dim);
+    text-anchor: middle;
+  }
+  .node-label {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--text);
+    text-anchor: middle;
+  }
+  .node-year {
+    font-size: 10px;
+    fill: var(--text-dim);
+    text-anchor: middle;
+  }
+  .legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 10px 20px 30px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  .legend-line {
+    width: 28px;
+    height: 2px;
+  }
+  .section {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 30px 24px;
+  }
+  .section h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-bottom: 24px;
+  }
+  th {
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.45;
+  }
+  tr:hover td { background: var(--accent-dim); }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .tag-builds { background: rgba(74,222,128,0.15); color: var(--green); }
+  .tag-parallel { background: rgba(34,211,238,0.15); color: var(--cyan); }
+  .narrative {
+    line-height: 1.75;
+    color: var(--text);
+    font-size: 0.88rem;
+  }
+  .narrative p { margin-bottom: 14px; }
+  .footer {
+    text-align: center;
+    padding: 30px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    color: var(--text);
+    max-width: 280px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    line-height: 1.5;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+  .tooltip .tt-meta { color: var(--text-dim); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DETR Family: Paper Relationship Graph</h1>
+  <p>5 papers | 10 relationships | Generated 2026-04-05 by Phyra NT workflow</p>
+</div>
+
+<div class="graph-container">
+  <svg class="graph" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+    <!-- Edges -->
+    <!-- DETR -> Deformable DETR -->
+    <path d="M 250 130 Q 300 100 400 170" class="edge-line" stroke="#4ade80" stroke-dasharray="none"/>
+    <text x="310" y="130" class="edge-label">builds-on</text>
+
+    <!-- DETR -> DINO -->
+    <path d="M 250 150 Q 350 250 380 310" class="edge-line" stroke="#4ade80"/>
+    <text x="290" y="245" class="edge-label">builds-on</text>
+
+    <!-- DETR -> RT-DETR -->
+    <path d="M 230 160 Q 350 380 560 400" class="edge-line" stroke="#4ade80"/>
+    <text x="360" y="350" class="edge-label">builds-on</text>
+
+    <!-- DETR -> Co-DETR -->
+    <path d="M 250 145 Q 450 140 630 240" class="edge-line" stroke="#4ade80"/>
+    <text x="440" y="170" class="edge-label">builds-on</text>
+
+    <!-- Deformable DETR -> DINO -->
+    <path d="M 430 200 Q 420 260 400 310" class="edge-line" stroke="#4ade80"/>
+    <text x="430" y="260" class="edge-label">builds-on</text>
+
+    <!-- Deformable DETR -> RT-DETR -->
+    <path d="M 450 200 Q 520 310 570 380" class="edge-line" stroke="#4ade80"/>
+    <text x="530" y="295" class="edge-label">builds-on</text>
+
+    <!-- Deformable DETR -> Co-DETR -->
+    <path d="M 470 190 Q 560 200 640 240" class="edge-line" stroke="#4ade80"/>
+    <text x="570" y="200" class="edge-label">builds-on</text>
+
+    <!-- DINO -> RT-DETR -->
+    <path d="M 400 350 Q 470 390 560 400" class="edge-line" stroke="#4ade80"/>
+    <text x="475" y="395" class="edge-label">builds-on</text>
+
+    <!-- DINO <-> Co-DETR (parallel) -->
+    <path d="M 410 320 Q 520 270 640 260" class="edge-line" stroke="#22d3ee" stroke-dasharray="6,4"/>
+    <text x="525" y="275" class="edge-label">parallel</text>
+
+    <!-- RT-DETR <-> Co-DETR (parallel) -->
+    <path d="M 600 390 Q 640 340 660 280" class="edge-line" stroke="#22d3ee" stroke-dasharray="6,4"/>
+    <text x="650" y="340" class="edge-label">parallel</text>
+
+    <!-- Nodes -->
+    <!-- DETR -->
+    <g class="node-circle" data-paper="detr">
+      <circle cx="230" cy="140" r="36" fill="var(--accent)" opacity="0.9"/>
+      <text x="230" y="136" class="node-label" fill="#fff">DETR</text>
+      <text x="230" y="152" class="node-year" fill="rgba(255,255,255,0.7)">2020</text>
+    </g>
+
+    <!-- Deformable DETR -->
+    <g class="node-circle" data-paper="ddetr">
+      <circle cx="440" cy="180" r="36" fill="#6366f1" opacity="0.9"/>
+      <text x="440" y="174" class="node-label" fill="#fff">Deform.</text>
+      <text x="440" y="190" class="node-year" fill="rgba(255,255,255,0.7)">DETR 2021</text>
+    </g>
+
+    <!-- DINO -->
+    <g class="node-circle" data-paper="dino">
+      <circle cx="380" cy="330" r="36" fill="#8b5cf6" opacity="0.9"/>
+      <text x="380" y="326" class="node-label" fill="#fff">DINO</text>
+      <text x="380" y="342" class="node-year" fill="rgba(255,255,255,0.7)">2023</text>
+    </g>
+
+    <!-- RT-DETR -->
+    <g class="node-circle" data-paper="rtdetr">
+      <circle cx="590" cy="400" r="36" fill="#ec4899" opacity="0.9"/>
+      <text x="590" y="396" class="node-label" fill="#fff">RT-DETR</text>
+      <text x="590" y="412" class="node-year" fill="rgba(255,255,255,0.7)">2024</text>
+    </g>
+
+    <!-- Co-DETR -->
+    <g class="node-circle" data-paper="codetr">
+      <circle cx="660" cy="250" r="36" fill="#f59e0b" opacity="0.9"/>
+      <text x="660" y="246" class="node-label" fill="#fff">Co-DETR</text>
+      <text x="660" y="262" class="node-year" fill="rgba(255,255,255,0.7)">2023</text>
+    </g>
+  </svg>
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-line" style="background:#4ade80;"></div>
+    <span>builds-on</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#22d3ee; border-top: 2px dashed #22d3ee; height:0;"></div>
+    <span>parallel (dashed)</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Relationship Table</h2>
+  <table>
+    <thead>
+      <tr><th>Paper A</th><th>Paper B</th><th>Type</th><th>Direction</th><th>Basis</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DETR</td><td>Deformable DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Replaces global attention with deformable attention to fix slow convergence and small-object weakness</td>
+      </tr>
+      <tr>
+        <td>DETR</td><td>DINO</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Inherits set-prediction framework; improves query initialization and denoising training</td>
+      </tr>
+      <tr>
+        <td>DETR</td><td>RT-DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Retains end-to-end paradigm; redesigns encoder for real-time inference</td>
+      </tr>
+      <tr>
+        <td>DETR</td><td>Co-DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Addresses one-to-one matching inefficiency in DETR training</td>
+      </tr>
+      <tr>
+        <td>Deformable DETR</td><td>DINO</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Uses deformable attention as base architecture; adds CDN and mixed query selection</td>
+      </tr>
+      <tr>
+        <td>Deformable DETR</td><td>RT-DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Decoder uses deformable cross-attention; encoder redesigned for efficiency</td>
+      </tr>
+      <tr>
+        <td>Deformable DETR</td><td>Co-DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Serves as primary experimental baseline; collaborative training applied on its architecture</td>
+      </tr>
+      <tr>
+        <td>DINO</td><td>RT-DETR</td>
+        <td><span class="tag tag-builds">builds-on</span></td>
+        <td>A->B</td>
+        <td>Query selection mechanism inspired by DINO's mixed query selection</td>
+      </tr>
+      <tr>
+        <td>DINO</td><td>Co-DETR</td>
+        <td><span class="tag tag-parallel">parallel</span></td>
+        <td>Uncertain</td>
+        <td>Both published 2023; independently address DETR training efficiency from different angles</td>
+      </tr>
+      <tr>
+        <td>RT-DETR</td><td>Co-DETR</td>
+        <td><span class="tag tag-parallel">parallel</span></td>
+        <td>Uncertain</td>
+        <td>Solve orthogonal problems: inference speed vs. training supervision density</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Development Narrative</h2>
+  <div class="narrative">
+    <p>DETR (2020) established the end-to-end detection paradigm by replacing hand-crafted components (NMS, anchors) with a Transformer encoder-decoder and Hungarian matching. Its two main limitations were slow training convergence (500 epochs) and poor small-object performance, both rooted in the global attention mechanism's inability to efficiently handle high-resolution, multi-scale features.</p>
+    <p>Deformable DETR (2021) addressed both issues by introducing deformable attention that attends to only a sparse set of learned sampling points, enabling multi-scale feature fusion and reducing convergence time by 10x. This became the de facto backbone architecture for subsequent DETR variants.</p>
+    <p>By 2023, the research front split into two parallel efforts. DINO tackled precision through contrastive denoising training and improved query initialization, pushing DETR-family accuracy to 63.2 AP and achieving parity with the strongest conventional detectors. Co-DETR attacked the same underlying problem (sparse supervision from one-to-one matching) from a complementary angle: auxiliary one-to-many heads enrich encoder gradients during training while being discarded at inference, reaching 66.0 AP with additional data.</p>
+    <p>RT-DETR (2024) shifted focus to deployment efficiency. By synthesizing advances from Deformable DETR and DINO into a hybrid encoder with separated intra-scale and cross-scale processing, it achieved the first DETR model to beat YOLO-family detectors on the real-time speed-accuracy Pareto frontier, validating the practical viability of the end-to-end detection paradigm.</p>
+  </div>
+</div>
+
+<div class="footer">
+  Phyra NT Workflow | Paper Graph Report | 2026-04-05
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-meta"></div>
+</div>
+
+<script>
+  const paperInfo = {
+    detr: { title: 'DETR', meta: 'Carion et al. | ECCV 2020 | Set prediction with Transformer + Hungarian matching' },
+    ddetr: { title: 'Deformable DETR', meta: 'Zhu et al. | ICLR 2021 | Deformable attention for multi-scale features, 10x faster convergence' },
+    dino: { title: 'DINO', meta: 'Zhang et al. | ICLR 2023 | Contrastive denoising + mixed query selection, 63.2 AP' },
+    rtdetr: { title: 'RT-DETR', meta: 'Zhao et al. | CVPR 2024 | Efficient hybrid encoder, 108 FPS / 53.1 AP with R50' },
+    codetr: { title: 'Co-DETR', meta: 'Zong et al. | ICCV 2023 | Collaborative hybrid assignments, 66.0 AP with Swin-L' }
+  };
+
+  const tooltip = document.getElementById('tooltip');
+  document.querySelectorAll('.node-circle').forEach(node => {
+    node.addEventListener('mouseenter', e => {
+      const key = node.dataset.paper;
+      const info = paperInfo[key];
+      if (!info) return;
+      tooltip.querySelector('.tt-title').textContent = info.title;
+      tooltip.querySelector('.tt-meta').textContent = info.meta;
+      tooltip.classList.add('visible');
+    });
+    node.addEventListener('mousemove', e => {
+      tooltip.style.left = (e.pageX + 14) + 'px';
+      tooltip.style.top = (e.pageY - 10) + 'px';
+    });
+    node.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('visible');
+    });
+  });
+</script>
+</body>
+</html>

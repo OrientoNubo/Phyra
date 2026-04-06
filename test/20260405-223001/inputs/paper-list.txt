@@ -1,0 +1,5 @@
+VGGT: Visual Geometry Grounded Transformer (Wang et al., CVPR 2025)
+InfiniteVGGT: Visual Geometry Grounded Transformer for Endless Streams (Yuan et al., arXiv 2026)
+DUSt3R: Geometric 3D Vision Made Easy (Wang et al., CVPR 2024)
+MASt3R: Grounding Image Matching in 3D (Leroy et al., ECCV 2024)
+CUT3R: Causal Unposed Temporal 3D Reconstruction (Wang et al., 2025)

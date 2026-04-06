@@ -1,0 +1,1 @@
+Recent advances in streaming 3D reconstruction from video, focusing on methods that extend visual geometry transformers (VGGT) with KV cache management for infinite-horizon operation

@@ -1,0 +1,5 @@
+DETR: End-to-End Object Detection with Transformers (Carion et al., ECCV 2020)
+Deformable DETR: Deformable Transformers for End-to-End Object Detection (Zhu et al., ICLR 2021)
+DINO: DETR with Improved DeNoising Anchor Boxes for End-to-End Object Detection (Zhang et al., ICLR 2023)
+RT-DETR: DETRs Beat YOLOs on Real-time Object Detection (Zhao et al., CVPR 2024)
+Co-DETR: DETRs with Collaborative Hybrid Assignments Training (Zong et al., ICCV 2023)

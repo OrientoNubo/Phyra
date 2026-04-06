@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="wakatake">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAFA: Efficient Multi-Scale Feature Aggregation | Phyra Paper Read</title>
+<style>
+/* === PHYRA DESIGN SYSTEM === */
+:root{--p-primary:var(--theme-primary);--p-light:var(--theme-light);--p-accent:var(--theme-accent);--p-dark:var(--theme-dark);--p-neutral:var(--theme-neutral);--p-text:var(--theme-text)}
+
+[data-theme="wakatake"]{--theme-primary:#5DAC81;--theme-light:#E7F2EC;--theme-accent:#7E42C6;--theme-dark:#152C20;--theme-neutral:#E4E6E5;--theme-text:#1C1C1C}
+[data-theme="nadeshiko"]{--theme-primary:#DC9FB4;--theme-light:#F3E6EB;--theme-accent:#92E566;--theme-dark:#471727;--theme-neutral:#E7E3E4;--theme-text:#1C1C1C}
+[data-theme="kohbai"]{--theme-primary:#E16B8C;--theme-light:#F3E6EA;--theme-accent:#80FA51;--theme-dark:#470B1C;--theme-neutral:#E8E2E4;--theme-text:#F5F2EB}
+[data-theme="suoh"]{--theme-primary:#8E354A;--theme-light:#F3E6E9;--theme-accent:#3DA51D;--theme-dark:#260C12;--theme-neutral:#E7E3E4;--theme-text:#F5F2EB}
+[data-theme="kurenai"]{--theme-primary:#CB1B45;--theme-light:#F3E6E9;--theme-accent:#36E500;--theme-dark:#320711;--theme-neutral:#E8E2E4;--theme-text:#F5F2EB}
+[data-theme="yamabuki"]{--theme-primary:#FFB11B;--theme-light:#F3EFE6;--theme-accent:#1BFFB0;--theme-dark:#3D2B08;--theme-neutral:#E8E6E2;--theme-text:#1C1C1C}
+[data-theme="fujimurasaki"]{--theme-primary:#8A6BBE;--theme-light:#EBE6F3;--theme-accent:#D68352;--theme-dark:#211535;--theme-neutral:#E5E3E7;--theme-text:#F5F2EB}
+[data-theme="hanada"]{--theme-primary:#006284;--theme-light:#E6F0F3;--theme-accent:#C1008F;--theme-dark:#06222C;--theme-neutral:#E2E6E8;--theme-text:#F5F2EB}
+[data-theme="sora"]{--theme-primary:#58B2DC;--theme-light:#E6EFF3;--theme-accent:#F83BBC;--theme-dark:#0A3042;--theme-neutral:#E2E6E8;--theme-text:#1C1C1C}
+[data-theme="tokiwa"]{--theme-primary:#1B813E;--theme-light:#E6F3EB;--theme-accent:#4406BB;--theme-dark:#072B13;--theme-neutral:#E2E8E4;--theme-text:#F5F2EB}
+[data-theme="keshizumi"]{--theme-primary:#434343;--theme-light:#EDEDED;--theme-accent:#526F52;--theme-dark:#191919;--theme-neutral:#E5E5E5;--theme-text:#F5F2EB}
+[data-theme="sumi"]{--theme-primary:#1C1C1C;--theme-light:#EDEDED;--theme-accent:#526F52;--theme-dark:#191919;--theme-neutral:#E5E5E5;--theme-text:#F5F2EB}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Noto Sans TC','Helvetica Neue',Arial,sans-serif;
+  background-color:var(--p-light);
+  color:var(--p-text);
+  line-height:1.6;
+  overflow-x:hidden;
+}
+
+.phyra-bg{
+  position:fixed;inset:0;z-index:0;
+  background-color:var(--p-primary);
+  opacity:0.06;
+  transition:background-color 2s ease-in;
+  pointer-events:none;
+}
+
+.page-container{
+  position:relative;z-index:2;
+  max-width:960px;
+  margin:0 auto;
+  padding:40px 24px 80px;
+}
+
+/* SLIDE BLOCK */
+.slide{
+  background:rgba(255,255,255,0.92);
+  border-radius:12px;
+  padding:36px 40px;
+  margin-bottom:28px;
+  border-left:4px solid var(--p-primary);
+  box-shadow:0 2px 12px rgba(0,0,0,0.06);
+  transition:border-color 2s ease;
+}
+
+.slide-title{
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:2px;
+  color:var(--p-primary);
+  margin-bottom:6px;
+  font-weight:600;
+  transition:color 2s ease;
+}
+
+.slide h2{
+  font-size:22px;
+  font-weight:700;
+  color:var(--p-dark);
+  margin-bottom:16px;
+  transition:color 2s ease;
+}
+
+.slide h3{
+  font-size:16px;
+  font-weight:600;
+  color:var(--p-dark);
+  margin:18px 0 8px;
+  transition:color 2s ease;
+}
+
+.slide p, .slide li{
+  font-size:15px;
+  line-height:1.7;
+  color:var(--p-text);
+  transition:color 2s ease;
+}
+
+.slide ul{
+  padding-left:20px;
+  margin:8px 0;
+}
+
+.slide li{
+  margin-bottom:6px;
+}
+
+/* TABLES */
+.slide table{
+  width:100%;
+  border-collapse:collapse;
+  margin:12px 0;
+  font-size:14px;
+}
+.slide th{
+  background:var(--p-primary);
+  color:#fff;
+  padding:8px 12px;
+  text-align:left;
+  font-weight:600;
+  transition:background-color 2s ease;
+}
+.slide td{
+  padding:7px 12px;
+  border-bottom:1px solid var(--p-neutral);
+  transition:border-color 2s ease;
+}
+.slide tr:hover td{
+  background:var(--p-light);
+  transition:background 0.2s;
+}
+.highlight-row td{
+  font-weight:700;
+  background:rgba(93,172,129,0.1);
+}
+
+/* TAGS */
+.tag{
+  display:inline-block;
+  padding:3px 10px;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:600;
+  margin:2px 4px 2px 0;
+}
+.tag-red{background:rgba(203,27,69,0.12);color:#CB1B45}
+.tag-yellow{background:rgba(255,177,27,0.15);color:#8B6914}
+.tag-green{background:rgba(93,172,129,0.15);color:#1B6B3E}
+.tag-accent{background:rgba(126,66,198,0.12);color:#7E42C6;transition:color 2s ease,background 2s ease}
+
+/* SCORE BAR */
+.score-bar{
+  display:flex;align-items:center;gap:10px;margin:6px 0;
+}
+.score-bar-label{
+  width:130px;font-size:13px;font-weight:600;flex-shrink:0;
+}
+.score-bar-track{
+  flex:1;height:10px;background:var(--p-neutral);border-radius:5px;overflow:hidden;
+  transition:background 2s ease;
+}
+.score-bar-fill{
+  height:100%;border-radius:5px;
+  background:var(--p-primary);
+  transition:width 0.8s ease, background-color 2s ease;
+}
+
+/* HEADER */
+.header-block{
+  text-align:center;
+  padding:48px 20px 36px;
+  margin-bottom:28px;
+}
+.header-block h1{
+  font-size:26px;
+  font-weight:700;
+  color:var(--p-dark);
+  margin-bottom:10px;
+  transition:color 2s ease;
+}
+.header-block .meta{
+  font-size:14px;
+  color:var(--p-primary);
+  transition:color 2s ease;
+}
+.header-block .phyra-badge{
+  display:inline-block;
+  margin-top:12px;
+  padding:4px 14px;
+  border:1.5px solid var(--p-primary);
+  border-radius:20px;
+  font-size:12px;
+  color:var(--p-primary);
+  letter-spacing:1px;
+  transition:border-color 2s ease, color 2s ease;
+}
+
+/* FORMULA */
+.formula{
+  background:var(--p-dark);
+  color:var(--p-light);
+  padding:14px 20px;
+  border-radius:8px;
+  font-family:'Courier New',monospace;
+  font-size:14px;
+  margin:12px 0;
+  overflow-x:auto;
+  transition:background 2s ease, color 2s ease;
+}
+
+/* RED FLAG */
+.red-flag{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:10px 14px;
+  background:rgba(203,27,69,0.06);
+  border-left:3px solid #CB1B45;
+  border-radius:0 8px 8px 0;
+  margin:8px 0;
+  font-size:14px;
+}
+.red-flag-icon{
+  flex-shrink:0;
+  width:20px;
+  height:20px;
+  background:#CB1B45;
+  color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+}
+
+/* SWITCHER */
+.phyra-switcher{
+  position:fixed;bottom:20px;right:20px;z-index:100;
+  display:flex;align-items:center;gap:8px;
+}
+.phyra-switcher button{
+  padding:6px 14px;
+  background:rgba(255,255,255,0.7);
+  border:1px solid var(--p-primary);
+  border-radius:20px;
+  color:var(--p-dark);
+  cursor:pointer;
+  font-size:12px;
+  font-family:inherit;
+  transition:all 0.3s;
+}
+.phyra-switcher button:hover{
+  background:var(--p-primary);
+  color:#fff;
+}
+#phyra-label{
+  font-size:12px;
+  color:var(--p-primary);
+  font-weight:600;
+  transition:color 2s ease;
+}
+
+/* FLOW DIAGRAM */
+.flow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  margin:16px 0;
+  flex-wrap:wrap;
+}
+.flow-box{
+  background:var(--p-primary);
+  color:#fff;
+  padding:8px 16px;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:600;
+  text-align:center;
+  transition:background 2s ease;
+}
+.flow-arrow{
+  font-size:18px;
+  color:var(--p-primary);
+  padding:0 6px;
+  transition:color 2s ease;
+}
+</style>
+</head>
+<body>
+
+<div class="phyra-bg"></div>
+
+<div class="page-container">
+
+<!-- HEADER -->
+<div class="header-block">
+  <h1>Efficient Multi-Scale Feature Aggregation for Real-Time Object Detection</h1>
+  <div class="meta">Wei Zhang, Yuki Tanaka, Sarah Chen &middot; ECCV 2026 (under review)</div>
+  <div class="phyra-badge">PHYRA PAPER READ</div>
+</div>
+
+<!-- SLIDE 1: OVERVIEW -->
+<div class="slide">
+  <div class="slide-title">Overview</div>
+  <h2>What This Paper Does</h2>
+  <p>Proposes <strong>LAFA</strong> (Lightweight Adaptive Feature Aggregation), a module that replaces fixed multi-scale fusion with input-dependent routing. Instead of fusing all scales uniformly, LAFA learns which scale combinations to fuse for each input, using a lightweight routing network and sparse top-K selection at inference.</p>
+  <h3>Domain Tags</h3>
+  <span class="tag tag-accent">Object Detection</span>
+  <span class="tag tag-accent">Multi-Scale Feature Fusion</span>
+  <span class="tag tag-accent">Efficient Inference</span>
+</div>
+
+<!-- SLIDE 2: CORE IDEA -->
+<div class="slide">
+  <div class="slide-title">Core Idea</div>
+  <h2>From Static Fusion to Adaptive Routing</h2>
+  <p>Existing methods (FPN, BiFPN, NAS-FPN) apply the same fusion topology to every spatial location. LAFA argues this is wasteful: large objects need only single-scale features, while small objects near scale boundaries may need non-standard combinations.</p>
+  <div class="formula">O_i = SUM_{j in S_i} R_ij(P_i) * Align(P_j, P_i)  where S_i is dynamically selected per input</div>
+  <p>The routing function R is predicted by GAP + 2 FC layers with Gumbel-Softmax. At inference, only the top-K=2 scales are selected per level.</p>
+</div>
+
+<!-- SLIDE 3: ARCHITECTURE FLOW -->
+<div class="slide">
+  <div class="slide-title">Architecture</div>
+  <h2>LAFA Pipeline</h2>
+  <div class="flow">
+    <div class="flow-box">Backbone<br>(R-50 / Swin-T)</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box">Multi-Scale<br>Features {P3-P7}</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box">Routing Network<br>(GAP + 2 FC)</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box">Sparse Selection<br>(Top-K=2)</div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box">Adaptive Fusion<br>Outputs {O3-O7}</div>
+  </div>
+  <ul>
+    <li>Routing network: global average pooling + 2 FC layers (reduction r=16) + Gumbel-Softmax</li>
+    <li>Align operation: adaptive pooling or interpolation for spatial resolution matching</li>
+  </ul>
+</div>
+
+<!-- SLIDE 4: MAIN RESULTS -->
+<div class="slide">
+  <div class="slide-title">Results</div>
+  <h2>COCO val2017 (ResNet-50)</h2>
+  <table>
+    <tr><th>Method</th><th>mAP</th><th>AP50</th><th>APs</th><th>APl</th><th>FPS</th></tr>
+    <tr><td>FPN</td><td>44.2</td><td>63.8</td><td>27.1</td><td>58.3</td><td>38</td></tr>
+    <tr><td>PANet</td><td>45.1</td><td>64.5</td><td>27.8</td><td>59.1</td><td>34</td></tr>
+    <tr><td>BiFPN</td><td>46.1</td><td>65.3</td><td>28.5</td><td>60.2</td><td>35</td></tr>
+    <tr><td>NAS-FPN</td><td>47.8</td><td>66.9</td><td>29.7</td><td>62.1</td><td>28</td></tr>
+    <tr class="highlight-row"><td>LAFA (ours)</td><td>48.3</td><td>67.4</td><td>30.2</td><td>62.8</td><td>42</td></tr>
+  </table>
+  <p>LAFA achieves the highest mAP (48.3) while being the fastest method (42 FPS), outperforming NAS-FPN by +0.5 mAP at 50% higher throughput.</p>
+</div>
+
+<!-- SLIDE 5: ABLATION -->
+<div class="slide">
+  <div class="slide-title">Ablation</div>
+  <h2>Effect of Sparsity Level K</h2>
+  <table>
+    <tr><th>Configuration</th><th>mAP</th><th>FPS</th><th>Delta</th></tr>
+    <tr><td>BiFPN baseline</td><td>46.1</td><td>35</td><td>-</td></tr>
+    <tr><td>+ Adaptive routing (dense)</td><td>47.9</td><td>31</td><td>+1.8</td></tr>
+    <tr><td>+ Sparse K=3</td><td>47.7</td><td>38</td><td>+1.6</td></tr>
+    <tr class="highlight-row"><td>+ Sparse K=2</td><td>48.3</td><td>42</td><td>+2.2</td></tr>
+    <tr><td>+ Sparse K=1</td><td>46.8</td><td>48</td><td>+0.7</td></tr>
+  </table>
+  <p>K=2 is the optimal tradeoff. Notably, K=2 sparse outperforms dense routing (+0.4 mAP), suggesting that sparsity acts as a regularizer.</p>
+</div>
+
+<!-- SLIDE 6: CROSS-BACKBONE -->
+<div class="slide">
+  <div class="slide-title">Generalization</div>
+  <h2>Cross-Backbone and Cross-Dataset Results</h2>
+  <table>
+    <tr><th>Method</th><th>Backbone</th><th>Dataset</th><th>mAP</th><th>FPS</th></tr>
+    <tr><td>BiFPN</td><td>R-101</td><td>COCO</td><td>47.5</td><td>28</td></tr>
+    <tr class="highlight-row"><td>LAFA</td><td>R-101</td><td>COCO</td><td>49.8</td><td>34</td></tr>
+    <tr><td>BiFPN</td><td>Swin-T</td><td>COCO</td><td>49.2</td><td>22</td></tr>
+    <tr class="highlight-row"><td>LAFA</td><td>Swin-T</td><td>COCO</td><td>51.1</td><td>29</td></tr>
+    <tr><td>BiFPN</td><td>R-50</td><td>Objects365</td><td>28.3</td><td>33</td></tr>
+    <tr class="highlight-row"><td>LAFA</td><td>R-50</td><td>Objects365</td><td>30.1</td><td>40</td></tr>
+  </table>
+</div>
+
+<!-- SLIDE 7: SCORING -->
+<div class="slide">
+  <div class="slide-title">Phyra Assessment</div>
+  <h2>Five-Dimension Scoring</h2>
+
+  <div class="score-bar">
+    <div class="score-bar-label">Problem Validity</div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:75%"></div></div>
+    <span style="font-size:14px;font-weight:700;width:30px">7.5</span>
+  </div>
+  <div class="score-bar">
+    <div class="score-bar-label">Method Soundness</div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:65%"></div></div>
+    <span style="font-size:14px;font-weight:700;width:30px">6.5</span>
+  </div>
+  <div class="score-bar">
+    <div class="score-bar-label">Experimental Adequacy</div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:55%"></div></div>
+    <span style="font-size:14px;font-weight:700;width:30px">5.5</span>
+  </div>
+  <div class="score-bar">
+    <div class="score-bar-label">Novelty</div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:60%"></div></div>
+    <span style="font-size:14px;font-weight:700;width:30px">6.0</span>
+  </div>
+  <div class="score-bar">
+    <div class="score-bar-label">Reproducibility</div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:50%"></div></div>
+    <span style="font-size:14px;font-weight:700;width:30px">5.0</span>
+  </div>
+
+  <p style="margin-top:14px;font-size:14px;">
+    <strong>Weighted average:</strong> 7.5 x 0.15 + 6.5 x 0.30 + 5.5 x 0.30 + 6.0 x 0.15 + 5.0 x 0.10 = <strong>6.23</strong>
+    &nbsp; <span class="tag tag-yellow">Weak Accept</span>
+  </p>
+</div>
+
+<!-- SLIDE 8: RED FLAGS -->
+<div class="slide">
+  <div class="slide-title">Critical Issues</div>
+  <h2>Red Flags Identified</h2>
+
+  <div class="red-flag">
+    <div class="red-flag-icon">1</div>
+    <div><strong>Missing theoretical analysis.</strong> Contribution 2 claims "theoretical analysis showing sparse selection preserves performance" but no theorem, proof, or formal bound appears anywhere in the paper. (Sec 1, Abstract)</div>
+  </div>
+
+  <div class="red-flag">
+    <div class="red-flag-icon">2</div>
+    <div><strong>Per-region vs. per-image mismatch.</strong> The paper claims "per-region routing decisions" but the routing network uses global average pooling, which collapses spatial dimensions. The actual routing is per-image, not per-region. (Sec 3.2)</div>
+  </div>
+
+  <div class="red-flag">
+    <div class="red-flag-icon">3</div>
+    <div><strong>FLOPs not directly measured.</strong> The 38-40% FLOPs reduction claim is supported only by FPS proxy measurements. FPS and FLOPs have a non-linear relationship. (Abstract, Sec 3.2)</div>
+  </div>
+
+  <div class="red-flag">
+    <div class="red-flag-icon">4</div>
+    <div><strong>Outdated baselines.</strong> All comparison methods (FPN 2017, PANet 2018, NAS-FPN 2019, BiFPN 2020) are 6-9 years old. No 2021-2025 methods are benchmarked despite being cited. (Sec 4.1)</div>
+  </div>
+</div>
+
+<!-- SLIDE 9: VERDICT -->
+<div class="slide">
+  <div class="slide-title">Verdict</div>
+  <h2>Overall Assessment</h2>
+  <p>LAFA presents a reasonable idea (adaptive routing for multi-scale fusion) with solid empirical improvements on standard benchmarks. The core experimental results are internally consistent and the ablation confirms the value of both routing and sparsity.</p>
+  <p>However, two high-severity issues weaken the paper: (1) claiming a theoretical contribution that does not exist, and (2) mischaracterizing per-image routing as per-region routing. The outdated baselines further limit the impact claim. A revision addressing these gaps would strengthen the submission considerably.</p>
+  <h3>Worth Reading If</h3>
+  <ul>
+    <li>You work on efficient multi-scale feature fusion for detection</li>
+    <li>You are exploring input-dependent / dynamic network architectures</li>
+  </ul>
+</div>
+
+</div><!-- /page-container -->
+
+<!-- THEME SWITCHER -->
+<div class="phyra-switcher">
+  <span id="phyra-label">若竹 WAKATAKE</span>
+  <button onclick="phyraNext()">Next</button>
+  <button onclick="phyraRandom()">Random</button>
+</div>
+
+<script>
+const PT=[
+  {id:"wakatake",l:"若竹"},{id:"hanada",l:"縹"},{id:"kurenai",l:"紅"},
+  {id:"yamabuki",l:"山吹"},{id:"fujimurasaki",l:"藤紫"},{id:"sora",l:"空"},
+  {id:"tokiwa",l:"常磐"},{id:"kohbai",l:"紅梅"},{id:"nadeshiko",l:"撫子"},
+  {id:"suoh",l:"蘇芳"},{id:"keshizumi",l:"消炭"},{id:"sumi",l:"墨"}
+];
+let pi=0;
+function phyraNext(){
+  pi=(pi+1)%PT.length;
+  document.documentElement.setAttribute('data-theme',PT[pi].id);
+  document.getElementById('phyra-label').textContent=PT[pi].l+' '+PT[pi].id.toUpperCase();
+}
+function phyraRandom(){
+  pi=Math.floor(Math.random()*PT.length);
+  document.documentElement.setAttribute('data-theme',PT[pi].id);
+  document.getElementById('phyra-label').textContent=PT[pi].l+' '+PT[pi].id.toUpperCase();
+}
+</script>
+
+</body>
+</html>
