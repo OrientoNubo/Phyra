@@ -15,19 +15,15 @@ Phyra is a purely academic open-source project. Commercial use and any derived c
 ### From Marketplace
 
 ```
-/plugin marketplace add phyra
+/plugin marketplace add OrientoNubo/Phyra
+/plugin install phyra@phyra-marketplace
 ```
 
 ### Local Development
 
 ```bash
-claude --plugin-dir ./phyra
-```
-
-### Plugin Directory Install
-
-```
-/plugin install phyra@phyra-marketplace
+git clone https://github.com/OrientoNubo/Phyra.git
+claude --plugin-dir ./Phyra
 ```
 
 ## Commands
