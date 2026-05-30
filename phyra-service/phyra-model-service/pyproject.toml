@@ -1,0 +1,35 @@
+[project]
+name = "phyra-model-service"
+version = "0.1.0"
+description = "Shared model layer for the Phyra service suite: managed Ollama lifecycle, GPU/VRAM runtime status, and a pluggable LLM backend abstraction (Ollama / OpenAI-compatible / Claude CLI). Reusable by any Phyra service or future plugin."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "OrientoNubo", email = "d11922023@csie.ntu.edu.tw" }]
+keywords = ["ollama", "llm", "backend", "gpu", "vram", "phyra"]
+
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "openai>=1.50",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.scripts]
+phyra-model-service = "phyra_model_service.service.app:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["phyra_model_service"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

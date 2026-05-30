@@ -48,23 +48,21 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     settings.jobs_dir.mkdir(parents=True, exist_ok=True)
 
-    # Managed Ollama: start a dedicated, correctly-configured Ollama with
-    # the WebUI and stop it on shutdown. Best-effort (spawn is quick;
-    # readiness ≤40s; a first-time model pull runs in a background
-    # thread so it never blocks the server). Disable with
-    # PHYRA_DUALTRANS_MANAGE_OLLAMA=0.
-    ollama = None
-    if settings.manage_ollama:
-        from ..ollama_service import ManagedOllama
+    # Managed Ollama (shared model layer): start a dedicated,
+    # correctly-configured Ollama with the WebUI and stop it on shutdown.
+    # Best-effort (spawn is quick; readiness ≤40s; a first-time model pull
+    # runs in a background thread so it never blocks the server). When the
+    # phyra-model-service is already serving Ollama on the shared port, the
+    # ManagedOllama reuse path detects it and never double-spawns. Disable
+    # with PHYRA_MODEL_MANAGE_OLLAMA=0 (legacy PHYRA_DUALTRANS_MANAGE_OLLAMA
+    # still honored).
+    from phyra_model_service.managed import ManagedOllama
+    from phyra_model_service.settings import ModelSettings
 
-        ollama = ManagedOllama(
-            port=settings.ollama_managed_port,
-            model=settings.ollama_model,
-            base_model=settings.ollama_base_model,
-            num_parallel=settings.ollama_num_parallel,
-            models_dir=settings.ollama_models_dir,
-            keep_alive=settings.ollama_keep_alive,
-        )
+    ms = ModelSettings()
+    ollama = None
+    if ms.manage:
+        ollama = ManagedOllama.from_settings(ms)
         await asyncio.to_thread(ollama.start)
     app.state.ollama = ollama
 

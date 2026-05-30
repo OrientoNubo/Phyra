@@ -25,10 +25,13 @@ SVC_DIR="$(dirname "$HERE")"               # …/phyra-service（archbase / dual
 CT_DIR="$HERE"
 AB_DIR="$SVC_DIR/phyra-archbase"
 DT_DIR="$SVC_DIR/phyra-dualtrans"
+MS_DIR="$SVC_DIR/phyra-model-service"
 
 CT_PORT="${CT_PORT:-8035}"
 AB_PORT="${AB_PORT:-8037}"
 DT_PORT="${DT_PORT:-8039}"
+MS_PORT="${MS_PORT:-8041}"                       # model-service 控制面埠
+MS_OLLAMA_PORT="${PHYRA_MODEL_OLLAMA_PORT:-11500}"  # 共用 managed Ollama 埠
 HOST="${HOST:-0.0.0.0}"
 LOG_DIR="$HERE/.logs"
 mkdir -p "$LOG_DIR"
@@ -38,6 +41,7 @@ c() { printf '\033[1;36m▶ %s\033[0m\n' "$1"; }
 [ -x "$CT_DIR/script/server.py" ] || { echo "找不到 $CT_DIR/script/server.py" >&2; exit 1; }
 [ -x "$AB_DIR/script/serve.sh" ]  || { echo "找不到 $AB_DIR/script/serve.sh"  >&2; exit 1; }
 [ -f "$DT_DIR/scripts/start.sh" ] || { echo "找不到 $DT_DIR/scripts/start.sh" >&2; exit 1; }
+[ -f "$MS_DIR/scripts/start.sh" ] || { echo "找不到 $MS_DIR/scripts/start.sh" >&2; exit 1; }
 
 pids=()
 cleanup() {
@@ -61,23 +65,42 @@ PORT="$AB_PORT" HOST="$HOST" PHYRA_CENTER_PORT="$CT_PORT" \
   bash "$AB_DIR/script/serve.sh" >"$LOG_DIR/archbase.log" 2>&1 &
 pids+=($!)
 
-# 2) 翻譯服務：背景跑；瀏覽器交給本腳本統一開（避免各開分頁） ────────────
+# 2) 模型服務：最先啟動，它擁有共用的 managed Ollama（loopback）。隨後的
+#    dualtrans 會偵測到這個已在跑的 Ollama 並重用，不會重複 spawn。 ───────
+c "啟動 phyra-model-service（控制面 :$MS_PORT；共用 Ollama :$MS_OLLAMA_PORT）"
+PORT="$MS_PORT" HOST=127.0.0.1 \
+  PHYRA_MODEL_OLLAMA_PORT="$MS_OLLAMA_PORT" \
+  bash "$MS_DIR/scripts/start.sh" >"$LOG_DIR/model-service.log" 2>&1 &
+pids+=($!)
+
+# 等共用 Ollama 的 HTTP 起來（serve 通常 ~2s；模型 pull 在背景續跑），dualtrans
+# 才啟動 → 必定走重用路徑。逾時就照常啟動（dualtrans 會自行 spawn）。
+c "等待共用 Ollama 就緒（:$MS_OLLAMA_PORT）…"
+for _ in $(seq 1 30); do
+  curl -fsS "http://127.0.0.1:$MS_OLLAMA_PORT/api/tags" >/dev/null 2>&1 && break
+  sleep 1
+done
+
+# 3) 翻譯服務：背景跑；瀏覽器交給本腳本統一開（避免各開分頁）。透傳共用
+#    Ollama 埠，讓 dualtrans 的 ManagedOllama 指向同一個實例並重用。 ───────
 c "啟動 phyra-dualtrans（:$DT_PORT；首次會下載 ~340MB 模型）"
 PORT="$DT_PORT" HOST="$HOST" NO_BROWSER=1 \
   PHYRA_DUALTRANS_ARCHBASE_PORT="$AB_PORT" \
   PHYRA_DUALTRANS_CENTER_PORT="$CT_PORT" \
+  PHYRA_MODEL_OLLAMA_PORT="$MS_OLLAMA_PORT" \
   bash "$DT_DIR/scripts/start.sh" >"$LOG_DIR/dualtrans.log" 2>&1 &
 pids+=($!)
 
-# 3) Center 主頁：純 stdlib，秒啟動 ─────────────────────────────────────
+# 4) Center 主頁：純 stdlib，秒啟動 ─────────────────────────────────────
 c "啟動 phyra-center（:$CT_PORT）"
 PORT="$CT_PORT" HOST="$HOST" \
   PHYRA_ARCHBASE_PORT="$AB_PORT" PHYRA_DUALTRANS_PORT="$DT_PORT" \
   python3 "$CT_DIR/script/server.py" >"$LOG_DIR/center.log" 2>&1 &
 pids+=($!)
 
-# 即時輸出三邊 log
-tail -n +1 -F "$LOG_DIR/center.log" "$LOG_DIR/archbase.log" "$LOG_DIR/dualtrans.log" &
+# 即時輸出各服務 log
+tail -n +1 -F "$LOG_DIR/center.log" "$LOG_DIR/archbase.log" \
+  "$LOG_DIR/dualtrans.log" "$LOG_DIR/model-service.log" &
 pids+=($!)
 
 # 服務就緒後開瀏覽器到 Center 主頁。等 Center /healthz 起來就開；
@@ -104,12 +127,14 @@ c "Phyra Center 啟動中"
 printf '  主頁：             http://localhost:%s/\n' "$CT_PORT"
 printf '  論文庫：           http://localhost:%s/\n' "$AB_PORT"
 printf '  翻譯服務：         http://localhost:%s/\n' "$DT_PORT"
+printf '  模型服務：         http://localhost:%s/  (控制面；Ollama :%s)\n' \
+  "$MS_PORT" "$MS_OLLAMA_PORT"
 if [ "$HOST" = "0.0.0.0" ]; then
   for ip in $(hostname -I 2>/dev/null || true); do
     printf '  內網：             http://%s:%s/  (Center)\n' "$ip" "$CT_PORT"
   done
 fi
-printf '  logs：             %s/{center,archbase,dualtrans}.log\n' "$LOG_DIR"
+printf '  logs：             %s/{center,archbase,dualtrans,model-service}.log\n' "$LOG_DIR"
 printf '  （Ctrl+C 一次停掉全部）\n\n'
 
 wait

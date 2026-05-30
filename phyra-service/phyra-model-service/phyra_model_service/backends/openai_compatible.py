@@ -16,11 +16,11 @@ import logging
 import openai
 from openai import OpenAI
 
-from ..pipeline.prompts import clean
-from ..vendor._retry import is_rate_limit_response
+from ..retry import is_rate_limit_response
+from ..text import clean
 from .base import BackendConfig, HardCallError, RateLimitSignal
 
-log = logging.getLogger("phyra-dualtrans.backend.openai")
+log = logging.getLogger("phyra-model-service.backend.openai")
 
 
 class OpenAICompatibleClient:

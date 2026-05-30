@@ -12,11 +12,11 @@ import logging
 import shutil
 import subprocess
 
-from ..pipeline.prompts import clean
-from ..vendor._retry import is_rate_limit_response
+from ..retry import is_rate_limit_response
+from ..text import clean
 from .base import BackendConfig, BackendUnavailable, HardCallError, RateLimitSignal
 
-log = logging.getLogger("phyra-dualtrans.backend.claude")
+log = logging.getLogger("phyra-model-service.backend.claude")
 
 
 def claude_bin() -> str:

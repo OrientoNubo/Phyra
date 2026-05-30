@@ -1,12 +1,18 @@
 """
 Managed Ollama lifecycle.
 
-The user wants the WebUI to own Ollama: starting the service starts a
-correctly-configured Ollama; stopping the WebUI stops it. We run a
+A Phyra service can own Ollama: starting the service starts a
+correctly-configured Ollama; stopping the service stops it. We run a
 DEDICATED instance on its own loopback port (default 11500) so it never
 collides with — or kills — a system Ollama (:11434) or the user's own
 manual instance (:18763). If something is already serving Ollama on our
 port we reuse it (and never kill it on shutdown).
+
+This is the single, shared spawn/supervise/teardown implementation used by
+both the standalone phyra-model-service and any sibling service
+(phyra-dualtrans) that wants a managed Ollama when run on its own. When
+the model-service is already up on the shared port, the sibling's
+ManagedOllama detects it via the reuse path and never double-spawns.
 
 Model choice (delegated to us): a translation-tuned variant of
 `qwen3:14b` ("phyra-trans"). On a 32 GB GPU a 14B Q4 (~9 GB) leaves
@@ -14,13 +20,11 @@ ample headroom for real OLLAMA_NUM_PARALLEL concurrency and is ~2–3×
 faster than 32B while keeping zh-TW academic quality. The Modelfile
 mirrors the user's qwen3-32b-trans recipe (num_ctx 8192 — per-paragraph
 translation never needs more; temp 0.3 / top_p 0.9 / repeat_penalty
-1.05). Override the base with PHYRA_DUALTRANS_OLLAMA_BASE_MODEL (e.g.
-`qwen3:32b` to reuse already-pulled weights and skip the ~9 GB pull).
+1.05). Override the base with PHYRA_MODEL_OLLAMA_BASE_MODEL.
 
-Everything is best-effort: any failure here is logged and the server
-still starts — preflight then reports Ollama clearly instead of the
-process crashing. The server NEVER imports babeldoc; this module only
-manages a subprocess, so the isolation boundary is untouched.
+Everything is best-effort: any failure here is logged and the caller
+still starts. This module only manages a subprocess; it never imports a
+translation engine, so any isolation boundary upstream is untouched.
 """
 
 from __future__ import annotations
@@ -38,7 +42,9 @@ from pathlib import Path
 
 import httpx
 
-log = logging.getLogger("phyra-dualtrans.ollama")
+from .settings import DEFAULT_KEEP_ALIVE, ModelSettings
+
+log = logging.getLogger("phyra-model-service.ollama")
 
 _MODELFILE = (
     "FROM {base}\n"
@@ -67,7 +73,7 @@ def _is_ollama(base_url: str, timeout: float = 1.5) -> bool:
 
 class ManagedOllama:
     """Spawns + supervises a dedicated Ollama, ensures the tuned model
-    exists, and tears it down with the WebUI."""
+    exists, and tears it down with the owning service."""
 
     def __init__(
         self,
@@ -77,7 +83,7 @@ class ManagedOllama:
         base_model: str,
         num_parallel: int,
         models_dir: str | None = None,
-        keep_alive: str = "10s",
+        keep_alive: str = DEFAULT_KEEP_ALIVE,
     ) -> None:
         self.port = port
         self.model = model
@@ -92,26 +98,41 @@ class ManagedOllama:
         self.model_status = "pending"  # pending|preparing|ready|error|off
         self._bin = shutil.which("ollama")
 
+    @classmethod
+    def from_settings(cls, settings: ModelSettings | None = None) -> "ManagedOllama":
+        """Build from the unified ModelSettings (the canonical defaults +
+        env). The single constructor both the model-service and a
+        standalone sibling should use."""
+        s = settings or ModelSettings()
+        return cls(
+            port=s.ollama_port,
+            model=s.model,
+            base_model=s.base_model,
+            num_parallel=s.num_parallel,
+            models_dir=s.models_dir,
+            keep_alive=s.keep_alive,
+        )
+
     # ---- lifecycle ----------------------------------------------------
 
     def start(self) -> None:
         """Spawn (or reuse) Ollama, wait for the HTTP API, then ensure
         the model in a background thread (a first-time pull is GBs — must
-        not block server readiness). Never raises."""
+        not block readiness). Never raises."""
         try:
             if _is_ollama(self.host):
                 log.info("reusing the Ollama already serving on %s "
                          "(not managed by us)", self.host)
             elif _port_open("127.0.0.1", self.port):
                 log.warning("port %d busy but not Ollama; managed Ollama "
-                            "disabled (set PHYRA_DUALTRANS_OLLAMA_PORT)",
+                            "disabled (set PHYRA_MODEL_OLLAMA_PORT)",
                             self.port)
                 self.model_status = "error"
                 return
             elif not self._bin:
                 log.warning("`ollama` binary not found on PATH; managed "
                             "Ollama disabled (install Ollama, or set "
-                            "PHYRA_DUALTRANS_MANAGE_OLLAMA=0 and point the "
+                            "PHYRA_MODEL_MANAGE_OLLAMA=0 and point the "
                             "ollama backend Base URL at your own server)")
                 self.model_status = "error"
                 return
@@ -127,7 +148,7 @@ class ManagedOllama:
                 target=self._ensure_model_safe, daemon=True,
                 name="ollama-ensure-model",
             ).start()
-        except Exception as e:  # noqa: BLE001 — server must still start
+        except Exception as e:  # noqa: BLE001 — caller must still start
             log.exception("managed Ollama start failed: %s", e)
             self.model_status = "error"
 
@@ -171,7 +192,7 @@ class ManagedOllama:
 
     def stop(self) -> None:
         """Terminate the managed Ollama (only if we spawned it) so
-        closing the WebUI closes Ollama. Never raises."""
+        closing the owning service closes Ollama. Never raises."""
         if not (self._owned and self._proc):
             return
         log.info("stopping managed Ollama (pid=%s)", self._proc.pid)

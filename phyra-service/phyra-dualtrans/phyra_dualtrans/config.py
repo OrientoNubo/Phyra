@@ -29,7 +29,16 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .backends.base import BackendConfig
+from phyra_model_service.backends.base import BackendConfig
+from phyra_model_service.settings import ModelSettings
+
+# The shared model layer owns all Ollama config + defaults; dualtrans no
+# longer declares its own ollama_* settings. `model_settings()` reads a
+# fresh ModelSettings (cheap; env-only) so monkeypatched env / .env is
+# always reflected. The legacy PHYRA_DUALTRANS_OLLAMA_* env names still
+# work (ModelSettings accepts them as aliases).
+def model_settings() -> ModelSettings:
+    return ModelSettings()
 
 
 def _xdg(base_env: str, fallback: str) -> Path:
@@ -124,43 +133,11 @@ class AppSettings(BaseSettings):
     openai_api_key: SecretStr | None = Field(
         None, validation_alias="OPENAI_API_KEY"
     )
-    ollama_host: str = Field(
-        "http://localhost:11434", validation_alias="OLLAMA_HOST"
-    )
-
-    # Managed Ollama: the WebUI owns a dedicated Ollama on its own
-    # loopback port (never collides with / kills a system :11434 or the
-    # user's manual instance). Default ON — starting the WebUI starts
-    # Ollama, stopping it stops Ollama. Set =0 to use your own server.
-    manage_ollama: bool = Field(
-        True, validation_alias="PHYRA_DUALTRANS_MANAGE_OLLAMA"
-    )
-    ollama_managed_port: int = Field(
-        11500, validation_alias="PHYRA_DUALTRANS_OLLAMA_PORT"
-    )
-    # The tuned model the UI defaults to (created from the base on first
-    # run). qwen3:14b balances zh-TW quality / speed / context on a
-    # 32 GB GPU; set the base to qwen3:32b to reuse pulled weights.
-    ollama_model: str = Field(
-        "phyra-trans", validation_alias="PHYRA_DUALTRANS_OLLAMA_MODEL"
-    )
-    ollama_base_model: str = Field(
-        "qwen3:14b", validation_alias="PHYRA_DUALTRANS_OLLAMA_BASE_MODEL"
-    )
-    ollama_num_parallel: int = Field(
-        2, validation_alias="PHYRA_DUALTRANS_OLLAMA_NUM_PARALLEL"
-    )
-    # How long Ollama keeps the model in VRAM after the last request.
-    # Sent as `keep_alive` on every chat call, so it resets while a job is
-    # running and fires only once translation goes idle — then Ollama
-    # unloads and the VRAM is freed (the silent CPU-fallback badge will
-    # show "no model loaded", which is correct). "10s" / "5m" / 0 / -1.
-    ollama_keep_alive: str = Field(
-        "10s", validation_alias="PHYRA_DUALTRANS_OLLAMA_KEEP_ALIVE"
-    )
-    ollama_models_dir: str | None = Field(
-        None, validation_alias="PHYRA_DUALTRANS_OLLAMA_MODELS_DIR"
-    )
+    # NOTE: all Ollama config (managed port, model, base_model,
+    # num_parallel, keep_alive, models_dir, fallback host) now lives in the
+    # shared phyra_model_service.settings.ModelSettings — accessed via
+    # model_settings() above, not declared here. The legacy
+    # PHYRA_DUALTRANS_OLLAMA_* / OLLAMA_HOST env names still work.
 
     # Optional password gating the `claude_cli` backend, which spends
     # THIS host's Claude Code auth (no key, billed to the operator).
@@ -233,16 +210,14 @@ BUILTIN_DEFAULTS: dict = {
 }
 
 
-def managed_ollama_host(settings: AppSettings | None = None) -> str | None:
+def managed_ollama_host(settings: ModelSettings | None = None) -> str | None:
     """The dedicated managed-Ollama host, or None when management is off
     (then the env OLLAMA_HOST / per-request Base URL is used instead).
     Not a secret — but still resolved server-side, never echoed in
     /api/settings, so the per-user-prefs / no-shared-base_url invariant
-    holds."""
-    s = settings or get_settings()
-    if not s.manage_ollama:
-        return None
-    return f"http://127.0.0.1:{s.ollama_managed_port}"
+    holds. Delegates to the shared ModelSettings."""
+    s = settings or model_settings()
+    return s.managed_host()
 
 
 def archbase_paths(
@@ -273,9 +248,9 @@ def builtin_defaults() -> dict:
     Ollama is managed, the model defaults to the tuned managed model so
     the user need not type a Base URL or model at all."""
     d = dict(BUILTIN_DEFAULTS)
-    s = get_settings()
-    if s.manage_ollama:
-        d["model"] = s.ollama_model
+    ms = model_settings()
+    if ms.manage:
+        d["model"] = ms.model
     return d
 
 
@@ -298,6 +273,7 @@ def resolve_backend(
     by sending a custom base_url with a blank key.
     """
     settings = get_settings()
+    ms = model_settings()
 
     eff_model = model or ("sonnet" if kind == "claude_cli" else "")
 
@@ -309,9 +285,7 @@ def resolve_backend(
         elif kind == "ollama":
             # default to the managed Ollama when enabled, so the user
             # need not set a Base URL at all; else the env OLLAMA_HOST.
-            eff_base = (
-                managed_ollama_host(settings) or settings.ollama_host
-            )
+            eff_base = managed_ollama_host(ms) or ms.ollama_host
 
     eff_key: str | None = None
     if api_key and api_key != "***":
@@ -330,5 +304,5 @@ def resolve_backend(
         api_key=SecretStr(eff_key) if eff_key else None,
         extra_headers=extra_headers or {},
         think=think,
-        keep_alive=settings.ollama_keep_alive,  # Ollama idle-unload window
+        keep_alive=ms.keep_alive,  # Ollama idle-unload window (shared setting)
     )

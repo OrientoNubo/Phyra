@@ -18,10 +18,17 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.7",
     "pydantic-settings>=2.4",
+    # Shared model layer (managed Ollama, backends, runtime status).
+    # Lives next door in the monorepo; installed editable via the source
+    # mapping below.
+    "phyra-model-service",
 ]
 
 [project.scripts]
 phyra-dualtrans = "phyra_dualtrans.web.app:main"
+
+[tool.uv.sources]
+phyra-model-service = { path = "../phyra-model-service", editable = true }
 
 [project.urls]
 Repository = "https://github.com/OrientoNubo/phyra-dualtrans"

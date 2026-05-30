@@ -1,48 +1,55 @@
-"""Managed-Ollama lifecycle + config wiring. No real Ollama is spawned:
-the subprocess / HTTP seams are mocked. The real spawn→ready→stop path
-is exercised by the operator at runtime, not in unit tests."""
+"""ManagedOllama lifecycle + unified-settings defaults. No real Ollama is
+spawned: the subprocess / HTTP seams are mocked. The real
+spawn→ready→stop path is exercised at runtime, not in unit tests.
+
+These moved out of phyra-dualtrans because they monkeypatch the module's
+own internals (`_is_ollama`, `shutil`), which only works when imported
+from the module that actually defines them."""
 
 from __future__ import annotations
 
-import phyra_dualtrans.ollama_service as osvc
-from phyra_dualtrans.config import (
-    builtin_defaults,
-    get_settings,
-    managed_ollama_host,
-    resolve_backend,
+import phyra_model_service.managed as osvc
+from phyra_model_service.managed import ManagedOllama
+from phyra_model_service.settings import (
+    DEFAULT_KEEP_ALIVE,
+    DEFAULT_MANAGED_PORT,
+    DEFAULT_MODEL,
+    ModelSettings,
 )
-from phyra_dualtrans.ollama_service import ManagedOllama
 
 
-def _reload_settings(monkeypatch, **env):
-    for k, v in env.items():
-        monkeypatch.setenv(k, v)
-    get_settings.cache_clear()
-    return get_settings()
+def _mk(**kw):
+    return ManagedOllama(
+        port=kw.get("port", 11599), model=kw.get("model", "phyra-trans"),
+        base_model=kw.get("base", "qwen3:14b"),
+        num_parallel=kw.get("np", 2),
+    )
 
 
-def test_resolve_backend_uses_managed_host_when_enabled(monkeypatch):
-    _reload_settings(monkeypatch,
-                     PHYRA_DUALTRANS_MANAGE_OLLAMA="1",
-                     PHYRA_DUALTRANS_OLLAMA_PORT="11500")
-    cfg = resolve_backend(kind="ollama")
-    assert cfg.base_url == "http://127.0.0.1:11500"
-    assert managed_ollama_host() == "http://127.0.0.1:11500"
-    # the UI first-paint model becomes the tuned managed model
-    assert builtin_defaults()["model"] == "phyra-trans"
-    # an explicit per-request Base URL still wins
-    cfg2 = resolve_backend(kind="ollama", base_url="http://x:9/v1")
-    assert cfg2.base_url == "http://x:9/v1"
+def test_default_keep_alive_is_the_shared_constant():
+    svc = _mk()
+    assert svc.keep_alive == DEFAULT_KEEP_ALIVE      # single source of truth
 
 
-def test_resolve_backend_falls_back_when_unmanaged(monkeypatch):
-    _reload_settings(monkeypatch,
-                     PHYRA_DUALTRANS_MANAGE_OLLAMA="0",
-                     OLLAMA_HOST="http://localhost:11434")
-    assert managed_ollama_host() is None
-    assert resolve_backend(kind="ollama").base_url == \
-        "http://localhost:11434"
-    assert "base_url" not in builtin_defaults()        # never echoed
+def test_from_settings_uses_unified_defaults(monkeypatch):
+    # no env → canonical defaults from ModelSettings
+    for k in ("PHYRA_MODEL_OLLAMA_PORT", "PHYRA_DUALTRANS_OLLAMA_PORT",
+              "PHYRA_MODEL_OLLAMA_MODEL", "PHYRA_DUALTRANS_OLLAMA_MODEL",
+              "PHYRA_MODEL_OLLAMA_KEEP_ALIVE",
+              "PHYRA_DUALTRANS_OLLAMA_KEEP_ALIVE"):
+        monkeypatch.delenv(k, raising=False)
+    svc = ManagedOllama.from_settings(ModelSettings())
+    assert svc.port == DEFAULT_MANAGED_PORT
+    assert svc.model == DEFAULT_MODEL
+    assert svc.keep_alive == DEFAULT_KEEP_ALIVE
+
+
+def test_legacy_env_alias_still_honored(monkeypatch):
+    monkeypatch.setenv("PHYRA_DUALTRANS_OLLAMA_KEEP_ALIVE", "30s")
+    monkeypatch.setenv("PHYRA_DUALTRANS_OLLAMA_PORT", "11577")
+    svc = ManagedOllama.from_settings(ModelSettings())
+    assert svc.keep_alive == "30s"
+    assert svc.port == 11577
 
 
 def test_has_matches_tag_variants():
@@ -52,14 +59,6 @@ def test_has_matches_tag_variants():
     assert h(names, "qwen3:14b") is True
     assert h(names, "qwen3") is True                   # family match
     assert h(names, "llama3") is False
-
-
-def _mk(**kw):
-    return ManagedOllama(
-        port=kw.get("port", 11599), model=kw.get("model", "phyra-trans"),
-        base_model=kw.get("base", "qwen3:14b"),
-        num_parallel=kw.get("np", 2),
-    )
 
 
 def test_start_no_binary_is_safe(monkeypatch):
@@ -78,8 +77,7 @@ def test_start_reuses_existing_ollama(monkeypatch):
     monkeypatch.setattr(osvc, "_is_ollama", lambda *a, **k: True)
     spawned = []
     svc = _mk()
-    monkeypatch.setattr(svc, "_spawn",
-                        lambda: spawned.append(True))
+    monkeypatch.setattr(svc, "_spawn", lambda: spawned.append(True))
     monkeypatch.setattr(svc, "_ensure_model_safe", lambda: None)
     svc.start()
     assert spawned == []                # reused, never spawned
@@ -104,7 +102,6 @@ def test_ensure_model_present_is_ready(monkeypatch):
 def test_ensure_model_pulls_then_creates(monkeypatch):
     svc = _mk()
     svc._bin = "/usr/bin/ollama"
-    # base absent first; after "pull" the create succeeds
     monkeypatch.setattr(svc, "_tags", lambda: [])
     seen = []
 
@@ -112,7 +109,6 @@ def test_ensure_model_pulls_then_creates(monkeypatch):
         seen.append(args[0])
         return True
     monkeypatch.setattr(svc, "_ollama", fake_ollama)
-    # after create, _has(self._tags(), model) must be True
     monkeypatch.setattr(svc, "_tags",
                         lambda: ["phyra-trans:latest"]
                         if "create" in seen else [])
