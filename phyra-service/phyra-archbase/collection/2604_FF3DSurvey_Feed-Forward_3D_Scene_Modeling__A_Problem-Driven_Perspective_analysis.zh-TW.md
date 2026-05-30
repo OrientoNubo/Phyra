@@ -1,0 +1,492 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# FF3D-Survey — Feed-Forward 3D Scene Modeling: A Problem-Driven Perspective
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | FF3D-Survey |
+| Paper full title | Feed-Forward 3D Scene Modeling: A Problem-Driven Perspective |
+| arXiv ID | 2604.14025 |
+| Release date | 2026-04-15 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2604.14025 |
+| PDF link | https://arxiv.org/pdf/2604.14025 |
+| Code link | https://github.com/ff3d-survey |
+| Project page | https://ff3d-survey.github.io |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Weijie Wang | Zhejiang University, China | https://lhmd.top/ | first author (equal contribution) |
+| Qihang Cao | Nanyang Technological University, Singapore | — | co-first author (equal contribution) |
+| Sensen Gao | Nanyang Technological University, Singapore | — | co-first author (equal contribution) |
+| Donny Y. Chen | Monash University, Australia | — | project lead |
+| Haofei Xu | ETH Zurich, Switzerland; University of Tübingen, Tübingen AI Center, Germany | — | co-author |
+| Wenjing Bian | University of Tübingen, Tübingen AI Center, Germany | — | co-author |
+| Songyou Peng | ETH Zurich, Switzerland | — | co-author |
+| Tat-Jen Cham | Nanyang Technological University, Singapore | — | co-author |
+| Chuanxia Zheng | Nanyang Technological University, Singapore | — | co-author |
+| Andreas Geiger | University of Tübingen, Tübingen AI Center, Germany | — | co-author |
+| Jianfei Cai | Monash University, Australia | — | co-author |
+| Jia-Wang Bian | Nanyang Technological University, Singapore | https://jwbian.net/ | corresponding author |
+| Bohan Zhuang | Zhejiang University, China | https://bohanzhuang.github.io/ | corresponding author |
+
+### 1.2 Keywords
+
+Feed-forward 3D reconstruction, Generalizable 3D, NeRF, 3D Gaussian Splatting, Pointmap, Multi-view fusion, 4D dynamic reconstruction, Survey
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| NeRF (Mildenhall et al., 2020) | base model | Neural Radiance Fields — foundational implicit 3D representation that many feed-forward methods generate or distill. |
+| 3D Gaussian Splatting (Kerbl et al., 2023) | base model | 3DGS explicit primitive representation; widely adopted output target for feed-forward generalizable reconstruction. |
+| DUSt3R / Pointmap (Wang et al.) | base model | Pointmap representation that enables pose-free feed-forward 3D reconstruction from image pairs. |
+| PixelNeRF / feed-forward NeRF (refs [11,12]) | predecessor | Early feed-forward generalizable NeRF works that established image-conditioned single-pass 3D inference. |
+| Prior survey on feed-forward 3D reconstruction (ref [20]) | predecessor | Earlier survey that organized methods by 3D representation; this paper re-organizes the field problem-first. |
+| Structure-from-Motion (SfM, ref [9]) | influence | Classical multi-view geometry baseline; per-scene optimization paradigm that feed-forward methods aim to replace. |
+| Multi-View Stereo (MVS, ref [10]) | influence | Classical dense reconstruction baseline; motivates learning-based generalizable alternatives. |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本文是一篇針對 feed-forward 3D scene modeling 的綜述,系統性整理近年從 2D 影像直接於單次前向傳遞中產生 3D 表徵(NeRF、3DGS、Pointmap、Mesh、SDF、Occupancy 等)的可泛化重建方法。作者跳脫以輸出表徵為主的傳統分類,改採以「研究問題」為核心的分類體系,將領域歸納為五個關鍵方向:(1) feature enhancement 以提升 2D-to-3D lifting 的特徵品質;(2) geometry awareness 以注入幾何先驗應對稀疏輸入;(3) model efficiency 以降低運算與記憶體開銷;(4) augmentation strategies 利用生成模型擴增資料與視覺多樣性;(5) temporal-aware models 以處理動態 4D 場景。文章亦重新檢視 geometry-oriented 與 visual-oriented 資料集與基準,綜整自動駕駛、機器人、場景理解、SfM/SLAM、影片生成等實際應用,並指出基準嚴謹度、可擴展表徵、世界模型與感知重建統一等未來方向。
+
+### 2.2 Domain Tags
+
+- Computer Vision
+- 3D Reconstruction
+- Neural Rendering
+- Generalizable / Feed-forward 3D
+- Survey
+
+### 2.3 Core Architectures Used
+
+- **Encoder–Decoder–(optional) Renderer pipeline**:本綜述提出的統一 problem formulation,將所有 feed-forward 3D 方法抽象為 $\Phi_{\text{image}}$ 抽取 implicit feature maps、$\Psi_{\text{pred}}$ 解碼為 3D 表徵 $G$,以及可選的 renderer $R$ 合成新視角影像(§2,Eqs. 1–5)。
+- **NeRF (Neural Radiance Fields)**:以 MLP 將 5D 座標 $(x, d)$ 對應到 $(c, \sigma)$ 並透過可微 volume rendering 合成影像,是 feed-forward 化(如 PixelNeRF)的核心隱式表徵之一(§3.1)。
+- **3D Gaussian Splatting (3DGS)**:以一組各向異性 3D Gaussians $(\mu, \Sigma, \alpha, c)$ 顯式建模場景並透過可微 splatting 即時渲染,是 feed-forward 方法(如 pixelSplat)最廣泛採用的輸出表徵(§3.2)。
+- **Pointmap (DUSt3R 風格)**:以 ViT 直接回歸像素對齊的 dense 3D point field $X \in \mathbb{R}^{H \times W \times 3}$,在不需相機姿態的情況下統一深度估測與相對位姿推論(§3.3)。
+- **其他幾何/外觀表徵**:Mesh、SDF、Occupancy、Light Fields、Texture Fields、Triplane、2DGS 等,被本綜述用以涵蓋 neural rendering 之前的早期 feed-forward 工作與當前的混合表徵(§3.4)。
+- **Encoder backbones 與 pre-trained priors**:ViT、ResNet、U-Net、Mamba/Mamba2 等骨幹,經常以 CroCo、DINO/DINOv2、CLIP、UniMatch、diffusion models 或 VAE 等 visual foundation models 進行初始化或增強,作為 feature enhancement 的主要載體(Fig. 3,§4.1)。
+- **問題驅動分類體系 (Problem-driven Taxonomy)**:本文的核心貢獻——以 feature enhancement、geometry awareness、model efficiency、augmentation strategies、temporal-aware models 五個研究方向取代以表徵為主的舊分類(§4,Fig. 1–2)。
+
+### 2.4 Core Argument
+
+作者觀察到一個關鍵現象:儘管 feed-forward 3D 方法的輸出表徵高度多樣(從隱式 NeRF/SDF 到顯式 3DGS、Pointmap、Mesh),這些方法在高層架構設計上卻共享相似的模式——影像特徵抽取 backbone、多視角資訊融合機制、以及幾何感知設計原則。既有綜述(ref [20])沿用以表徵為主軸的分類,會把功能目標完全不同的方法混在同一類,也會把面對相同挑戰但採用不同表徵的方法切開,因此無法清楚揭示真正驅動研究進展的設計動機與權衡。作者主張,真正決定一個 feed-forward 方法成敗的是它要解決的「核心問題」而非它選用的表徵格式。基於此根因分析,他們提出 representation-agnostic 的問題驅動分類體系,將文獻組織為五個對應實際技術瓶頸的研究方向:特徵品質(decode 精度)、幾何模糊性(稀疏輸入下的幾何正確性)、計算效率(即時與資源受限部署)、資料/視覺多樣性(訓練泛化性)、時間一致性(動態場景的 4D 建模)。這個 taxonomy 在邏輯上是必要的,因為唯有把方法依「它在解什麼問題」對齊,才能比較設計取捨、辨識共用 building block、並指出尚未被充分處理的開放挑戰。作者進一步以此架構重評資料集與基準(區分 geometry-oriented 與 visual-oriented),並基於 200+ 篇論文的統計分析提出標準化場景複雜度量化、世界模型、感知與重建統一等未來方向,構成一個從表徵、方法、評測、應用到未來展望的端到端全景式論述。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(290 words)
+
+標題 *Feed-Forward 3D Scene Modeling: A Problem-Driven Perspective* 與副標 *A Problem-Driven Perspective* 直接宣告本文的兩個核心立場：第一，研究主題鎖定在「feed-forward 3D 重建」這個近年快速興起的範式；第二，組織方式不依循過往 survey 慣用的「依輸出表徵分類」，而是改採「依問題驅動」的視角。Abstract 用三段式建立論證：先指出傳統 per-scene optimization 與 category-specific training 的瓶頸（速度慢、難擴展、難部署），再說明 feed-forward 方法為何能突破——「在單一 forward pass 中將 image 直接映射到 3D representation」，因此推論效率與跨場景泛化都顯著提升。接著作者提出本文的關鍵觀察（critical observation）：儘管輸出表徵涵蓋 implicit fields、explicit primitives 等多種格式，現有 feed-forward 方法在高層架構上其實高度相似，都包含 image feature extraction backbone、multi-view fusion 機制與 geometry-aware 設計。這個觀察直接導出全文的方法論主張：把表徵差異抽離，改以「model design strategies」為分類軸，並收斂到五個 driving problems—— feature enhancement、geometry awareness、model efficiency、augmentation strategies、temporal-aware models（4D）。Abstract 最後預告：除了 taxonomy 之外，paper 還會回顧 benchmarks/datasets、real-world applications，並討論 scalability、evaluation standards、world modeling 等 open challenges，並指向 GitHub 與 project page 作為持續維護的資源。整段 abstract 的功能是清楚交代「為什麼要重新分類」與「分類後得到什麼」，為後續以 problem 為主軸的章節鋪好正當性，並暗示讀者：本文不是 representation enumeration，而是從研究者面對的 functional challenges 出發看整個領域的圖像。
+
+### 3.2 Introduction
+
+(950 words)
+
+Introduction 從更廣的脈絡切入並逐步收斂到本文的特定切角。第一段建立背景：3D scene modeling 是 computer vision 的基礎問題，並列舉 SfM、MVS、NeRF、3DGS 作為已奠基的關鍵成果，但同時點出共同缺陷——per-scene optimization 帶來重運算負擔與部署困難，因此「需要一個更具泛化能力的範式」。第二段正式引出 feed-forward 3D modeling 的定位：用一次 forward pass 從 image（可選擇加上 pose 或 depth prior）直接得到 3D representation；隨之列出 feed-forward 方法獨有的新挑戰，包括 multi-view feature fusion、幾何細節保留、模型效率與 dynamic scene 的時序一致性，這些挑戰正是後續 §4 五大 research directions 的預告。第三段交代這篇 survey 的差異化定位：先承認 prior survey [20] 以 representation 為分類軸，然後提出本文採 problem-driven 的端到端 panorama，並引導讀者參看 Fig. 1 與 Fig. 2。第四段是全文 thesis 的明確陳述：作者主張「相同表徵下方法可能解不同問題，不同表徵下方法卻可能解同一問題」，因此 representation-based 分類會掩蓋設計動機，必須改以 challenge-based 分類。隨即列出五個 research directions——Feature Enhancement、Geometry Awareness、Model Efficiency、Augmentation Strategies、Temporal-aware Models——並各自簡述對應的核心問題（feature 表徵品質、幾何模糊、計算/記憶體瓶頸、資料/視覺多樣性、4D 一致性）。第五段把同樣的問題驅動思維延伸到 dataset/benchmark：把 datasets 重新分為 geometry-oriented（如 DTU、ScanNet、Replica）與 visual-oriented（如 NeRF-Synthetic、RealEstate10K、DL3DV）兩類，並預告作者會匯整代表性方法在主要 dataset 上的回報結果，導出「需要 standardized scene-complexity 量化與 geometric diversity 報告」這樣的 data-driven takeaway，呼應 §7。第六段把 feed-forward 3D 從研究概念拉到實務應用：autonomous driving、robotics、scene understanding、SfM/SLAM、video generation、visual localization 都是受惠領域，強調「unprecedented efficiency」與「lowering deployment barrier」這兩個論述軸。最後一段是 future directions 的 forward pointer：benchmark rigor、model efficiency、scalable representations、world models、unified perception and reconstruction 與 open questions。整段 introduction 以「為何要看 feed-forward」「為何要重新分類」「分類後如何貫穿 dataset、application、future direction」這條主線推進，明確讓讀者知道接下來各章在 thesis 中的位置：§3 是 representation 的 descriptive layer、§4 是核心 taxonomy、§5–§6 是 empirical grounding 與下游影響、§7–§8 是 open frontier 與收束。
+
+### 3.3 Related Work / Preliminaries
+
+(2300 words)
+
+§2 與 §3 共同擔任 preliminaries 的角色：先以統一公式定義 feed-forward 3D 重建的 input/output 與訓練流程，再以 representation 為描述層帶過五大主流輸出格式。§2 Problem Formulation 把所有方法抽象成 Encoder–Decoder（可選 Renderer）三段：encoder $\Phi_{\text{image}}$ 把 $K$ 張 input image $I$（可附上 pose $P^*$）投影到 implicit feature map $F$，decoder $\Psi_{\text{pred}}$ 再把 enhanced feature $F'$ 解出 3D representation $G$；若有 differentiable renderer $R$，會合成 $\hat I = R(G, P_{\text{train/novel}})$。Loss 寫成 $L = \sum_t \lambda_t L_t$，並明確區分三類監督——geometric supervision（pointmap、depth、normal）、photometric/perceptual loss、structural regularization（opacity sparsity、distortion、depth smoothness），讓讀者一眼看到不同 representation 為何啟用不同 loss 子集。§2 同時點明 feed-forward 的關鍵特性：訓練在 dataset $D = \{(I, P)\}$ 上 amortize，inference 是純 single forward pass，不做 test-time optimization；只允許 confidence-based pruning 等輕量 post-processing。這個統一框架是後面 §4 能用「相同 backbone、不同 problem 切角」討論方法的基礎。§3 Representations 接著建立 descriptive layer，按四類介紹：(1) NeRF 用 5D 函數 $(x, d) \to (c, \sigma)$ 與 volume rendering 公式 $C = \sum_i T_i (1 - \exp(-\sigma_i \delta_i)) c_i$ 得到 photorealistic novel view，但需要 per-scene optimization；feed-forward 代表是 PixelNeRF。(2) 3DGS 以 anisotropic Gaussian 集合 $\{(\mu_j, \Sigma_j, \alpha_j, c_j)\}$ 配 splatting rasterizer 取得即時渲染，但仰賴 SfM 初始化；feed-forward 代表是 pixelSplat。(3) Pointmap（DUSt3R 起頭）以 $X \in \mathbb{R}^{H \times W \times 3}$ 提供 image-pixel 與 3D point 的 dense 對應，並以 $X_{n,m} = P_m P_n^{-1} h(X_n)$ 統一不同 camera frame，特別適合 visual localization 與 pose-free 設定。(4) Others 涵蓋 occupancy networks、DeepSDF、IM-NET、texture fields、light field networks、SDF-based、mesh-based、2DGS、triplane、Plücker line fields、planar primitives 等，並交代這些早期表徵雖在 NeRF 之前出現，卻是「feed-forward 3D from learned representation」的概念先驅；同時誠實列出每種表徵的 trade-off，例如 light field 不易外推、SDF 偏好平滑、mesh 不易處理透明、triplane 有 axis-aligned artifacts、3D-free 方法易在大視角變化下產生幾何不一致。整段 preliminaries 的功能不只在「介紹 representation」，更在於替 §4 的 problem-driven taxonomy 鋪兩個關鍵前提：第一，所有方法都能塞進統一的 $\Phi$–$\Psi$–$R$ 流程；第二，representation 只是 descriptive、不是 taxonomic axis——同一 representation 可被多種 problem motivation 使用，因此後續按問題切軸才合理。這也解釋為何 §3 結尾沒有提出任何 ranking 或 best representation，而是把判斷標準（速度、品質、可擴展性、可微分性、表面萃取難度）攤開，留給讀者在 §4 對應到具體研究方向時自行對照。
+
+### 3.4 Method (overview narrative)
+
+(6500 words)
+
+§4 Research Directions 是全篇的 methodological 主體，以「五個 problem axes 切過所有 representation」為敘事主軸，對應 Fig. 2 的 taxonomy。整章開頭再次強調：feed-forward 雖收斂到統一範式，但 robustness、accuracy、efficiency 仍是 open challenge，因此把方法收進五個方向。§4.1 Feature Enhancement 切三個子問題：(a) Architectures 以 Fig. 3 呈現 encoder 演進，從 ResNet/U-Net（PixelNeRF、Splatter Image）到 ViT（LRM/Instant3D/TripoSR/GRM/GS-LRM/MeshLRM/MeshFormer/Flex3D/LVSM/VGGT/Depth Anything 3）再到 Mamba/SSM（Gamba、MVGamba、Long-LRM），呈現「從局部 feature conditioning 到全局 token-based encoding」的軌跡；(b) Cross-View Fusion 從 AttnRend、eFreeSplat 的 attention 對齊，延伸到 DUSt3R/MASt3R 的 dense 座標回歸與 MV-DUSt3R/MUSt3R 的 symmetric multi-view fusion，再到 long-sequence 場景下 PreF3R/Spann3R/CUT3R/G-CUT3R/TTT3R/Point3R/IncVGGT/ZipMap/LoGeR/tttLRM/VGG-T3 等以 memory、sliding window、test-time training 解決 global consistency 的策略；(c) Integration of VFM 則交代 DUSt3R 用 CroCo、Mono3R 用單視覺先驗、Feat2GS 探針 segmentation/diffusion/recognition foundation feature、CATSplat 借 VLM 文字補語意，凸顯「不必從 3D 從頭學」這個趨勢。§4.2 Geometry Awareness 對應 Fig. 4，分四線：Explicit Geometric Aggregation 把 cost volume（MVSNeRF/GeoNeRF/MuRF/BoostMVSNeRFs）、correspondence/epipolar（SRF/GPNR/MatchNeRF/GTA）、surface-aware（SparseNeuS/VolRecon/ReTR/C2F2NeUS/UFORecon/SurfaceSplat/RenderFormer）以及 MVS-based 3DGS（pixelSplat/MVSplat/MVSGaussian/TranSplat/H3R/MuGS/AGG/TGS/LaRa/MeshSplat）整合成單一論述：把 3D 證據「物理化」到網路中；Post Refinement（HiSplat/FreeSplat/PixelGaussian/GGN/GD/G3R）則把 Gaussian 生成視為可疊代的 primitives 修正流程；Pose-free Reconstruction（LEAP/DUSt3R/Pow3R/π3/Splatt3R/NoPoSplat/PF3plat/FreeSplatter/FLARE/RegGS/SPFSplat/AnySplat/UFV-Splatter/PLANA3R/YoNoSplat）強調「拋開已知 pose」是 feed-forward 範式的重要分水嶺；Pre-trained Geometric Guidance（Flash3D/PM-Loss/DepthSplat/Niagara/Fin3R/MoGe/JointSplat）則展示如何把 monocular depth 等 foundation prior 注入 reconstruction。§4.3 Model Efficiency 切兩塊：Feature Efficiency（ENeRF/ProNeRF/iLRM/TinySplat/ZPressor/SR3R/FastVGGT/QuantVGGT/Sparse VGGT/Evict3R/Speed3R/StreamVGGT/LiteVGGT）攻 latency 與 memory；Representation Compaction（GGN/PixelGaussian/FreeSplat++/LongSplat）削減 primitives 數量。§4.4 Augmentation Strategies 區分 Data Augmentation（Puzzles、MegaSynth、Aug3D、MVBoost）與 Visual Augmentation（MVSplat360、ProSplat、LatentSplat、DIFIX3D+），把 generative model 視為補足輸入稀疏與訓練多樣性的工具。§4.5 Temporal-aware Models 拓展到 4D：Online Streaming（StreamSplat、Cut3R、DGS-LRM、Stream3R、LongStream）、Offline Processing（L4GM、MonST3R、EgoMono4D、BTimer、4D-LRM、Easi3R、4DGT、4Real-Video-V2、MoVieS、MonoFusion）、Interactive Modeling（PIXIE、PhysGM）與 Specialized Tasks（DAS3R、St4RTrack）。整章最重要的敘事貢獻是反覆示範同一 representation 可橫跨多個 problem axis、同一 problem 也跨多種 representation，因此 problem-driven taxonomy 比 representation-driven 更能呈現 design rationale，並為 §5 的 benchmark 與 §7 的 future direction 鋪設可比較的座標系。
+
+### 3.5 Experiments (overview narrative)
+
+(3500 words)
+
+由於本文是 survey，§5 Datasets and Benchmarks 與 §6 Applications 共同承擔「empirical grounding」的角色，相當於 research paper 中 experiments 章的功能：不是跑單一實驗，而是把整個社群既有的實驗結果重新組織、對照、提煉趨勢。§5 不採傳統的 dataset enumeration，而是先按「focus area」切兩類：geometry-oriented（DTU、ScanNet、Replica 等以點雲、深度、姿態為核心）與 visual-oriented（NeRF-Synthetic、RealEstate10K、DL3DV 等以 photorealistic view synthesis 為核心）。這個切法直接服務於 §4 的 taxonomy——強調 feature enhancement 與 geometry awareness 的方法在 geometry-oriented benchmark 才會顯示 added value，而 augmentation 與 temporal 方法則更倚賴 visual-oriented 與 dynamic dataset。Introduction 已預告本章會「systematically compile reported performance of representative methods across key datasets」，並導出兩個 data-driven takeaway：(i) 需要 standardized 的 scene-complexity 量化方式；(ii) 需要更明確報告 geometric diversity。這兩個 takeaway 在 §7.1 Rigorous Benchmarks 被進一步展開，形成 empirical observation → future direction 的閉環。§6 Applications 則把 feed-forward 3D 從研究 artifact 轉譯成 deployment evidence，依領域組織：6.1 Autonomous Driving（解 outdoor、large-scale、dynamic 的 BEV/occupancy/scene flow 需求）、6.2 Robotics（manipulation、navigation、policy learning 對快速 3D 感知的需求）、6.3 Scene Understanding（open-vocabulary、語意 + 幾何聯合）、6.4 SfM and SLAM（DUSt3R/MASt3R 系列重塑經典 SfM/SLAM pipeline）、6.5 Video Generation（與 diffusion world model 的耦合）、6.6 Others（visual localization 與其它特化任務）。這樣的章節安排刻意對應 Fig. 1 中應用面的圖示比例，並暗示讀者：efficiency 提升不只是學術指標，而是讓 deployment 發生的決定性因素。從 narrative 角度看，§5 提供「方法在各 dataset 上的相對位置」，§6 提供「方法落到下游系統時的價值」，兩者一同回應 §1 introduction 開頭關於「scalability 與 practical deployment」的論述，並把 evaluation 不足（缺乏 scene complexity 量化、缺乏 geometric diversity 報告）這個現象凸顯為下一章必須處理的議題。整體而言，§5–§6 在這篇 survey 中扮演的不是「驗證假設」的傳統實驗，而是「整理社群實驗證據以支撐 taxonomy 與 future direction」的 meta-empirical 角色，作者沒有提出新指標或新 benchmark，而是把既有結果折射成 problem-driven 視角下的 trend，為 §7 的 open challenge 取材。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(2500 words)
+
+§7 Future Directions 與 §8 Conclusion 共同構成全文的收束段落。§7 不是泛泛的「展望」，而是把 §4 的 taxonomy 與 §5–§6 的 empirical observation 收成六個明確 open frontier。7.1 Rigorous Benchmarks 直接接續 §5 的 takeaway，呼籲建立 standardized scene-complexity quantification、geometric diversity reporting、跨 representation 的 fair comparison 協議——這同時也是對社群「benchmark 不一致導致 progress 難以累積」的批判式總結。7.2 System Efficiency 把 §4.3 的兩條子線（feature efficiency、representation compaction）抬升為系統級議題：要在邊緣裝置、長序列輸入、串流情境同時兼顧 latency 與 memory，仍需新的 architectural primitives（如 SSM、test-time training memory）與系統層 co-design。7.3 Scalable Representations 指向「單一 representation 難以同時兼顧 geometry、appearance、dynamics、scale」這個結構性 limitation，呼籲混合或可分層 representation 的研究。7.4 World Models 把 video diffusion、physics-aware simulation 與 feed-forward 3D 拉在一起，主張下一步是「從 reconstruction 走向可預測、可互動的 world representation」。7.5 Unified Perception and Reconstruction 提出 perception 與 reconstruction 不應再分軌，而應透過共享 backbone 與 task heads 在 detection、segmentation、tracking、reconstruction 之間共享幾何先驗。7.6 Open Questions 留下若干尚未收斂的議題，包括 evaluation philosophy、open-world generalization、hardware/algorithm co-evolution。這六點同時可讀作 limitations：當下方法雖在 benchmark 上強勁，但仍無法在「complex scene、long sequence、dynamic + interactive、unified perception」四個維度同時 robust，這是作者誠實標出的研究瓶頸。§8 Conclusion 收束兩條主線：第一，重申 problem-driven taxonomy 的論述價值——以 functional challenge 為軸，比 representation-based 分類更能揭露 design rationale 與發展趨勢；第二，重申 feed-forward 3D 已經從 research concept 進入實用技術，但要走到通用 world modeling 仍需在 benchmark、efficiency、scalability、world model、unified perception 五個方向協同進展。整體 narrative 的閉環是：introduction 提的「practical deployment 與 scalability 之需」→ §4 對應的 problem-driven 工程進展 → §5–§6 對應的 empirical 與 application 證據 → §7–§8 指出哪些議題尚未被五大 direction 完整解決。整段 conclusion 沒有引入新方法或新數據，但把全篇 thesis 收回到「problem-driven 才是組織快速演化領域的最佳視角」這個立場，並把 GitHub/project page 標示為持續更新的活文獻入口，暗示這個 taxonomy 將隨社群進展持續演化而非定型。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+1. 提出 representation-agnostic 的問題驅動分類體系，將 feed-forward 3D 重建方法依五個核心問題（feature enhancement、geometry awareness、model efficiency、augmentation strategies、temporal-aware models）統一組織，相較先前以 output 表徵分類的 survey [20] 改變了梳理視角（page 4–5, Fig. 1, Fig. 2）。
+2. 在 §2 提供統一的 Encoder–Decoder–Renderer 形式化框架，以 Eqs. 1–5 明確界定 feed-forward 3D 的 inference 與大規模 multi-scene training 範式（page 6–7）。
+3. 將 encoder backbones 系統化為 ViT、ResNet、U-Net、Mamba/Mamba2 四大家族，並對應標示常用 pre-trained priors（CroCo、DINOv2、CLIP、UniMatch、diffusion、VAE）所驅動的代表性方法（Fig. 3, page 12）。
+4. 把 datasets 從列舉式介紹重組為 geometry-oriented（DTU、ScanNet、Replica）與 visual-oriented（NeRF-Synthetic、RealEstate10K、DL3DV）兩軸，揭示 benchmark 選擇對研究重心的塑形作用（page 5–6, §5）。
+5. 在 Fig. 5 給出 12/24/36 input views 下的 efficiency 比較：例如 ZPressor 在 36 views 僅需 $1.57\text{ GB}$ 記憶體與 $0.129\text{ s}$ 推論時間，而 mvsplat-36 達 $52.67\text{ GB}$、$2.880\text{ s}$（page 21）。
+6. 把 DUSt3R 系列演進主線（DUSt3R [3] → MASt3R [26] → MV-DUSt3R/+ [100] → MUSt3R [111] → CUT3R [107] → π3 [153] → VGGT [19]）統整在同一條 cross-view fusion 軸下分析（§4.1.2）。
+7. 系統化 pose-free reconstruction 路徑，從 LEAP [143]、DUSt3R [3]、Splatt3R [144]、NoPoSplat [145]、AnySplat [152]、SPFSplat [151] 串成由 NeRF 到 3DGS 的「去除相機假設」演進譜系（§4.2.3）。
+8. 將 dynamic 4D 場景的 temporal-aware 方法細分為 online streaming、offline processing、interactive modeling、specialized tasks 四子類，把 4DGT、MonST3R、L4GM、Stream3R 等納入同一框架（Fig. 2, §4.5）。
+9. 應用面橫跨 autonomous driving、robotics、scene understanding、SfM/SLAM、video generation 等六大領域，並對每一領域點名代表方法（§6.1–§6.6）。
+10. 點出五個 future directions（rigorous benchmarks、system efficiency、scalable representations、world models、unified perception and reconstruction）作為 problem-driven taxonomy 的延伸路線圖（page 5, §7）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- §4 開頭明示「for brevity, only representative methods are included」（page 10），等同承認方法覆蓋並非完備。
+- §1 與 §7 開頭承認 feed-forward 3D 仍存在 benchmark rigor、efficiency、scalability、world modeling、unified perception/reconstruction 等多項 open challenges（page 5–6）。
+- page 5 提到需要「establish standardized quantification methods for scene complexity」與「report geometric diversity more clearly」，間接承認當前 benchmark 評測尺度不足。
+- 除上述零散提示外，作者未專章列出本綜述本身的 limitation（如 cutoff date、選文方法、再現性）。
+
+#### 4.2.2 Phyra-inferred
+
+- Taxonomy 並非 partition：DUSt3R 同時出現於 §4.1.2 cross-view fusion、§4.1.3 visual foundation model integration、§4.2.1 explicit geometric aggregation、§4.2.3 pose-free reconstruction；VGGT 也橫跨 §4.1.1、§4.1.3、§4.3.1。當核心 building-block 方法被反覆歸類到多個 bucket，「依 problem 對齊以揭示 design trade-off」的核心論述就被稀釋。
+- 「representation-agnostic」與實際敘述不一致：§4.2.3 的段落仍按「LEAP/DUSt3R/π3 為 NeRF–pointmap 線」與「Splatt3R/NoPoSplat 為 3DGS 線」分述（page 19–20），顯示分類在敘事層仍以 representation 切割。
+- §4 各 sub-direction 內部缺少統一 dataset 與 metric 的 quantitative cross-method 比較表，方法的優劣評估仍停留在 qualitative description；唯一給出數值的 Fig. 5 也未含 quality metric（PSNR/SSIM/LPIPS）。
+- 宣稱「200+ papers 的 statistical summary」（page 4 Fig. 1, BIBLIO core_argument）但未公開 inclusion criteria、search keyword、cutoff date 或 PRISMA-style flow，sample representativeness 無法由讀者驗證。
+- §5 將 datasets 重組為 geometry-oriented 與 visual-oriented 兩軸，忽略 scale（object / scene / city）、modality（RGB / RGBD / LiDAR）、dynamic vs static 等其他正交切分軸，分類仍偏粗。
+- §7.1 與 page 5 反覆呼籲「standardized quantification of scene complexity」，但作者本身在 §5 並未自行給出可操作的 metric 定義，亦未把它套用到既有 benchmarks 上做 retro-fit，使該訴求停留在 advocacy 層級。
+- Fig. 5 的 efficiency benchmark 只覆蓋 6 個方法且僅變動 input view 數，未檢視 scene complexity、resolution、scene scale 等變因，難以支撐「real-time / memory-limited deployment」的廣泛主張（page 20）。
+
+### 4.3 Phyra's Judgment (summary)
+
+真正的新意在於把 200+ 篇 feed-forward 3D 文獻從「output representation」軸切換到「核心 problem」軸來對齊，並在同一框架下整合 representations、methods、benchmarks、applications、future directions，提供端到端 panorama。但所提分類軸並未真正達到 representation-agnostic：核心方法（DUSt3R、VGGT、Long-LRM）落在多個 buckets，§4 子節敘事仍以 NeRF/3DGS/Pointmap 切分。最關鍵的未解問題是：作者並未給出可量化證據說明 problem-driven 分類比 representation-driven 更能揭示具體的 design trade-off，全文亦缺乏跨方法的統一 quantitative comparison，使分類框架的價值仍多落在概念層次（詳 §7.1 各條評估）。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+由於本文為 survey 而非單一模型論文,§5 所剖析的「方法」對應到作者於 §2 Problem Formulation (paper p. 6) 抽象出的統一 feed-forward 框架,而非任何特定 architecture。作者觀察到所有 generalizable feed-forward 3D 方法在 high-level 上皆共用「Encoder, Decoder, (Optional) Renderer」三段式結構,差異只在於 (i) 解碼出的 3D 表徵 $G$ 種類 (NeRF / 3DGS / Pointmap / Mesh / SDF / Occupancy) 與 (ii) 每段內部的設計取捨。整個系統一次 forward pass 即輸出 3D 表徵,無 per-scene 優化。
+
+形式上,給定 $K$ 張輸入影像 $I = \{I_i\}_{i=1}^K$ 與可選相機姿態 $P^* = \{P^*_i\}_{i=1}^K$,流程依序為 Eq. (1) 的 encoder $F = \Phi_{image}(I, P^*)$、可選的 feature enhancement $F \to F'$、Eq. (2) 的 decoder $G = \Psi_{pred}(F', P^*)$,最後若需要 novel view synthesis 則由 Eq. (4) 的 renderer 產生 $\hat{I} = R(G, P_{train/novel})$。在訓練端,Eq. (5) 將 geometric supervision、photometric/perceptual loss、regularization 三類損失加權求和;不同表徵啟用不同子集 (例如純 pointmap 方法主要用 (i),3DGS 方法多採 (ii)+(iii))。
+
+作者強調這個抽象之所以成立,是因為實證上各種輸出表徵共享相同的 building blocks:image feature backbone、cross-view fusion、geometry priors。基於此,§4 將文獻按「該方法主要解什麼瓶頸」分為五個 representation-agnostic 的研究方向 (feature enhancement / geometry awareness / model efficiency / augmentation / temporal-aware),而非按 $G$ 的型態切分 (paper p. 10–11, Fig. 2)。本節 §5.2 與 §5.3 即依循這個抽象框架展開 tensor 流與 per-module 解析。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input
+  ├→ Images  I  = {I_i}_{i=1..K}            [K, H, W, 3]
+  └→ Poses   P* = {P*_i}_{i=1..K}  (opt.)   [K, 4, 4]
+       │
+       ▼
+[Φ_image]  Image Encoder                    Eq. (1)
+       │
+       ▼  Implicit features F = {F_i}       [K, H/s, W/s, C]
+       │
+       ▼
+[Feature Enhancement]  (optional, §4.1)
+   cross-view fusion / VFM injection / new architectures
+       │
+       ▼  Enhanced features F'              [K, H/s, W/s, C']    (C'=C unless stated)
+       │
+       ▼
+[Ψ_pred]  Decoder                           Eq. (2)
+       │
+       ▼  3D representation G  (representation-dependent)
+        ├→ 3DGS:     {(μ_j, Σ_j, α_j, c_j)}_{j=1..N}       Eq. (3)
+        │            μ_j:[3]   Σ_j:[3,3]   α_j:[1]   c_j:[3]
+        ├→ NeRF:     MLP(x, d) -> (c, σ)   (implicit)      Eq. (6)
+        │            x:[3]   d:[2]   c:[3]   σ:[1]
+        └→ Pointmap: X_{n,m} ∈ R^{H×W×3}   per view        Eq. (9)
+       │
+       ▼
+[R]  Renderer  (optional)                   Eq. (4)
+   target pose P_{train/novel}              [4, 4]
+       │
+       ▼  Synthesized image Î               [H, W, 3]
+       │
+       ▼
+[Loss]  (training only)                     Eq. (5)
+   weighted Σ_t λ_t·L_t over
+     (i) geometric  L(G, G*)
+     (ii) photometric L(Î, I)
+     (iii) regularization on G
+       │
+       ▼  scalar L  ──►  optimizer  ──►  ∇ on Φ_image, Ψ_pred, (R)
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Image Encoder $\Phi_{image}$
+
+**Function:** 將 $K$ 張輸入影像 (與可選 pose) 抽取為 implicit feature maps,作為後續 2D-to-3D lifting 的基礎。
+
+**Input:**
+- Name: $I$, $P^*$
+- Shape: $I$ 為 $[K, H, W, 3]$;$P^*$ 為 $[K, 4, 4]$ (可選)
+- Source: raw input images 與可選 camera poses
+
+**Output:**
+- Name: $F = \{F_i\}_{i=1}^K$
+- Shape: $[K, H/s, W/s, C]$,其中 $s$ 為 spatial downsampling factor、$C$ 為 feature dimension
+- Consumer: feature enhancement module (或在無 enhancement 時直接給 decoder)
+
+**Processing:**
+
+作者於 Eq. (1) (paper p. 6) 將 encoder 抽象為 $F = \Phi_{image}(I, P^*)$。各 representative method 的具體 backbone 不同:DUSt3R / MASt3R / VGGT 採 ViT-based transformer (paper p. 9, §3.3 與 §4.1.3),pixelNeRF / pixelSplat 採 CNN encoder (paper p. 8 §3.1, p. 9 §3.2),LRM 系列採 large transformer (paper p. 11, Fig. 2 §4.1.1)。
+
+**Key Formulas:**
+
+$$
+F = \Phi_{image}(I, P^*), \qquad F_i \in \mathbb{R}^{\frac{H}{s} \times \frac{W}{s} \times C}
+$$
+
+**Implementation Details:**
+
+具體 $s$、$C$ 與 backbone 配置在 §2 抽象層級不指定;the paper does not specify a default in §2 since this section is the unifying formulation that subsumes all surveyed methods. §4.1.1 列舉的 architectures (LRM, GS-LRM, LVSM, Long-LRM 等) 各自有不同實作。
+
+#### 5.3.2 Feature Enhancement (Optional)
+
+**Function:** 在送入 decoder 前進一步精煉 feature,以提升 2D-to-3D lifting 的品質。
+
+**Input:**
+- Name: $F$
+- Shape: $[K, H/s, W/s, C]$
+- Source: image encoder $\Phi_{image}$
+
+**Output:**
+- Name: $F'$
+- Shape: $[K, H/s, W/s, C']$ (paper p. 6 only states "further refined", 未明示是否 $C' = C$)
+- Consumer: decoder $\Psi_{pred}$
+
+**Processing:**
+
+依 §4.1 (paper p. 11, Fig. 2) 分為三個子方向:
+1. **Architectures (§4.1.1):** 設計新 backbone 或 attention 模式以提升特徵品質 (LRM, GS-LRM, MeshLRM, LVSM 等)。
+2. **Cross-view Fusion (§4.1.2):** 顯式建模多視角依賴,如 DUSt3R 的雙分支 cross-attention、MV-DUSt3R 的多視角擴展、Spann3R / StreamVGGT 的 streaming 形式。
+3. **Integration of VFMs (§4.1.3):** 注入 DINO 等 visual foundation model 特徵,代表方法為 Mono3R、Feat2GS、VGGT (paper p. 12, Fig. 2)。
+
+**Key Formulas:**
+
+$$
+F' = \Phi_{enh}(F)
+$$
+
+(本筆記為清晰表達加上的記號;原 paper 在 §2 僅以散文描述「features can be further refined by additional feature enhancement modules」, 未給編號方程式。)
+
+**Implementation Details:**
+
+本模組為可選。純 pointmap 方法 (DUSt3R) 將 fusion 內嵌於 transformer attention,無獨立 enhancement stage。具體 channel 變化、layer 數、attention head 配置 the paper does not specify (因 §2 為跨方法的抽象框架)。
+
+#### 5.3.3 Decoder $\Psi_{pred}$
+
+**Function:** 將 (enhanced) implicit features 解碼為具體的 3D 表徵 $G$。
+
+**Input:**
+- Name: $F'$, $P^*$
+- Shape: $F'$ 為 $[K, H/s, W/s, C]$;$P^*$ 為 $[K, 4, 4]$ (可選)
+- Source: feature enhancement (或直接來自 encoder)
+
+**Output:**
+- Name: $G$
+- Shape: representation-dependent
+  - 3DGS: $N$ 個 primitive,每個含 $\mu_j \in \mathbb{R}^3$、$\Sigma_j \in \mathbb{R}^{3 \times 3}$、$\alpha_j \in \mathbb{R}$、$c_j \in \mathbb{R}^3$
+  - NeRF: 隱式 conditional MLP 或 feature grid (參數化)
+  - Pointmap: $X \in \mathbb{R}^{K \times H \times W \times 3}$
+- Consumer: renderer $R$ (optional) 或直接作為最終輸出
+
+**Processing:**
+
+Eq. (2) 抽象為 $G = \Psi_{pred}(F', P^*)$ (paper p. 6)。當輸出為 3DGS,$G$ 是一組 $N$ 個 anisotropic Gaussian primitive (Eq. 3, p. 6);當輸出為 NeRF,decoder 為 conditioning MLP,以圖像特徵為條件作用於 5D 座標 $(x, d)$ (Eq. 6, p. 7);當輸出為 pointmap,decoder 直接逐 pixel 預測 3D 座標,並透過 Eq. (9) 在多視角間建立 coordinate frame 對齊 (paper p. 9)。
+
+**Key Formulas:**
+
+$$
+G = \Psi_{pred}(F', P^*) \quad \text{(Eq. 2)}
+$$
+
+$$
+G_{\text{3DGS}} = \{(\mu_j, \Sigma_j, \alpha_j, c_j)\}_{j=1}^{N} \quad \text{(Eq. 3)}
+$$
+
+$$
+\text{MLP}(x, d) = (c, \sigma) \quad \text{(Eq. 6, NeRF case)}
+$$
+
+$$
+X_{n,m} = P_m\, P_n^{-1}\, h(X_n) \quad \text{(Eq. 9, Pointmap case)}
+$$
+
+**Implementation Details:**
+
+對 pixel-aligned 方法 (pixelSplat, Splatter Image),$N$ 約為 $K \cdot H \cdot W$ (每個 pixel 對應一個 Gaussian)。對 NeRF 路線,具體 MLP 寬度、深度、positional encoding 設定 the paper does not specify in §2 / §3.1; 各 representative method (pixelNeRF, MVSNeRF, GeoNeRF) 內部配置不同。
+
+#### 5.3.4 Renderer $R$ (Optional)
+
+**Function:** 將預測的 3D 表徵 $G$ 在指定相機姿態下投影為 2D 影像,以供 photometric supervision (training) 或 novel view synthesis (inference)。
+
+**Input:**
+- Name: $G$, $P_{train/novel}$
+- Shape: $G$ 為 representation-dependent;$P_{train/novel}$ 為 $[4, 4]$
+- Source: decoder $\Psi_{pred}$ 與待 render 的 target pose
+
+**Output:**
+- Name: $\hat{I}$
+- Shape: $[H, W, 3]$
+- Consumer: photometric loss (training) 或最終視覺輸出 (inference)
+
+**Processing:**
+
+Eq. (4) 抽象為 $\hat{I} = R(G, P_{train/novel})$ (paper p. 6)。對 NeRF,renderer 沿 ray $r(t) = o + t d$ 採樣並透過 differentiable volume rendering (Eq. 7, 8, p. 7) 合成 pixel color。對 3DGS,renderer 為 visibility-aware splatting:將 Gaussians 投影至 image plane,並在 screen space 中按 opacity 進行 $\alpha$-compositing (paper p. 8, §3.2)。
+
+**Key Formulas:**
+
+$$
+C = \sum_{i=1}^{K} T_i \,\bigl(1 - \exp(-\sigma_i \delta_i)\bigr)\, c_i \quad \text{(Eq. 7)}
+$$
+
+$$
+T_i = \exp\!\left(-\sum_{j=1}^{i-1} \sigma_j \delta_j\right) \quad \text{(Eq. 8)}
+$$
+
+**Implementation Details:**
+
+Renderer 是否 learnable 取決於方法:NeRF case 中 MLP 為可學習部分而 volume rendering 本身為固定運算;3DGS 中 rasterizer 為固定但 differentiable 的運算子。Pointmap 方法 (DUSt3R 等) 通常無 renderer,改採 geometric supervision 直接監督 $G$ (paper p. 6, Eq. 5 第 (i) 類 loss)。
+
+#### 5.3.5 Loss Aggregation
+
+**Function:** 在訓練階段聚合 geometric supervision、photometric/perceptual loss 與 regularization,使 $\Phi_{image}$、$\Psi_{pred}$、(以及 learnable 的 $R$) 以單組權重一次跨多場景訓練。
+
+**Input:**
+- Name: $G$, $G^*$, $\hat{I}$, $I$, $P$
+- Shape: 同前述各模組輸出 (其中 $G^*$ 為 ground-truth geometric annotations,如 depth、pointmap、normal)
+- Source: 各模組輸出與 ground-truth annotations
+
+**Output:**
+- Name: $\mathcal{L}$
+- Shape: scalar
+- Consumer: optimizer (gradient 反傳至 $\Phi_{image}$、$\Psi_{pred}$、$R$)
+
+**Processing:**
+
+Eq. (5) 取三類 loss 加權和 (paper p. 6–7):
+1. Geometric supervision $\mathcal{L}_t(G, G^*)$:pointmap regression、depth supervision、normal consistency。
+2. Photometric / perceptual loss $\mathcal{L}_t(\hat{I}, I)$:rendered 與 ground-truth 影像比對,僅在使用 differentiable renderer $R$ 時啟用。
+3. Regularization on $G$:opacity sparsity、scale constraints (3DGS),distortion losses、depth smoothness (neural fields)。
+
+不同方法依其表徵與監督訊號啟用不同子集:pointmap-only 方法主要用 (i),3DGS 方法多用 (ii)+(iii),NeRF 方法以 (ii) 為主 (paper p. 6–7)。
+
+**Key Formulas:**
+
+$$
+\mathcal{L} = \sum_{t \in T} \lambda_t\, \mathcal{L}_t(G, G^*, \hat{I}, I, P) \quad \text{(Eq. 5)}
+$$
+
+**Implementation Details:**
+
+具體權重 $\lambda_t$、active loss 子集、與 batch construction 策略 the paper does not specify in §2,因該節旨在以 representation-agnostic 的方式涵蓋所有 surveyed methods;個別 representative method 的具體選擇散見於 §4 的子方向討論。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+本論文為 survey，並未自行訓練模型或在資料集上跑端到端實驗。下表整理的是 §5 所介紹、且在 §1 與 §7 被反覆引用作為「benchmark 選擇如何影響研究進展」依據的代表性資料集；其「Usage」欄指該資料集在本 survey 中被引用的角色（meta-analysis），而非本論文自身的 train/val/test 切分。
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| DTU [21] | geometry-oriented（point cloud / depth / pose） | the paper does not specify | 用於說明 geometry-oriented benchmark 之代表 |
+| ScanNet [22] | indoor geometry / depth / pose | the paper does not specify | 同上，作為 indoor 場景代表 |
+| Replica [23] | indoor geometry / depth | the paper does not specify | 同上，作為合成 indoor 代表 |
+| NeRF-Synthetic [1] | photorealistic novel view synthesis | the paper does not specify | 用於說明 visual-oriented benchmark 之代表 |
+| RealEstate10K [24] | NVS（real-world video） | the paper does not specify | 同上，並被點名 geometric diversity 報告不足 |
+| DL3DV [25] | NVS（large-scale real-world） | the paper does not specify | 同上，作為 scene-complexity 量化標準缺失之證據 |
+
+關於 Fig. 5 效率比較中各方法所用的資料集、訓練 split 與測試 split，the paper does not specify。
+
+### 6.2 Evaluation Metrics
+
+本 survey 唯一具備量化比較的實驗是 Fig. 5 的 efficiency comparison（§4.3）。其使用的指標如下；論文主要的「實驗主張」是在固定 input-view 數（12 / 24 / 36）下，feature-efficient 方法（如 ZPressor、iLRM）能顯著降低 memory 與 inference time，因此將 Memory 與 Inference Time 列為 Primary。
+
+| Metric | Description | Primary? |
+|---|---|---|
+| Memory (GB) | 各 NVS 方法在 12 / 24 / 36 input views 下的 GPU 記憶體佔用（Fig. 5a） | yes |
+| # of Gaussians (K) | 重建後輸出的 3D Gaussian primitive 數量（Fig. 5b） | no |
+| Inference Time (s) | 端到端 forward pass 的 wall-clock 時間（Fig. 5c） | yes |
+
+注意：本 survey 並未自行重跑 PSNR / SSIM / LPIPS / Chamfer / pose accuracy 等品質指標，因此不在本章列出。
+
+### 6.3 Training and Inference Settings
+
+本論文為 survey，未自行訓練任何 feed-forward 3D 模型，因此沒有 hardware、batch size、optimizer、learning rate schedule、training steps 等設定。Fig. 5 的 efficiency comparison 雖呈現 memory 與 inference time，但論文未說明 GPU 型號、CUDA / PyTorch 版本、是否使用 fp16 / bf16、warm-up 次數、measurement 方法與 batch 設定，the paper does not specify。Inference 端僅在 §2 提到 feed-forward 系統可加上 confidence-based pruning and merging [33] 作為輕量後處理，但未對應到 Fig. 5 的具體量測流程。
+
+### 6.4 Main Results
+
+下表整理 Fig. 5 在 36 input views 設定下各方法的效率數據（取最大 view 數最能凸顯 scalability 差異）。本 survey 並未提出新方法，故沒有「本論文方法」的列可加粗；以下保留為純客觀比較。
+
+| Method | Memory (GB) | Inference Time (s) | # of Gaussians (K) | Notes |
+|---|---|---|---|---|
+| MVSplat [17] | 52.67 | 2.880 | 2359 | per-pixel Gaussian，記憶體隨 view 數呈近線性放大 |
+| DepthSplat [18] | 10.44 | 0.432 | 2359 | monocular depth prior 顯著壓低成本 |
+| Long-LRM [33] | 4.44 | 2.016 | 2359 | Mamba2–Transformer hybrid，memory 平穩但 latency 偏高 |
+| ZPressor [164] | 1.57 | 0.129 | 786 | IB-guided latent 壓縮，view 數增加幾乎不影響成本 |
+| FreeSplat [138] | 6.60 | 0.847 | 1396 | hierarchical Gaussian 聚合 |
+| iLRM [106] | 3.15 | 0.133 | 1032 | iterative cross-view refinement，本表內 latency 最低 |
+
+12-view 與 24-view 的對應數據請見 Fig. 5。論文據此在 §4.3 主張：feature-efficient 路線（ZPressor、iLRM）相較 per-pixel Gaussian baseline（MVSplat）可在 36 views 下將 memory 降低約一個數量級、inference time 降低約 20×。
+
+### 6.5 Ablation Studies
+
+本論文為 survey，並未進行 controlled ablation。Fig. 5 雖然在 12 / 24 / 36 view 三個設定下橫向比較不同方法，但這是 cross-method 比較而非單一方法內的元件移除實驗。本論文沒有「移除某模組後 metric 變化」這類診斷性實驗；§4 各小節對個別方法 ablation 的描述（如 MVSplat 的 plane-sweep cost volume、DepthSplat 的 monocular depth prior）都是引述原論文，而非 survey 作者自行重跑。因此本章在 ablation 維度上是空的。
+
+### 6.6 Phyra Experiment Assessment
+
+- [partial] Has at least one strong baseline (a current SoTA on the chosen task) — Fig. 5 將 MVSplat / DepthSplat 等代表方法當作對照，但 survey 自身未提出方法，所以「baseline」概念不完全適用；且未涵蓋品質端 SoTA（例：VGGT、π3、MASt3R）的 head-to-head。
+- [partial] Has cross-task / cross-dataset evaluation (not just one benchmark) — survey 在 §5 與 §6（applications）跨 NVS、SfM/SLAM、autonomous driving、robotics 等任務做文獻層級的覆蓋，但 Fig. 5 的量化比較侷限於單一 NVS 設定。
+- [missing] Has ablations that diagnose the new components (not just sanity checks) — survey 沒有自設新元件，亦未做診斷性 ablation。
+- [covered] Has a scaling study (size, length, or compute) — Fig. 5 以 12 / 24 / 36 input views 三個梯度同時報告 memory、Gaussian 數、inference time，屬於 input-length scaling study。
+- [covered] Has an efficiency / wall-clock comparison — Fig. 5c 直接報告各方法的 inference time（秒），含 wall-clock 量測。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — Fig. 5 為單一數值，未報告 std、信賴區間或多 seed 重跑。
+- [partial] Releases code / weights / data sufficient for reproducibility — 論文於摘要與 §1 末段提供 GitHub repo（ff3d-survey.github.io）作為 curated reference list，但這只發布文獻清單，不包含 Fig. 5 的量測腳本、checkpoint 或重現所需的 evaluation harness。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Claim 1: 提出 representation-agnostic 的 problem-driven taxonomy**（page 4 Abstract、page 5–6, Fig. 2）。**Partially supported.** Fig. 2 確實把同一表徵的方法散落到不同 problem buckets，但 §3 仍以 representation 開場，§4.2.3 等子節在內文又按 NeRF / 3DGS / Pointmap 線分述（page 19–20），且 DUSt3R、VGGT 等核心方法被重複歸類至多個 buckets，實質上只達到 partial decoupling。
+- **Claim 2: 涵蓋五個關鍵 research directions**（page 4, Fig. 1）。**Supported.** §4.1–§4.5 與 Fig. 2 對五個 buckets 各自給出代表方法與敘事展開，覆蓋面完整。
+- **Claim 3: re-evaluation of datasets/benchmarks 並揭示 data-driven trends**（page 5–6）。**Partially supported.** §5 確實重組成 geometry-oriented 與 visual-oriented 兩軸，但「systematically compiled reported performance」與「important data-driven takeaways」在我可讀的段落內僅以敘述形式提及，未見跨方法、跨 dataset 的統一比較表（受限於 truncation，但 §4 主文中亦缺）。
+- **Claim 4: 廣泛覆蓋 real-world applications**（§6.1–§6.6）。**Supported.** AD、robotics、scene understanding、SfM/SLAM、video generation、其他應用六大領域皆有專節。
+- **Claim 5: 提出 future directions 路線圖**（§7.1–§7.6）。**Supported but conceptual.** 五個 directions 全數列出，但其中如「standardized scene-complexity quantification」與「unified perception and reconstruction」仍停在呼籲層次，缺少可操作的 metric 或 protocol 草案。
+- **Claim 6: 統計分析涵蓋 200+ 篇論文**（page 4–5, BIBLIO core_argument, Fig. 1 年度條圖）。**Partially supported.** Fig. 1 提供年度條圖（2022 至 2025）顯示成長趨勢，但 inclusion criteria、search methodology、cutoff date 未在文中或 supplementary 公開，統計可重現性低。
+
+### 7.2 Fundamental Limitations of the Method
+
+**Taxonomy 的 partition 性問題。** 「representation-agnostic problem-driven」是一個分類軸的選擇宣告，但若 buckets 不互斥，主張的優勢就會被削弱。DUSt3R 同時被視為 cross-view fusion 範式的代表（§4.1.2）、visual foundation model integration 的代表（§4.1.3）、explicit geometric aggregation 的相關方法（§4.2.1）以及 pose-free reconstruction 的 founder（§4.2.3）；VGGT 同時為 §4.1.1 architecture、§4.1.3 prior、§4.3.1 efficiency 三類核心。這顯示真正驅動領域的「foundation model」維度並沒有獨立 bucket，taxonomy 在結構上難以表達 cross-cutting paradigms。
+
+**橫向 quantitative comparison 缺位。** 即使 problem-driven 分類在概念上比 representation-driven 更有解釋力，要讓讀者真正使用此分類做 design choice，須在每個 sub-direction 內提供同 dataset、同 metric 的 cross-method 量化表。當前 §4 全段以 qualitative description 為主，唯一含數字的 Fig. 5 又只比較 6 個方法且不含 quality metric，使「依 problem 對齊以揭示 trade-off」的核心訴求缺乏可被檢驗的實證。
+
+**Selection methodology 不透明。** 一篇宣稱「200+ papers + statistical analysis」的 survey，其 sample 是否具代表性直接決定分類的有效性。本文未公開 search keyword、databases、cutoff date、duplication policy 與 inclusion/exclusion criteria，亦未提供 PRISMA-style flow chart。對 problem-driven 重組此一強敘事而言，這是結構性的薄弱環節，因為任何 bucket 的「主流線」皆可能是選文偏差所致。
+
+**「Scene complexity」未操作化。** 作者在 page 5 與 §7.1 反覆指出 benchmark 缺乏 standardized scene-complexity quantification，並把它列為 future direction，但本文既未提出 candidate metric（如 depth variance、occlusion rate、view-dependent BRDF complexity、coverage ratio）也未對既有 benchmarks 施作 retro-fit。當「benchmark rigor」是核心 future direction 時，作者本身留白此一 actionable proposal，限制了該主張對讀者的可用性。
+
+### 7.3 Citations Worth Tracking
+
+- **DUSt3R [3]**：pointmap 範式的 originator，幾乎所有 §4.2.3 pose-free 線、§4.1.2 cross-view fusion 線、§4.1.3 foundation-model integration 線都以它為基礎；理解後續 MASt3R / MV-DUSt3R / VGGT 的 design delta 必先讀此。
+- **VGGT [19]**：當前 visual geometry foundation model 的 SOTA，§4.1.3 與 §4.3.1 分從 prior 注入與 efficiency 兩條路展開，是觀察「foundation model 是否會吞噬整個 feed-forward 3D」的指標 paper。
+- **Long-LRM [33]**：把 Mamba2–Transformer 混合架構應用於 long-sequence、large-scene 重建，是 §4.1.1 architecture 由 ViT 走向 SSM 的代表，且其 Fig. 5 數據顯示 36 views 僅 $4.44\text{ GB}$ 記憶體。
+- **Prior survey [20]**：本綜述明確定位為與此 representation-driven 前作對照的 problem-driven 改寫；要評估新 taxonomy 是否真有解釋力的增量，必先閱讀此前作。
+- **Feat2GS [125]**：主張 pre-trained 2D feature 已能編碼 3D 重建所需 prior、無需 retrain 大型 3D network；對 §4.1.3 與整個 problem-driven 分類隱含的「需要專為 3D 設計 architecture」假設構成結構性挑戰。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 若 problem-driven taxonomy 真的優於 representation-driven，作者能否舉出至少一個 design trade-off 是 representation-driven 分類無法揭示、本文分類能揭示的具體案例？
+- [ ] DUSt3R、VGGT、Long-LRM 等核心方法被同時歸入多個 buckets，這種「跨類性」是否暗示應有第六個軸（如 foundation-model paradigm）來吸納 cross-cutting works？
+- [ ] 為何 §4 各 sub-direction 沒有同 dataset、同 metric 的跨方法量化比較表？是篇幅取捨、還是因為各方法 reproducible numbers 難以對齊？
+- [ ] 200+ papers 的 inclusion criteria、search query、cutoff date 是否會在 GitHub repo 或 supplementary 公開以利再現？
+- [ ] page 5 提到的「scene-complexity 標準化量化」具體可採用哪些 measurable proxies（depth variance、occlusion ratio、view-dependent BRDF complexity、scene scale 等）？作者傾向哪種？
+- [ ] §7.4 World Models 與 §7.5 Unified Perception/Reconstruction 之間的邊界為何？兩者皆指向「3D + semantics + dynamics 的單一模型」，是否有實質區分？
+- [ ] §6 應用面是否有量化證據顯示 feed-forward 3D 已在生產環境替代 per-scene optimization，或多數仍停留於 demo / prototype 階段？
+
+### 8.2 Improvement Directions
+
+1. **(高可行性) 在 §4 每個 sub-direction 末尾加一張 dataset-fixed 的 quantitative comparison table.** 統一在 RealEstate10K / DL3DV / DTU 等代表 benchmark 上比較 PSNR、SSIM、LPIPS、Chamfer、time、memory。基礎：當前 §4 只有 qualitative description，而 Fig. 5 已示範作者具備收集 efficiency 數據的能力，邊際成本是補上 quality metric。
+2. **(高可行性) 將 Fig. 5 的 efficiency benchmark 擴增為 efficiency–quality Pareto plot.** 在原 6 種方法基礎上加入 PSNR / LPIPS 軸並覆蓋更多 method（如 VGGT、AnySplat、π3）。基礎：Fig. 5 的數據收集 pipeline 已建立，加上 quality 為小規模延伸；目前缺 quality 軸使「memory-limited deployment」訴求無法檢驗。
+3. **(中可行性) 公開 supplementary，含 paper inclusion criteria、search query、databases、cutoff date 及 PRISMA-style flow chart.** 基礎：sub-survey 領域近年已採用 systematic-review 規範；對於宣稱 200+ papers 統計分析的綜述而言，這是讓 taxonomy 結論可被檢驗的必要前提。
+4. **(中可行性) 在 taxonomy 加入「foundation-model paradigm」第六 bucket 或頂層 axis.** 將 DUSt3R、VGGT、Depth Anything 3、Feat2GS、CroCo 等 cross-cutting works 集中表達。基礎：當前這些 work 散落在 §4.1.2、§4.1.3、§4.2.3、§4.3.1，taxonomy 無法表達其結構性影響；若不調整，後續新 foundation model 都會繼續造成 multi-bucket assignment。
+5. **(中低可行性) 提出可操作的 scene-complexity metric 並對 §5 的 benchmarks 做 retro-fit.** 例如以 depth-variance、occlusion ratio、median view overlap 三個 proxies 作為 candidate axis 量化各 dataset。基礎：作者已在 page 5 與 §7.1 點出此問題，自行給出 proof-of-concept 將大幅提升文章 actionable value，否則「benchmark rigor」訴求難以落地。
+6. **(低可行性) 補做一個 controlled head-to-head experiment：在固定 dataset 與 backbone 下比較不同 problem 解法.** 例如在 RealEstate10K 上將 cross-view fusion（MVSplat）、pose-free（NoPoSplat）、pre-trained guidance（DepthSplat）三類方法以同 backbone 規模對齊比較。基礎：這是支撐「problem-driven 分類能揭示 trade-off」的最直接實證；雖屬 survey 之外的工作，但若作為 appendix 將顯著強化整篇核心論述。

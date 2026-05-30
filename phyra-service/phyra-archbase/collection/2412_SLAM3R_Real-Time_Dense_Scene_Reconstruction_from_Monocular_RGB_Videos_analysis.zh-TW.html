@@ -1,0 +1,439 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SLAM3R — SLAM3R: Real-Time Dense Scene Reconstruction from Monocular RGB Videos</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-08 | lang: zh-TW --&gt;</p>
+<h1 id="slam3r-slam3r-real-time-dense-scene-reconstruction-from-monocular-rgb-videos">SLAM3R — SLAM3R: Real-Time Dense Scene Reconstruction from Monocular RGB Videos</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>SLAM3R</td></tr><tr><td>Paper full title</td><td>SLAM3R: Real-Time Dense Scene Reconstruction from Monocular RGB Videos</td></tr><tr><td>arXiv ID</td><td>2412.09401</td></tr><tr><td>Release date</td><td>2025-03-23</td></tr><tr><td>Conference/Journal</td><td>CVPR 2025 (Highlight)</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2412.09401</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2412.09401</td></tr><tr><td>Code link</td><td>https://github.com/PKU-VCL-3DV/SLAM3R</td></tr><tr><td>Project page</td><td>—</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Yuzheng Liu</td><td>Peking University</td><td>https://ly-kc.github.io/</td><td>joint first author</td></tr><tr><td>Siyan Dong</td><td>The University of Hong Kong</td><td>https://datascience.hku.hk/dr-dong-siyan/</td><td>joint first author, corresponding</td></tr><tr><td>Shuzhe Wang</td><td>Aalto University</td><td>https://ffrivera0.github.io/</td><td>co-author</td></tr><tr><td>Yingda Yin</td><td>Peking University</td><td>https://yd-yin.github.io/</td><td>co-author</td></tr><tr><td>Yanchao Yang</td><td>The University of Hong Kong</td><td>https://yanchaoyang.github.io/</td><td>corresponding</td></tr><tr><td>Qingnan Fan</td><td>VIVO</td><td>https://fqnchina.github.io/</td><td>co-author</td></tr><tr><td>Baoquan Chen</td><td>Peking University</td><td>https://baoquanchen.info/</td><td>corresponding</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>dense 3D reconstruction, monocular SLAM, RGB video, pointmap regression, feed-forward 3D, DUSt3R extension, sliding window, incremental registration, real-time</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>DUSt3R (Wang et al., 2024)</td><td>base model</td><td>Provides the end-to-end two-view pointmap regression backbone that I2P/L2W extend to multi-view and incremental settings.</td></tr><tr><td>Spann3R (Wang et al., 2024)</td><td>concurrent</td><td>Concurrent DUSt3R extension to video via spatial memory; SLAM3R contrasts it as drift-prone frame-by-frame baseline.</td></tr><tr><td>MASt3R (Leroy et al., 2024)</td><td>influence</td><td>Adds a match head to DUSt3R; cited as related end-to-end variant and used as reconstruction baseline.</td></tr><tr><td>DROID-SLAM (Teed &amp; Deng, 2021)</td><td>baseline</td><td>Recurrent dense SLAM baseline compared on Replica/7 Scenes for accuracy and FPS.</td></tr><tr><td>NICER-SLAM (Zhu et al., 2024)</td><td>baseline</td><td>Monocular neural-implicit dense SLAM cited as the canonical sub-1-FPS RGB SLAM SLAM3R aims to surpass.</td></tr><tr><td>GO-SLAM (Zhang et al., 2023)</td><td>baseline</td><td>Monocular dense SLAM at ~8 FPS used to motivate real-time gap; compared on Replica.</td></tr><tr><td>DIM-SLAM (Li et al., 2023)</td><td>baseline</td><td>Monocular dense neural SLAM compared on Replica to demonstrate accuracy/completeness gains.</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本文聚焦於從單目 RGB 影片進行即時稠密 3D 場景重建。傳統作法將 SfM/SLAM 與 MVS 串接，需離線最佳化相機參數；近期 monocular dense SLAM 雖能產出完整幾何，卻普遍低於 1 FPS。DUSt3R 等 end-to-end pointmap regression 方法雖在雙視圖上展現高品質，但延伸至多視圖須仰賴昂貴的 global alignment，犧牲速度；concurrent 的 Spann3R 雖以 spatial memory 加速，卻有累積漂移問題。SLAM3R 主張完全省略相機參數估計，以 feed-forward 神經網路在 sliding-window 內直接回歸 local pointmap，再以另一個 feed-forward 模組將其 incrementally 對齊到全域座標系，目標同時兼顧重建準確度、完整度與 20+ FPS 的真即時效能。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>Computer Vision</li><li>3D Reconstruction</li><li>SLAM</li><li>Deep Learning</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>Image-to-Points (I2P) network</strong>：本文提出的 inner-window 模組，以 multi-branch ViT 對一個 keyframe 與 $L-1$ 個 supporting frame 做 multi-view cross-attention 並 max-pool 聚合，於 sliding window 內直接回歸 local pointmap。</li><li><strong>Local-to-World (L2W) network</strong>：本文提出的 inter-window 模組，沿用與 I2P 對稱的 decoder 架構，將新 keyframe 的 local pointmap 直接 feed-forward 對齊到世界座標系，無需顯式相機參數最佳化。</li><li><strong>Self-contained retrieval module</strong>：本文提出，重用 I2P 前 $r$ 個 decoder block 加上 linear projection 與 average pooling，從 reservoir 中挑選 top-$K$ 與當前 keyframe 最相關的 scene frame 作為全域參考。</li><li><strong>Reservoir sampling buffer</strong>：沿用自 Vitter 的 reservoir 抽樣策略，於有界記憶體內維持一組無偏的歷史 scene frames，使系統能擴展至長影片。</li><li><strong>Multi-branch Vision Transformer (ViT) backbone</strong>：作為 I2P 與 L2W 的編解碼骨幹，由 $m$ 個 encoder block 與 $n$ 個 decoder block 組成；權重由 DUSt3R 預訓練模型 (224×224、$m=24$、$n=12$) 初始化。</li><li><strong>DUSt3R pointmap regression head</strong>：沿用 DUSt3R 的 linear head，從 decoded tokens 同時回歸 dense 3D pointmap $\hat{X}_i$ 與 confidence map $\hat{C}_i$。</li><li><strong>PnP-RANSAC pose solver (OpenCV)</strong>：作為下游工具，於評估時從預測的 scene points 與 ground-truth intrinsics 反推相機姿態以計算 ATE-RMSE。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者主張現有 monocular dense SLAM 之所以難以同時達到準確、完整與即時，是因為它們仍受限於「先解相機姿態、再估場景表示」的交替最佳化框架；而即便最新的 end-to-end DUSt3R 在多視圖時也必須對成對影像做 global alignment，使得計算量隨幀數爆炸，實質失去 real-time 能力。Spann3R 雖以記憶體 token 串連單幀並避開全域最佳化，但純粹的 frame-by-frame 累積導致漂移與品質崩潰。作者由此推論：若希望兼顧效率與品質，必須一次處理多幀以攤平誤差，並把「對齊到世界座標」也設計成一個 feed-forward 預測，徹底跳脫顯式的相機參數最佳化迴路。據此提出兩階層架構：Image-to-Points (I2P) 在每個 sliding window 內以多分支 ViT 對 keyframe 與多個 supporting frame 做 multi-view cross-attention 並 max-pool 聚合，將 DUSt3R 推廣到任意視圖數，產生較單純逐對推論更穩定的 local pointmap；Local-to-World (L2W) 以對稱的 decoder 架構直接回歸 keyframe 在世界座標下的 pointmap，並透過 reservoir sampling 的 scene-frame buffer 與自洽的 retrieval 模組挑出長期歷史中最相關的參考幀，使新窗口能對齊到全域而非僅鄰近幀。此設計在邏輯上同時消除了相機參數最佳化、二視圖 pairing 爆炸與短期記憶漂移三項瓶頸，因此能在 20+ FPS 下達到準確且完整的稠密重建。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(140 words)</p>
+<p>Title 與 Abstract 共同建立了論文的核心定位:SLAM3R 是一個以 monocular RGB video 為輸入、能即時 (real-time) 產生 dense 3D reconstruction 的系統。Title 中的「SLAM3R」此命名本身就暗示了論文對傳統 SLAM 範式的重新詮釋——作者在第 2 頁明確指出 3R 代表 3D Reconstruction,而非 Localization,顯示其重心是 mapping 而非 pose estimation。</p>
+<p>Abstract 以三個遞進主張組織論述:第一,系統提供 end-to-end 解法,透過 feed-forward neural networks 同時整合 local 3D reconstruction 與 global coordinate registration;第二,引入 sliding window 機制將 video 切成 overlapping clips,直接從 RGB images regress 出 3D pointmaps,並 progressively align 與 deform 這些 local pointmaps;第三,強調此流程「without explicitly solving any camera parameters」,刻意凸顯與傳統 pose-optimization-based SLAM 的差異。</p>
+<p>最後以實驗結果結尾:在多個 datasets 上達到 state-of-the-art reconstruction accuracy 與 completeness,同時維持 20+ FPS 的 real-time 效能。Abstract 亦附上 GitHub 連結,顯示作者意圖讓社群可重現結果。整體而言,Abstract 為讀者鎖定了「品質 vs. 效率 trade-off」這個論文要解決的核心張力,並承諾兩者兼得,直接為 §1 Introduction 鋪陳「現有方法在 accuracy/completeness/efficiency 三者中至少缺一」的問題框架。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(720 words)</p>
+<p>Introduction 的論述分為四個層次,層層收斂到 SLAM3R 的設計動機。</p>
+<p>第一層,作者回顧 dense 3D reconstruction 的 traditional multi-stage pipeline:先以 sparse SLAM 或 SfM 估計 camera parameters,再以 MVS 補上 scene details。雖然品質高,但需要 offline processing,限制了即時應用。</p>
+<p>第二層,聚焦 dense SLAM 系統:作者承認此類系統將問題視為一個完整的 system 來解,但指出它們「fall short in reconstruction accuracy or completeness, or rely heavily on depth sensors」。接著轉向近期的 monocular dense SLAM 系統(如 NICER-SLAM、GO-SLAM),指出這些方法雖然引入 advanced scene representations 達到 accuracy 與 completeness,卻以 efficiency 為代價——NICER-SLAM 速度遠低於 1 FPS。作者由此歸納出論文要挑戰的「三難困境」:accuracy、completeness、efficiency,目前方法至少缺一。</p>
+<p>第三層,引入 two-view geometry 的近期突破作為靈感來源。DUSt3R 是 purely end-to-end 學習 dense reconstruction 的代表,在大規模資料訓練下能 real-time 產生高品質 paired-image 重建,但延伸到 multiple views 時需要 global optimization step,效率大幅下降。同期工作 Spann3R 雖以 spatial memory 加速,卻產生明顯 accumulated drift 與品質下降。這兩個 baselines 的限制,精準定義了 SLAM3R 必須超越的對手。</p>
+<p>第四層,正式介紹 SLAM3R 的設計。作者強調 SLAM3R 進行的是 implicit camera localization,重心是 dense scene mapping。系統採用 two-hierarchy framework:先以 sliding window 處理短 clips 重建 local 3D geometry,再 progressively register 至 globally consistent 3D scene。兩個模組分別是 Image-to-Points (I2P) network 與 Local-to-World (L2W) network,皆以 feed-forward models 實作以維持效率。I2P 受 DUSt3R 啟發,選一個 keyframe 作為 local coordinate reference 並預測 dense 3D point map;L2W 則 incrementally 將 local reconstructions fuse 至 coherent global coordinate system。最關鍵的設計宣示是「without explicitly estimating any camera parameters」,這既是技術選擇也是哲學立場。</p>
+<p>最後段以四個 bullet points 列出 contributions:(1) novel real-time end-to-end dense 3D reconstruction system;(2) I2P module 能同時處理任意數量影像,將 DUSt3R 從 two-view 擴展至 multi-view;(3) L2W module 直接 align local pointmaps 至 unified global coordinate system,免除 explicit camera parameter estimation 與 costly global optimization;(4) 在 multiple public benchmarks 上達 state-of-the-art。</p>
+<p>Introduction 的敘事邏輯非常清晰:從 traditional → dense SLAM → monocular dense SLAM → end-to-end two-view 方法,逐步排除既有路徑,最後讓 SLAM3R 的「two-hierarchy feed-forward + no explicit camera parameters」設計成為唯一同時滿足三難的解。這也為 §2 Related Work 的詳細回顧與 §3 Method 的架構展開做好鋪陳——讀者進入下一節時,已能預期 SLAM3R 將如何「組裝」這些線索。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(710 words)</p>
+<p>§2 Related Work 將文獻分為三大類,每一類都對應到 §1 鋪陳的某個 baseline 群,並在敘事中明確標示 SLAM3R 相對該群的差異化。</p>
+<p>第一類「Traditional offline approaches」回顧 SfM + MVS 的經典 pipeline,並涵蓋近年以 neural implicit 與 3D Gaussian representations 增強重建品質的工作。作者強調這類方法的根本限制是 offline processing,並以此一句話將自己定位至 online dense reconstruction in SLAM 的脈絡——形同將 §3 之後的所有討論都鎖定在 real-time 條件下。</p>
+<p>第二類「Dense SLAM」是 §2 最重要的一塊。作者先區分 early sparse SLAM 與 dense SLAM:後者納入詳細幾何資訊以改善 pose estimation,代表作如 DROID-SLAM 與 TANDEM。但作者立刻指出這些系統「focus on camera trajectory accuracy often results in incomplete and noisy 3D reconstruction」,這是一個重要的價值判斷——SLAM3R 願意犧牲 trajectory 品質換取 reconstruction 品質,§4.1 的實驗結果(Table 3 顯示 pose 與 reconstruction 並非正相關)就是此判斷的辯護。接著回顧整合 neural implicit 與 Gaussian representations 的 SLAM 系統,但批評它們「rely on additional depth sensors or focus primarily on novel view synthesis rather than producing detailed geometric reconstruction」。最後談到 monocular dense SLAM 系統的共同弱點:速度慢(GO-SLAM 僅 ~8 FPS)以及「alternate between solving for camera poses and estimating the scene representation」的範式。SLAM3R 在此被定位為 paradigm shift——「eliminates the need for explicitly solving camera parameters」。</p>
+<p>第三類「End-to-end dense 3D reconstruction」直接面對 SLAM3R 最近的對手。作者首先把 DUSt3R 描繪為這條路線的開山之作,並指出它已啟發 single-view reconstruction、feature matching、novel view synthesis、dynamics reconstruction 等延伸工作,從而確立 end-to-end dense point prediction 的有效性。接著對 DUSt3R 自身限制做出精準批評:two-view 即時,但 multi-view 需 exhaustive pairing 加 global optimization,效能大幅下滑。MASt3R 雖以 match head 提升 keypoint correspondences 品質,卻又增加運算成本。</p>
+<p>最後,作者用一整段對比 Spann3R——這是 §1 已暗示的「最近也最直接的對手」。Spann3R 以 spatial memory 擴展 DUSt3R 至 video,並以 unified coordinate system 進行 incremental reconstruction,規避 global optimization,但 frame-by-frame 的設計導致 accumulated drift。SLAM3R 在這裡明確差異化兩點:(1) 每個 hierarchy 的 network 都吃 multiple frames 而非單張,以壓低 drift;(2) 提出 self-contained retrieval module,在 register 新 frame 時不只看前幾張,還能從 long-term history 中選出相似 frames 作為 global scene reference。</p>
+<p>這段論述策略性極強:作者刻意把 Spann3R 留到最後處理,因為它是 SLAM3R 最容易被混淆、也最需要明確切割的 concurrent work。透過「multi-frame input + retrieval module」這兩個具體技術差異,SLAM3R 為自己保留了清晰的方法學身分。整體 Related Work 的鋪陳,也讓 §3 Method 中 I2P 的「multi-view cross-attention」與 L2W 的「retrieval-based scene frame selection」兩項設計能直接對應到上述每一類批評,使方法選擇顯得既必要又合理。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(360 words)</p>
+<p>§3 Method 以 problem statement 開場,將任務形式化為:給定 monocular RGB sequence $\{I_i \in \mathbb{R}^{H \times W \times 3}\}_{i=1}^{N}$,輸出 dense 3D pointcloud $P \in \mathbb{R}^{M \times 3}$,並明確列出三個目標——maximizing point recovery (completeness)、improving per-point accuracy、preserving real-time performance。這三個目標直接對應 §1 提出的三難困境,讓讀者能持續以同一組 criteria 檢視後續設計。</p>
+<p>接著 system overview 揭示 two-hierarchy framework 的整體運作。系統先以 length-$L$ 的 sliding window 將 video 切為 overlapping clips $\{W_i \in \mathbb{R}^{L \times H \times W \times 3}\}$,預設 stride 為 1,確保每張 frame 至少被選為 keyframe 一次。Image-to-Points (I2P) network 處理每個 window,在 window 內選一張 keyframe 定義 local coordinate system,並 regress 該 window 中所有 frames 的 3D pointmaps。Local-to-World (L2W) network 則接手 incremental global registration:用第一個 window 初始化 world coordinate,之後將 I2P 產出的 (image, local pointmap) 對作為輸入,把後續 reconstructions 一一融入 unified global 3D coordinate system。</p>
+<p>為了在長 video 上維持效率與準確性,L2W 維護一個有上限的 scene frames 緩衝集合;每當 register 新 keyframe,系統會從緩衝集合中 retrieve 最相關的 scene frames 作為 reference。這個設計同時回應了 §2 對 Spann3R「frame-by-frame 導致 drift」的批評,以及對 DUSt3R「multi-view 需 costly global optimization」的批評——SLAM3R 既不做 global BA,也不只看相鄰 frames。</p>
+<p>Method 在敘事節奏上刻意分兩節展開細節:§3.1 Inner-Window Local Reconstruction 處理 I2P 的 multi-branch ViT 架構、shared encoder、keyframe decoder 中的 multi-view cross-attention、supporting decoder、point regression head 與 confidence-aware loss;§3.2 Inter-Window Global Registration 處理 L2W 的 scene initialization (對 first window 做 $L$-way 全枚舉取最高 confidence)、reservoir sampling 維持有界記憶體、retrieval module、points embedding(將 3D pointmaps 以 patch embedding 注入 visual tokens)、registration decoder、scene decoder 與 loss。</p>
+<p>Method 的整體鋪陳邏輯是:先說「two-hierarchy + feed-forward + no explicit camera」是骨架,再分別論證每個模組如何透過 minimal 但 effective 的修改擴展 DUSt3R,確保 §4 Experiments 能直接驗證每個設計選擇的貢獻——這是 §4.2 ablation studies 的伏筆。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(680 words)</p>
+<p>§4 Experiments 以「Datasets」與「Implementation details」開場,為後續所有量化結果建立可信度與可重現性基礎。訓練資料採 ScanNet++、Aria Synthetic Environments、CO3D-v2 三個 dataset 的混合,涵蓋 scene-level 與 object-centric、real-world 與 synthetic 的多樣性,共抽取約 850K 個 video clips。評測則刻意選擇兩個 unseen datasets——7 Scenes(real-world、partial scenes)與 Replica(synthetic、complete scenes)——以驗證泛化能力。Implementation 上強調 I2P 與 L2W 都繼承 DUSt3R pre-trained weights、所有影像 center-crop 至 $224 \times 224$、使用 8 張 NVIDIA 4090D 訓練約一天;測試時 initial window length $L=5$、後續 incremental windows $L=11$。</p>
+<p>§4.1 Comparisons 圍繞三個維度展開:reconstruction quality、camera pose、generalization。Evaluation metrics 採 NICER-SLAM 與 Spann3R 的設定:以 ground-truth depth 與 camera 反投影建立 GT pointcloud,用 Umeyama + ICP 對齊後計算 accuracy 與 completeness,並以 FPS 衡量效率、ATE-RMSE 衡量 pose。</p>
+<p>論述策略上,作者讓 SLAM3R 同時以兩種 setting 出現:SLAM3R-NoConf(整合所有預測點)與 SLAM3R(以 confidence threshold 3 過濾)。在 7 Scenes 上 (Table 1) 同時打敗 optimization-based 的 DUSt3R/MASt3R 與 incremental 的 Spann3R,並在 average accuracy 與 completeness 同時領先,FPS 維持 ~25。在 Replica 上 (Table 2) 進一步加入 SLAM-based 對手 NICER-SLAM、DROID-SLAM、DIM-SLAM、GO-SLAM,結果顯示 SLAM3R 在 FPS &gt; 1 的所有方法中最佳,且品質可比 offline optimization-based 方法。視覺結果以 Office-09 與 Office 2 (Figure 4) 證明 drift 顯著低於 Spann3R。</p>
+<p>Camera pose 結果 (Table 3) 是論文敘事中刻意安排的「反直覺亮點」:以 PnP-RANSAC 從預測 pointmaps 反算 pose,SLAM3R 的 pose 並不領先,但作者以「pose 與 reconstruction error 並非正相關」這個觀察反過來支持其核心主張——effective end-to-end 3D reconstruction 不需先有精確 camera poses。這個論點與 §1 的設計哲學首尾呼應。</p>
+<p>§4.2 Analyses 採 ablation 形式驗證每個設計選擇的價值。Effectiveness of the I2P model (Table 4) 顯示 reconstruction quality 隨 supporting views 增加而提升,且 efficiency 直到 window size 超過 11 才顯著下降,既證明 multi-view cross-attention 的有效性,也合理化「default window size = 11」的選擇。Advantages of the L2W model (Table 5) 將 local points 對齊方式換成 DUSt3R 的 global alignment (I2P+GA)、Umeyama+ICP (I2P+UI)、L2W without retrieval (I2P+L2W),最後與完整方法 (I2P+L2W+Re) 對比;結果顯示完整方法在 alignment accuracy 與 efficiency 上同時勝出。Analysis of the retrieval module 則以「最近 10 frames」為 baseline,證明 retrieval 提供的 implicit re-localization 能力顯著改善表現。</p>
+<p>最後 In-the-wild scene reconstruction 透過 Tanks and Temples、BlendedMVS、Map-free Reloc、LLFF、ETH3D 與自拍 video (Figure 5) 展示 generalization。Supplementary 補充更多 quantitative 結果(Table 8 in ScanNet/Tanks/ETH3D)、scene frame 數量分析 (Table 9)、incremental reconstruction 視覺化 (Figure 7) 與 DTU dataset 結果 (Figure 8)。整體 Experiments 的論證鏈條極為完整:從主要 benchmark 比較,到對手中無法超越的 pose 弱點的轉化解釋,再到逐模組 ablation,最後以 generalization 收尾,層層回答 §3 Method 中每個設計選擇的必要性。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(155 words)</p>
+<p>§5 Conclusion 以一段精簡的回顧總結 SLAM3R 的核心貢獻:novel and effective system、real-time、high-quality、dense 3D scene reconstruction、RGB videos 為輸入。作者再次強調 two-hierarchy neural network framework 與 streamlined feed-forward processes 兩項架構特徵,並重申「eliminating the need to explicitly solve any camera parameters」這項貫穿全文的設計哲學。實驗成就以「state-of-the-art reconstruction quality and real-time efficiency (20+ FPS)」一句帶過,呼應 §1 Introduction 設定的「accuracy + completeness + efficiency 三者兼得」目標。</p>
+<p>Limitations and future work 段落極度簡短卻誠實,點出兩個直接源自設計選擇的代價:(1) 由於不預測 camera parameters,系統無法執行 global bundle adjustment——這正是 §3 與 §4 中「no explicit camera」的反面後果;(2) 從 scene point cloud 反推的 poses 仍不及專注於 camera localization 的 SLAM 系統,此點與 §4.1 Table 3 的結果一致。作者明確將上述兩項列為未來工作焦點,既守住論文的 scope,也為後續研究方向預留接口,結尾克制而不過度承諾。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>在 Replica 上達到 3.57 / 2.62 cm 的平均 accuracy / completeness，同時維持 ~24 FPS，較 concurrent 的 Spann3R 之 10.32 / 13.33 cm 有顯著差距（Table 2）。</li><li>在 7 Scenes 上以 ~25 FPS 達 2.13 / 2.34 cm，於即時類別中全面領先 Spann3R 的 3.42 / 2.41 cm，且 accuracy 已逼近離線 DUSt3R 的 2.19 / 3.24 cm（Table 1）。</li><li>將 DUSt3R 的雙視圖 cross-attention 廣義化為 multi-view + max-pool 聚合，使 I2P 在 $L=11$ 時取得 2.38 / 2.03 cm，明顯優於兩視圖版本的 3.39 / 3.04 cm（Table 4）。</li><li>提出的 L2W + retrieval 取代 DUSt3R 的 global alignment，在 Replica 上同時拿下更佳的 3.62 / 2.70 cm 與 ~43 FPS 對齊速度，較 I2P+GA 的 4.87 / 3.00 cm @ ~3 FPS 提升一個量級（Table 5）。</li><li>Reservoir sampling 維護有界的 scene-frame buffer，配合自洽的 retrieval module 取代鄰近幀策略，將 Replica accuracy 從 6.19 cm 改善至 3.62 cm（Table 5）。</li><li>I2P 與 L2W 共用 ViT decoder 架構並可從 DUSt3R 224×224 權重初始化，整體模型在 8 張 4090D 上一天內即可訓練完成（page 7、page 9）。</li><li>Scene initialization 透過將窗口內每張 frame 都試作為 keyframe、再選 confidence 最高者，提升首窗的全域座標基準品質（page 5）。</li><li>在 Tanks and Temples、BlendedMVS、Map-free Reloc、LLFF、ETH3D、DTU 與 in-the-wild 影片上展現可觀的 zero-shot 重建能力（Figure 5、Figure 8、Table 8）。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>由於不顯式估計相機參數，系統無法進行 global bundle adjustment（page 8 Conclusion）。</li><li>由 scene point 反推的 camera pose 仍明顯落後於專注於定位的 SLAM 系統（page 8 Conclusion）。</li><li>隨著 window length 增大，重建品質先升後降，因為過長窗口會導致 frame 間 overlap 降低，且推論時間顯著上升（page 12、Figure 9）。</li><li>取太少或太多的 scene frame 都會傷害 registration：太少會卡在 local minima，太多則引入無關幀作為雜訊（page 12、Table 9）。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>在 Replica 上 SLAM3R 的 ATE-RMSE 為 6.61 cm，而 DROID-SLAM 為 0.33 cm（Table 7），相差約 20 倍；論文將此差距重新框成「end-to-end 重建可在不解 pose 的情況下達成」，但實際上代表此系統在任何需要可用軌跡的下游應用（重定位、SfM 後處理、感測器融合）皆不可直接替代傳統 SLAM。</li><li>整個 pipeline 鎖定在 224×224 解析度（page 7「All images are center-cropped to $224 \times 224$」），與 modern dense MVS / SLAM 相比明顯偏低，幾何細節與遠景小結構必然受架構上限限制；且 MASt3R baseline 是在 512×384 / 512×288 上跑（page 11），二者並未在同一解析度下對比，重建品質差異有部分來自輸入尺寸而非方法本身。</li><li>7 Scenes 的測試協議是「每 20 幀取一幀」（page 7），亦即每段序列只剩約十幾到幾十個 keyframe，這個取樣率刻意降低 drift 累積壓力；論文沒有在原生 frame rate 下回報長序列的 drift 曲線。</li><li>系統缺少形式化的 loop closure 機制，retrieval module 透過 correlation score 提供「軟性 re-localization」，但既無 pose graph，也無一致性約束；長閉合迴圈的全域一致性僅依賴 retrieval 是否恰好命中歷史幀。</li><li>問題定義硬編碼為「captures a static scene」（page 3），整篇實驗無一條測試動態場景，但作為通用 monocular reconstruction 系統，這個假設於室外或人物場景會直接失效，論文未討論此邊界。</li><li>多個關鍵超參數（window $L$、retrieved $K$、buffer $B$、co-registration $C_o$、update interval $R$、$\text{Skip}$）皆是「per-dataset 調過」（page 11 Sec. B），而 ablation 只覆蓋 $L$ 與 $K$，其餘參數的敏感度與長片段延展性沒有被檢驗。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>真正新的貢獻是把「local-to-world 對齊」也轉成 feed-forward 預測——L2W + retrieval 在 Replica 同時拿下更高品質與一個量級的速度提升，這是脫離 DUSt3R 全域最佳化框架的實質突破；I2P 的 multi-view max-pool 也是合理且能提供一致量化增益的廣義化。其餘成分（reservoir sampling、sliding window、confidence threshold、scene initialization）屬於 engineering-only。最關鍵的未解問題是：在不顯式建立 pose 表示的前提下，這條路線能否同時做到 SLAM 級的軌跡精度與 dense MVS 級的幾何細節，目前 ATE 與 224×224 解析度兩端都顯示尚有結構性天花板。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>SLAM3R 將單目 RGB 影片的稠密重建問題，重新表述為「<strong>從影像窗格直接迴歸點圖（pointmap）</strong>」的端到端任務，並以兩個層級的前饋網路完成：Image-to-Points (I2P) 將短窗格內 $L$ 幀影像對齊到同一個區域座標系下的點圖，Local-to-World (L2W) 再把這些區域點圖逐步合併到全域座標系。整體繼承 DUSt3R 的多分支 ViT 設計，但取消了測試期的全域點雲對齊優化，改以前饋推論直接輸出對齊結果，因此可以做到 20+ FPS 的即時推論（paper §1, §3）。</p>
+<p>I2P 的核心是一支共享權重的 image encoder $E_{img}$，加上兩支不對稱的 multi-view decoder：keyframe decoder $D_{key}$ 處理窗格中央的關鍵幀，supporting decoder $D_{sup}$ 處理其餘支援幀。兩支 decoder 在每一層透過 cross-attention 互相交換資訊，並對所有支援幀的 token 做 max-pooling 聚合，使 keyframe 的點圖能整合多視角線索而不會隨 $L$ 改變網路結構（paper §3.1, Fig. 2）。L2W 則新增一支 points encoder $E_{pts}$，把已註冊到世界座標的點圖編成 token，並由 registration decoder $D_{reg}$ 與 scene decoder $D_{sce}$ 互相做 cross-attention，把目前窗格的區域點圖搬到世界座標系下；此處的 retrieval 模組會重用 $D_{reg}$ 的前 $r=2$ 個 block 計算 keyframe 與 reservoir 中歷史 keyframe 的相似度，挑出最有重疊的 $K$ 幀作為「scene context」（paper §3.2, §3.3）。</p>
+<p>訓練時兩個子網路分別最小化 confidence-aware 點圖回歸損失：I2P 因為輸出是區域座標、尺度不確定，loss 會用點到相機原點距離 $z$ 做尺度歸一化；L2W 則直接在世界座標下回歸，因此<strong>不做尺度歸一化</strong>，以保留多窗格之間一致的全域尺度。資料來自 ScanNet++、ASE、CO3D-v2 約 850K clips，在 8 張 NVIDIA 4090D 上訓練，輸入解析度固定為 $224 \times 224$（paper §3.4, §4.1）。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Monocular RGB video
+        │   [B, N, 3, 224, 224]
+        ▼
+Sliding-window sampler  (stride s, window L=5 for I2P init / L=11 incremental)
+        │   [B, L, 3, 224, 224]
+        ▼
+┌────────────────────────  I2P sub-network  ────────────────────────┐
+│                                                                   │
+│   E_img  (shared ViT encoder, m=24 blocks)                        │
+│        │   per-frame tokens  F_i : [B, L, T, d]                   │
+│        │   (T = number of patch tokens, d = encoder width)        │
+│        │                                                          │
+│        ├──► keyframe stream  F_key  : [B, 1, T, d]                │
+│        └──► supporting stream F_sup : [B, L-1, T, d]              │
+│                                                                   │
+│   Multi-view decoder  (D_key + D_sup, n=12 blocks, weave-attn)    │
+│        │   at each block:                                         │
+│        │     - self-attn on each stream                           │
+│        │     - cross-attn:  D_key  attends to                     │
+│        │           max-pool_{j != key}( F_sup_j ) : [B, T, d]     │
+│        │     - cross-attn:  D_sup  attends to F_key : [B, T, d]   │
+│        ▼                                                          │
+│   Regression head  (DPT-style)                                    │
+│        │   pointmap   X̂_i : [B, L, 224, 224, 3]                  │
+│        │   confidence Ĉ_i : [B, L, 224, 224]                     │
+└───────────────────────────────────────────────────────────────────┘
+        │   local pointmaps in keyframe coord  X̂_local : [B, L, 224, 224, 3]
+        ▼
+┌────────────────────────  L2W sub-network  ────────────────────────┐
+│                                                                   │
+│   Reservoir buffer S  (reservoir-sampled scene keyframes)         │
+│        │   tokens of past keyframes  F_S : [|S|, T, d]            │
+│        │   world pointmaps           X_S : [|S|, 224, 224, 3]     │
+│        │                                                          │
+│   Retrieval module  (reuse first r=2 blocks of D_reg)             │
+│        │   query: current keyframe token F_key : [1, T, d]        │
+│        │   key  : F_S                       : [|S|, T, d]         │
+│        │   similarity score                  : [|S|]              │
+│        │   pick top-K  ⇒  scene context  : [K, T, d] / [K,224,224,3]│
+│        │                                                          │
+│   E_pts  (points encoder, applied to world pointmaps in context)  │
+│        │   point tokens  G : [K, T, d]                            │
+│        │                                                          │
+│   D_reg + D_sce  (multi-keyframe co-registration, Co=10)          │
+│        │   D_reg input : F_key (Co current keyframes) [Co, T, d]  │
+│        │   D_sce input : G (K scene-context frames)   [K,  T, d]  │
+│        │   weave cross-attn between the two streams               │
+│        ▼                                                          │
+│   Regression head                                                 │
+│        │   world pointmap  X̂_world : [Co, 224, 224, 3]           │
+│        │   confidence      Ĉ_world : [Co, 224, 224]              │
+└───────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+Global point cloud   (concat / fuse along time)  : [?, 3]</code></pre>
+<p>注：$T$ 與 $d$ 在 paper 中沿用 DUSt3R/CroCo 的 ViT 設計但未明列具體數值，故以符號保留；$|S|$ 為 reservoir 當下大小，$K$ 為單次 retrieval 取出的 scene-context 幀數，$Co$ 為一次 co-registration 同時處理的 keyframe 數（paper 設為 10）。</p>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="module-1-image-encoder-e_-img">Module 1 — Image Encoder $E_{img}$</h4>
+<ul><li><strong>Function</strong>: 把每張 RGB 幀獨立編碼成 patch token 序列，作為 I2P 與 L2W 共用的視覺特徵來源。</li><li><strong>Input</strong>: 單一影像 $I_i \in \mathbb{R}^{224 \times 224 \times 3}$。</li><li><strong>Output</strong>: 影像 token $F_i \in \mathbb{R}^{T \times d}$，其中 $T$ 為 patch 數、$d$ 為 token 寬度。</li><li><strong>Processing</strong>: 使用 $m=24$ 層 ViT block（沿用 DUSt3R 的 CroCo 預訓練權重），所有幀共享同一組權重；I2P 與 L2W 訓練/推論時也共用此 encoder，以確保 reservoir 中歷史 keyframe 的 token 可以直接被 retrieval 重用，不必重新前向。</li><li><strong>Key Formulas</strong>: $F_i = E_{img}(I_i)$。</li><li><strong>Implementation Details</strong>: paper §3.1 與 §4.1 指出輸入解析度固定為 $224 \times 224$、encoder 深度 $m=24$；具體 patch size 與 $d$ 沿用 DUSt3R-224 設定，paper 本文未額外列出。</li></ul>
+<h4 id="module-2-i2p-multi-view-decoder-d_-key-d_-sup">Module 2 — I2P Multi-view Decoder $D_{key} / D_{sup}$</h4>
+<ul><li><strong>Function</strong>: 在窗格內以 keyframe 為錨，融合 $L-1$ 張支援幀的線索，輸出對齊到 keyframe 座標系的稠密點圖。</li><li><strong>Input</strong>: keyframe token $F_{key} \in \mathbb{R}^{T \times d}$ 與支援幀 token $\{F_{sup,j}\}_{j=1}^{L-1}$，每個皆為 $\mathbb{R}^{T \times d}$。</li><li><strong>Output</strong>: 經 $n=12$ 層解碼後的 keyframe 與支援幀解碼特徵，後接 regression head 得到 $\hat{X}_i \in \mathbb{R}^{224 \times 224 \times 3}$ 與 $\hat{C}_i \in \mathbb{R}^{224 \times 224}$，全部位於 keyframe 區域座標系。</li><li><strong>Processing</strong>: 每一個 decoder block 包含 self-attention、cross-attention、FFN；其中 $D_{key}$ 的 cross-attention 對所有支援幀 token 先做 element-wise <strong>max-pooling</strong>，再讓 keyframe 對 pooled token 做 attention，使網路可在不改變參數量的前提下接受任意 $L$；$D_{sup}$ 的 cross-attention 則統一對 $F_{key}$ attend，得到「以 keyframe 為條件」的支援幀表徵。</li><li><strong>Key Formulas</strong>: 多支援幀聚合</li></ul>
+<p>$$F_{sup}^{pool} = \max_{j=1,\dots,L-1} F_{sup,j}, \qquad F_{sup}^{pool} \in \mathbb{R}^{T \times d}.$I2P 訓練損失（含尺度歸一化）$\mathcal{L}_{I2P} = \sum_{i=1}^{L} M_i \cdot \left( \hat{C}_i \cdot \mathrm{L1}\!\left( \tfrac{1}{\hat{z}} \hat{X}_i,\; \tfrac{1}{z} X_i \right) - \alpha \log \hat{C}_i \right),$$ 其中 $z, \hat{z}$ 為 GT/預測點到 keyframe 相機原點的平均深度，$M_i$ 為有效像素遮罩。</p>
+<ul><li><strong>Implementation Details</strong>: paper §3.1 指 $L=5$（初始）與 $L=11$（incremental）；解碼器深度 $n=12$；尺度歸一化是兩個子網路差異最大的訓練細節。</li></ul>
+<h4 id="module-3-i2p-regression-head">Module 3 — I2P Regression Head</h4>
+<ul><li><strong>Function</strong>: 把 decoder 輸出的 token 映射回稠密點圖與 per-pixel confidence。</li><li><strong>Input</strong>: keyframe / 支援幀的 decoder 輸出 token，皆為 $\mathbb{R}^{T \times d}$。</li><li><strong>Output</strong>: 點圖 $\hat{X}_i \in \mathbb{R}^{224 \times 224 \times 3}$（keyframe 座標系下的 3D 點）、信心 $\hat{C}_i \in \mathbb{R}^{224 \times 224}$。</li><li><strong>Processing</strong>: 採 DUSt3R 的 DPT-style 上採樣 head，將 token 重新排列回 $(H/p, W/p)$ 的特徵圖後逐步上採樣到 $224 \times 224$，並以兩個獨立分支分別輸出 3 通道點座標與 1 通道 confidence；confidence 通過 softplus 保證為正。</li><li><strong>Key Formulas</strong>: $(\hat{X}_i, \hat{C}_i) = \mathrm{Head}_{I2P}(\mathrm{Dec}(F_i))$；$\hat{C}_i = 1 + \mathrm{softplus}(\cdot)$（沿用 DUSt3R 慣例）。</li><li><strong>Implementation Details</strong>: paper 並未針對 head 結構給出新設計，僅說明沿用 DUSt3R 的回歸頭與信心建模。</li></ul>
+<h4 id="module-4-retrieval-module">Module 4 — Retrieval Module</h4>
+<ul><li><strong>Function</strong>: 在 L2W 階段，從 reservoir 中挑出與目前 keyframe 最具空間重疊的 $K$ 張歷史 keyframe，作為 scene context，避免每一輪都對所有歷史幀做 cross-attention。</li><li><strong>Input</strong>: 當前 keyframe token $F_{key} \in \mathbb{R}^{T \times d}$；reservoir 中已註冊的歷史 keyframe token $\{F_{S,k}\}_{k=1}^{|S|}$。</li><li><strong>Output</strong>: 索引集合 $\mathcal{K} \subset \{1,\dots,|S|\}$，$|\mathcal{K}| = K$，以及對應的 scene-context token / 世界點圖。</li><li><strong>Processing</strong>: <strong>重用 $D_{reg}$ 的前 $r=2$ 個 decoder block</strong> 對 $(F_{key}, F_{S,k})$ 各別做前向，從輸出 token 預測一個純量重疊分數，依分數做 top-$K$；因為 encoder token 在 reservoir 中是被快取的，整個 retrieval 不需重跑 $E_{img}$，計算量遠低於完整 L2W。</li><li><strong>Key Formulas</strong>: 對每個候選 $k$，重疊分數</li></ul>
+<p>$$s_k = \phi\!\left( D_{reg}^{(1:r)}(F_{key},\, F_{S,k}) \right), \qquad \mathcal{K} = \mathrm{TopK}_k\, s_k.$$</p>
+<ul><li><strong>Implementation Details</strong>: paper §3.3 指明 $r=2$；reservoir 採用 reservoir sampling 維持上限大小 $B$，使早期幀也有機會被保留，避免單純 FIFO 造成的 forgetting。</li></ul>
+<h4 id="module-5-points-encoder-e_-pts">Module 5 — Points Encoder $E_{pts}$</h4>
+<ul><li><strong>Function</strong>: 把已註冊到世界座標的點圖編成與影像 token 相容的序列，讓 L2W decoder 可以同時 attend 影像與幾何資訊。</li><li><strong>Input</strong>: 世界座標下的點圖 $X^w \in \mathbb{R}^{224 \times 224 \times 3}$（來自 reservoir 中已註冊的 keyframe）。</li><li><strong>Output</strong>: 點 token $G \in \mathbb{R}^{T \times d}$，與 $E_{img}$ 的輸出維度對齊。</li><li><strong>Processing</strong>: 將點圖視為 3 通道「影像」做 patch embedding 後，再經少量 transformer block 形成 token；輸出維度刻意設為與影像 token 相同的 $d$，方便在 $D_{sce}$ 中與影像 token 共用 attention 邏輯。</li><li><strong>Key Formulas</strong>: $G = E_{pts}(X^w)$。</li><li><strong>Implementation Details</strong>: paper §3.2 指 $E_{pts}$ 為 L2W 新增模組，I2P 子網路不使用。</li></ul>
+<h4 id="module-6-l2w-decoders-d_-reg-d_-sce-multi-keyframe-co-registration">Module 6 — L2W Decoders $D_{reg} + D_{sce}$（Multi-keyframe Co-registration）</h4>
+<ul><li><strong>Function</strong>: 同時把 $Co$ 張當前 keyframe 的區域點圖搬到世界座標系，並參考 $K$ 張 retrieval 出的 scene context，做多 keyframe 共同註冊。</li><li><strong>Input</strong>:</li><li>當前 keyframe 影像 token $F_{key} \in \mathbb{R}^{Co \times T \times d}$（$Co=10$）。</li><li>Scene-context 點 token $G \in \mathbb{R}^{K \times T \times d}$。</li><li><strong>Output</strong>: 對 $Co$ 張當前 keyframe，輸出世界座標點圖 $\hat{X}^w \in \mathbb{R}^{Co \times 224 \times 224 \times 3}$ 與 confidence $\hat{C}^w \in \mathbb{R}^{Co \times 224 \times 224}$。</li><li><strong>Processing</strong>: $D_{reg}$ 處理當前 keyframe 流、$D_{sce}$ 處理 scene-context 流，兩者在每一層做 weave-style cross-attention（與 I2P 的 max-pool 類似但作用在「current ↔ history」軸上），最後接一個與 I2P 結構相同的 regression head 輸出世界座標點圖。</li><li><strong>Key Formulas</strong>: L2W 訓練損失（<strong>不做尺度歸一化</strong>）</li></ul>
+<p>$$\mathcal{L}_{L2W} = \sum_{i=1}^{Co} M_i \cdot \left( \hat{C}^w_i \cdot \mathrm{L1}\!\left( \hat{X}^w_i,\, X^w_i \right) - \alpha \log \hat{C}^w_i \right).$$ 省略 $1/z$ 是為了讓網路學到「跨窗格一致的全域尺度」，這是 SLAM3R 能用前饋方式做全域對齊的關鍵設計（paper §3.4）。</p>
+<ul><li><strong>Implementation Details</strong>: $Co=10$、$K$ 由 retrieval 決定；I2P 的損失含 $1/z, 1/\hat{z}$，L2W 的損失刻意拿掉，這個對比是 paper 強調的兩階段差異（paper §3.4, §4.1）。</li></ul>
+<h4 id="module-7-reservoir-buffer">Module 7 — Reservoir Buffer</h4>
+<ul><li><strong>Function</strong>: 維護一個有界大小的歷史 keyframe 池，供 retrieval 與 scene context 取用，是把「在線 SLAM」與「前饋網路」接合的記憶體層。</li><li><strong>Input</strong>: L2W 完成註冊的 keyframe 影像 token $F_{key}$ 與其世界座標點圖 $X^w$。</li><li><strong>Output</strong>: 動態更新的集合 $S$，元素數 $|S| \le B$，每筆同時存 $F_{key}$ 與 $X^w$（影像 token 已在 $E_{img}$ 處算過，可直接快取）。</li><li><strong>Processing</strong>: 採用 <strong>reservoir sampling</strong>：當 $|S| &lt; B$ 時直接寫入；達到上限後以遞減機率覆寫舊條目，使任意時刻 $S$ 都是已處理 keyframe 的近似均勻取樣，避免單純 FIFO 在長序列時遺失早期場景。</li><li><strong>Key Formulas</strong>: 對第 $t$ 個進入的 keyframe，當 $|S|=B$ 時以機率 $B/t$ 替換隨機一條既有條目；否則直接 append。</li><li><strong>Implementation Details</strong>: paper §3.3 強調 reservoir 的上限 $B$ 是控制 retrieval 計算量與長期記憶權衡的主要旋鈕；$B$ 的具體數值 paper 正文未列。</li></ul>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>ScanNet++ [71]</td><td>室內場景 RGB 影片重建（real-world，iPhone + DSLR frames，由 COLMAP 註冊）</td><td>每 epoch 隨機抽 4000 clips（stride = 3 取樣）</td><td>train</td></tr><tr><td>Aria Synthetic Environments (ASE) [3]</td><td>合成室內場景重建</td><td>前 450 個 scenes，每 epoch 抽 2000 clips（stride = 2）</td><td>train</td></tr><tr><td>CO3D-v2 [41]</td><td>object-centric 重建</td><td>41 個類別、每類別最多 50 個 scene sequences；每 epoch 抽 2000 clips</td><td>train</td></tr><tr><td>7 Scenes [51]</td><td>真實室內 partial-scene 重建與 camera pose 評估</td><td>7 scenes（Chess/Fire/Heads/Office/Pumpkin/RedKitchen/Stairs），每 sequence 取 1/20 frames</td><td>test（unseen）</td></tr><tr><td>Replica [54]</td><td>合成完整場景重建與 camera pose 評估</td><td>8 scenes（Room 0-2, Office 0-4），全 video frames 輸入</td><td>test（unseen）</td></tr><tr><td>ScanNet [11]</td><td>真實室內場景重建（補充比較）</td><td>3 個抽樣 scenes（0011_00, 0015_00, 0019_00）</td><td>test（補充，§C）</td></tr><tr><td>Tanks and Temples [26]</td><td>大場景重建（generalization）</td><td>3 個 scenes（Ignitius / Truck / Caterpillar）</td><td>test（補充，§C）</td></tr><tr><td>ETH3D [49, 50]</td><td>高解析度 multi-view stereo（generalization）</td><td>3 個 scenes（plant_scene_1 / table_3 / sofa_1）</td><td>test（補充，§C）</td></tr><tr><td>BlendedMVS [69]</td><td>大規模 MVS（generalization）</td><td>the paper does not specify</td><td>test（僅 qualitative，Fig. 5）</td></tr><tr><td>Map-free Reloc [2]</td><td>metric-scale relocalization（generalization）</td><td>the paper does not specify</td><td>test（僅 qualitative，Fig. 5）</td></tr><tr><td>LLFF [35]</td><td>forward-facing scene reconstruction</td><td>the paper does not specify</td><td>test（僅 qualitative，Fig. 5）</td></tr><tr><td>DTU [1]</td><td>unorganized image collections 重建</td><td>the paper does not specify</td><td>test（僅 qualitative，Fig. 8）</td></tr><tr><td>In-the-wild captured videos</td><td>泛化測試</td><td>the paper does not specify</td><td>test（僅 qualitative）</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Accuracy (cm)</td><td>$\text{Accuracy} = \frac{1}{P}\sum_{i=1}^{P}\min_j D(x_i, y_j)$，重建點雲到 GT 點雲的最近鄰平均 Euclidean 距離</td><td>yes</td></tr><tr><td>Completeness (cm)</td><td>$\text{Completeness} = \frac{1}{Q}\sum_{j=1}^{Q}\min_i D(x_i, y_j)$，GT 點雲到重建點雲的最近鄰平均距離</td><td>yes</td></tr><tr><td>FPS</td><td>$\text{FPS} = F/\text{time}$，整段影片總幀數除以重建總時間，用以衡量 real-time 能力</td><td>yes</td></tr><tr><td>ATE-RMSE (cm)</td><td>$\sqrt{\frac{1}{F}\sum_{i=1}^{F} D(T_i^{gt}, T_i^{pred})^2}$，預測與 GT camera trajectory 中心位置的 RMSE</td><td>no（次要分析；camera pose 由 PnP-RANSAC 從預測點雲反推）</td></tr></tbody></table>
+<p>評估流程：所有重建點雲先以 Umeyama [58] + ICP [43] 對齊到 GT，再計算 accuracy / completeness。FPS 在單張 NVIDIA 4090D 上量測。GT 點雲由 GT depth 與 camera 參數 back-projection 得到。</p>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li><strong>硬體</strong>：8 × NVIDIA 4090D GPUs，each 24 GB；total training 約一天。</li><li><strong>Batch size</strong>：每 GPU 4，總有效 batch size = 32。</li><li><strong>影像解析度</strong>：所有訓練與測試影像 center-crop 為 $224 \times 224$；採用 DUSt3R 標準 data augmentation。</li><li><strong>權重初始化</strong>：I2P 與 L2W 從 DUSt3R 224 預訓練權重出發（$m = 24$ encoder blocks、$n = 12$ decoder blocks，linear head）。</li><li><strong>Optimizer / learning rate / schedule</strong>：the paper does not specify。</li><li><strong>訓練階段</strong>（§A）：</li><li>I2P：clip length = 11，中間 frame 為 keyframe；100 epochs，約 6 hours。</li><li>Retrieval module：固定其餘權重，僅更新 linear projection；以 L1 loss 監督 correlation score 對齊 I2P mean confidence；50 epochs，約 2 hours。</li><li>L2W：clip length = 12，前 6 frames 為 scene frames、後 6 為待註冊 keyframes；200 epochs，約 16 hours；GT pointmaps 中無效點以 (0, 0, 0) 填補；不做 scale normalization 以維持與 scene frames 一致尺度。</li><li><strong>Inference 設定</strong>：</li><li>Initial window length $L = 5$；後續 incremental windows 用 $L = 11$ 提供更多 supporting views。</li><li>Sliding-window stride = 1，使每個 frame 都至少當過一次 keyframe。</li><li>Replica（full video）：window stride 內 frame skip = 20，多 keyframe 共同註冊 $C_o = 10$、retrieval top-$K = 10$、reservoir 更新間隔 $R = 20$；reservoir 採 Vitter [59] 採樣（$\Pr(\text{insert}) = B/\text{id}$，超過容量時隨機替換）。</li><li>7 Scenes（每 20 frames 取樣）：$\text{Skip} = 1$、$C_o = 2$、$K = 5$、$R = 1$。</li><li>SLAM3R 主表 confidence threshold 固定為 3；SLAM3R-NoConf 不做 confidence 過濾。</li><li>Camera pose：由預測 scene points + GT intrinsics 餵入 OpenCV [6] PnP-RANSAC 反推。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>7 Scenes [51]，Acc / Comp（cm，average over all sequences）：</p>
+<table><thead><tr><th>Method</th><th>Acc. ↓</th><th>Comp. ↓</th><th>FPS ↑</th><th>Notes</th></tr></thead><tbody><tr><td>DUSt3R [64]</td><td>2.19</td><td>3.24</td><td>&lt;1</td><td>offline，pairwise + global alignment</td></tr><tr><td>MASt3R [28]</td><td>3.04</td><td>3.90</td><td>≪1</td><td>triangulation-based</td></tr><tr><td>Spann3R [61]</td><td>3.42</td><td>2.41</td><td>&gt;50</td><td>concurrent，frame-by-frame incremental</td></tr><tr><td>SLAM3R-NoConf (Ours)</td><td>2.40</td><td>2.24</td><td>∼25</td><td>不做 confidence 過濾</td></tr><tr><td><strong>SLAM3R (Ours)</strong></td><td><strong>2.13</strong></td><td><strong>2.34</strong></td><td><strong>∼25</strong></td><td>confidence threshold = 3，FPS &gt; 1 群中 Acc / Comp 皆 SoTA</td></tr></tbody></table>
+<p>Replica [54]，Acc / Comp（cm，average over 8 scenes）：</p>
+<table><thead><tr><th>Method</th><th>Acc. ↓</th><th>Comp. ↓</th><th>FPS ↑</th><th>Notes</th></tr></thead><tbody><tr><td>DUSt3R [64]</td><td>3.49</td><td>2.48</td><td>&lt;1</td><td>1/20 frames（記憶體限制）</td></tr><tr><td>MASt3R [28]</td><td>4.71</td><td>3.36</td><td>≪1</td><td>1/20 frames</td></tr><tr><td>NICER-SLAM [79]</td><td>3.65</td><td>4.16</td><td>≪1</td><td>結果取自原論文</td></tr><tr><td>DROID-SLAM [56]</td><td>5.50</td><td>12.29</td><td>∼20</td><td>結果取自 NICER-SLAM</td></tr><tr><td>DIM-SLAM [29]</td><td>11.60</td><td>7.85</td><td>∼3</td><td>結果取自 NICER-SLAM</td></tr><tr><td>GO-SLAM [75]</td><td>3.81</td><td>4.79</td><td>∼8</td><td>僅報 average</td></tr><tr><td>Spann3R [61]</td><td>10.32</td><td>13.33</td><td>&gt;50</td><td>concurrent</td></tr><tr><td>SLAM3R-NoConf (Ours)</td><td>3.76</td><td>2.62</td><td>∼24</td><td></td></tr><tr><td><strong>SLAM3R (Ours)</strong></td><td><strong>3.57</strong></td><td><strong>2.62</strong></td><td><strong>∼24</strong></td><td>FPS &gt; 1 群中 Acc / Comp 皆超越所有 baseline</td></tr></tbody></table>
+<p>Camera pose（ATE-RMSE，cm；Table 3）：</p>
+<table><thead><tr><th>Method</th><th>7 Scenes</th><th>Replica</th><th>Notes</th></tr></thead><tbody><tr><td>DUSt3R (w/PnP)</td><td>8.02</td><td>4.76</td><td>從預測 pointmap 經 PnP 反推</td></tr><tr><td>MASt3R (w/PnP)</td><td>6.28</td><td>1.67</td><td></td></tr><tr><td>NICER-SLAM</td><td>8.55</td><td>1.88</td><td></td></tr><tr><td>DROID-SLAM</td><td>5.66</td><td>0.33</td><td>SLAM-specialized</td></tr><tr><td>DIM-SLAM</td><td>—</td><td>0.46</td><td></td></tr><tr><td>GO-SLAM</td><td>—</td><td>0.39</td><td></td></tr><tr><td>Spann3R</td><td>11.70</td><td>32.79</td><td></td></tr><tr><td><strong>SLAM3R (Ours)</strong></td><td><strong>8.41</strong></td><td><strong>6.61</strong></td><td>7 Scenes 上略勝 NICER-SLAM 與 Spann3R；Replica 上落後純 SLAM 系統</td></tr></tbody></table>
+<p>主要訊息：在 FPS &gt; 1 的方法中，SLAM3R 在兩個 unseen benchmark 的 Acc 與 Comp 同時奪冠，且維持 ∼25 FPS 的 real-time 重建；camera pose 雖落後專注於 localization 的 DROID-SLAM / GO-SLAM，但作者明示重建品質與 pose error 並非完全正相關，這正是 end-to-end 點雲重建的論述支點。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<ol><li><strong>I2P window length（Table 4 / Fig. 9，Replica keyframe-only Acc / Comp）</strong></li></ol>
+<ul><li>變項：window 長度從 2（等價 DUSt3R two-view）→ 5 → 11（default）→ 15 → 51。</li><li>結果：Acc 由 3.39 → 2.62 → 2.38 → 2.27 → 2.23；Comp 由 3.04 → 2.28 → 2.03 → 1.94 → 1.86；FPS 在 ≤ 11 時穩定（42.55 → 40.11），到 51 時掉到 11.97。</li><li>診斷性：直接回答「multi-view cross-attention 是否真比 DUSt3R two-view 強」與「為何 default 取 11」；同時指出 diminishing return（重疊變少 + 推論變慢），結論明確。屬有效 diagnostic ablation。</li></ul>
+<ol><li><strong>L2W 對齊策略（Table 5，Replica full scene）</strong></li></ol>
+<ul><li>對照：I2P+GA（DUSt3R global alignment 優化）、I2P+UI（Umeyama + ICP）、I2P+L2W（取最近 10 frames 為 reference，無 retrieval）、I2P+L2W+Re（Full，retrieval top-K）。</li><li>結果（Acc / Comp / FPS）：4.87 / 3.00 / ∼3、7.47 / 3.86 / ∼1、6.19 / 3.54 / ∼92、<strong>3.62 / 2.70 / ∼43</strong>。</li><li>診斷性：同時對照「優化 vs 神經對齊」與「nearest-frame vs retrieval」兩個正交因子。Full 顯示 L2W 本身比 GA 與 UI 都好；Re 把 6.19 → 3.62，明確證實 retrieval 對減少累積 drift 的貢獻，是真正診斷 retrieval 必要性的實驗。</li></ul>
+<ol><li><strong>Scene frame 數量對 registration 的影響（Table 9，Replica）</strong></li></ol>
+<ul><li>變項：scene frame 數 1 / 5 / 10 / 20 / 30 / 40 / 50。</li><li>結果：Acc 4.18 → 3.99 → <strong>3.57</strong> → 3.57 → 3.59 → 4.15 → 4.27；FPS 從 ∼398（1 frame）下滑到 ∼37（50 frames）。</li><li>診斷性：標準 hyperparameter sweep；驗證「太少會掉進 local minimum、太多會引入無關 frame 干擾」的論點，並合理化 Replica K = 10 / 7 Scenes K = 5 的選擇。屬有效 diagnostic。</li></ul>
+<ol><li><strong>Confidence filtering（Table 1, 2 中 SLAM3R vs SLAM3R-NoConf）</strong></li></ol>
+<ul><li>結果：7 Scenes 2.40/2.24 → 2.13/2.34；Replica 3.76/2.62 → 3.57/2.62。</li><li>診斷性：偏向 sanity check —— 顯示 confidence head 有用、但兩者差距很小，主要訊息是「confidence threshold = 3 是合理預設」，並未深入分析 confidence 與真實 error 的相關性。</li></ul>
+<p>整體看這四個 ablation 中，前三個（window length、alignment 策略、scene frame 數）都是真正診斷新組件的實驗；只有 confidence filter 偏向 sanity check。<strong>缺少對「multi-view cross-attention + max-pool 聚合」這一核心架構創新的 head-to-head ablation</strong>（例如改用 mean-pool、concat、或 DUSt3R 原生 cross-attention 串接的對照），讀者只能從 window-length 表間接推得其價值。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline — DUSt3R [64]、MASt3R [28]、Spann3R [61]、NICER-SLAM [79]、DROID-SLAM [56]、GO-SLAM [75]、DIM-SLAM [29] 同台，涵蓋 end-to-end 與 SLAM 兩條路線的當代代表（Tables 1-3, 6-7）。</li><li>[covered] Has cross-task / cross-dataset evaluation — 主表測 7 Scenes + Replica，補充再加 ScanNet、Tanks and Temples、ETH3D、BlendedMVS、Map-free Reloc、LLFF、DTU 與 in-the-wild 影片（Table 8、Figs. 5, 8）。</li><li>[partial] Has ablations that diagnose the new components — window length、alignment 策略、retrieval、scene-frame 數皆為 diagnostic（Tables 4, 5, 9），但缺少對 multi-view cross-attention 聚合方式（max-pool vs 替代）的直接 ablation。</li><li>[partial] Has a scaling study — window length 2 → 51（Table 4 / Fig. 9）與 scene frame 1 → 50（Table 9）算長度面的 scaling，但<strong>沒有模型大小、訓練資料量或 compute 的 scaling 分析</strong>。</li><li>[covered] Has an efficiency / wall-clock comparison — 所有主表都同列 FPS（Tables 1-2, 4-5, 9），且明確區分 FPS &gt; 1 / &lt; 1 兩組。</li><li>[missing] Reports variance / standard deviation / multiple seeds — 全文僅報單次數值，no std、no seed sweep；reservoir sampling 為隨機過程但未標註隨機性影響。</li><li>[covered] Releases code / weights / data sufficient for reproducibility — Abstract 標明 https://github.com/PKU-VCL-3DV/SLAM3R；訓練資料與超參在 §A、§B 詳述。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1 — 「即時 end-to-end RGB 稠密重建，20+ FPS」</strong>：SUPPORTED。Tables 1–2 一致回報 ~24–25 FPS，且為實際完整 pipeline（非單純 alignment overhead），確實落在 real-time 區間。</li><li><strong>Claim 2 — 「I2P 將 DUSt3R 廣義化到任意視圖數並提升品質」</strong>：SUPPORTED。Table 4 顯示從 $L=2$ 的 3.39 / 3.04 cm 單調改善到 $L=11$ 的 2.38 / 2.03 cm，且 efficiency 在 $L \le 11$ 內穩定。</li><li><strong>Claim 3 — 「L2W 直接將 local pointmap 對齊到全域，省去顯式相機參數最佳化與 costly global optimization」</strong>：PARTIALLY SUPPORTED。Table 5 在 alignment 子問題上同時贏過 GA 與 Umeyama+ICP；但 Table 6–7 的 ATE 顯示，相較於有 BA 的 SLAM 方法仍差一到兩個量級，等於只是「在重建度量上不需要 GA」，而非「全域一致性不需要 GA」。</li><li><strong>Claim 4 — 「在 accuracy 與 completeness 上達 state-of-the-art real-time」</strong>：SUPPORTED 但有限定。在 FPS &gt; 1 的群組內確實全面領先（Tables 1–2）；對比離線 DUSt3R / MASt3R 時，部分場景（如 7 Scenes Heads、Stairs）DUSt3R accuracy 仍較佳，論文措辭「comparable to」較為精確。</li><li><strong>Claim 5 — 「self-contained retrieval 提供長期歷史的 implicit re-localization」</strong>：SUPPORTED。Table 5 的 I2P+L2W vs I2P+L2W+Re 顯示從 6.19 / 3.54 cm 改善至 3.62 / 2.70 cm，幅度足以證明 retrieval 不只是錦上添花。</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>沒有可微分的 pose 表示，導致 BA 與感測器融合受阻。</strong> 整個系統把「相機參數」當成 pointmap 預測的副產物（透過 PnP-RANSAC 從預測點雲反推），這意味著任何下游需要 $\text{SE}(3)$ 軌跡的應用都必須事後解算，並承擔 PnP 解的雜訊；同時也使得 IMU、輪速計、GPS 等感測融合在架構上找不到自然介面。論文以「end-to-end 不需 pose」框成優勢，但 ATE 落差是這個框架的結構性代價而非工程偏差。</p>
+<p><strong>224×224 解析度與 DUSt3R 預訓練綁定。</strong> I2P / L2W 都是從 DUSt3R-224 初始化（page 7），訓練資料也統一裁切到 $224 \times 224$。這個尺寸對於 SLAM / MVS 任務偏低，意味著「室外大尺度、細結構、遠景物件」的幾何上限是被 backbone 鎖死的；要升到 512 必須重訓全部模組並重新調節所有超參數，且 multi-view cross-attention 的記憶體會以 $T^2$ 成長，不是免費的工程工作。</p>
+<p><strong>Drift 控制完全寄望於 retrieval 而沒有形式化 loop closure。</strong> L2W 的全域一致性來自「找到夠相關的 scene frame 一起 refine」，這對短期 drift 與部分中期 drift 有用，但對「真正閉合一個大迴圈」沒有強制機制：若 retrieval 在關鍵幀沒有命中歷史，系統沒有 fallback 也沒有後驗修正。Replica 上 6.61 cm 的 ATE 一部分就是這個結構問題的訊號。</p>
+<p><strong>對 static rigid scene 做了強假設。</strong> Problem statement（page 3）即定義在 static scene 上，pointmap regression 也預設世界座標下的點是時間不變的；MonST3R 等動態擴展工作之所以存在，正是因為這個假設無法處理人、車、可動家具。SLAM3R 在當前公式下無法以加 loss 或加 head 來「軟化」這個假設，需要重新設計 representation。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>DUSt3R (Wang et al., 2024) [64]</strong> — SLAM3R 的 backbone、loss、初始權重全來自此；任何 reproduction 或延伸都必須先吃透其 pointmap 公式與 confidence loss。</li><li><strong>Spann3R (Wang &amp; Agapito, 2024) [61]</strong> — 同問題、不同架構的 concurrent work；用「spatial memory token」串連單幀，是理解「為何 SLAM3R 選擇多幀窗口而非 token 化記憶體」最直接的對照組。</li><li><strong>MASt3R (Leroy et al., 2024) [28]</strong> 與其延伸 <strong>MASt3R-SfM [14]</strong> — 加 match head 走 SfM 路線的 DUSt3R 變體；若要把 SLAM3R 升到高解析度與 BA-friendly，MASt3R 的 matching loss 與 keypoint geometry 是最現成的銜接點。</li><li><strong>DROID-SLAM (Teed &amp; Deng, 2021) [56]</strong> — Replica 0.33 cm ATE 的 baseline，是 SLAM3R pose 落差的正面參照；理解其 dense bundle adjustment 模組對於日後設計「SLAM3R + 輕量 BA」幫助最大。</li><li><strong>MonST3R (Zhang et al., 2024) [74]</strong> — DUSt3R 在動態場景下的延伸，正是 SLAM3R 目前缺席的領域；想把這條路線推到非 static scene，這篇是最直接的設計來源。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 7 Scenes 原生 frame rate（不取 1/20）下，drift 是否會隨序列長度線性累積？論文目前的取樣協議遮蔽了這個維度。</li><li>[ ] Multi-view cross-attention 的「diminishing returns」（Figure 9）是 224×224 解析度下的 overlap 不足造成，還是 max-pool 聚合本身的容量瓶頸？在 512 解析度重訓後 $L &gt; 15$ 的曲線會不會重新單調上升？</li><li>[ ] Retrieval module 在強感知混淆場景（重複走廊、相似房間）的 false-positive 率如何？論文以 confidence regression 訓練，但 confidence 對 perceptual aliasing 並非設計上的偵測信號。</li><li>[ ] 為何 SLAM3R 的 pose 在 7 Scenes（8.41 cm）與 Replica（6.61 cm）皆落後 DROID-SLAM 約 20 倍，而 reconstruction 卻全面贏過？這個 decoupling 是 PnP-from-pointmap 的雜訊上限，還是缺乏 BA 的本質限制？</li><li>[ ] Reservoir buffer 的大小 $B$ 在實驗中實際取何值，且當影片長度 $\to \infty$ 時 retrieval 命中率與重建品質如何衰減？論文僅描述機制而未做 scaling study。</li><li>[ ] 是否能在不破壞 ~24 FPS 的前提下加上輕量 pose head 與 sliding-window BA，把 ATE 拉到接近 DROID-SLAM 的等級？</li><li>[ ] L2W 的 scene decoder 能同時 co-register 多個 keyframe（page 9 supplementary），但實驗只取 $C_o = 10$；不同 $C_o$ 對 throughput vs 一致性的曲線完全沒有揭露。</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>以 MASt3R-512 或 DUSt3R-512 預訓練重新初始化並重訓 I2P / L2W。</strong> 預訓練權重已存在，只需付出重訓代價，但 224×224 是當前 accuracy 與 completeness 的明顯天花板，且高解析度重訓後 multi-view 的 diminishing returns 很可能延後出現，等於同時拿到品質與 $L$ 的 headroom。</li><li><strong>加上輕量 pose head + 在 retrieved scene frames 上做 windowed pose graph optimization。</strong> 重建品質已不錯，real-time 預算亦有餘裕；明確 $\text{SE}(3)$ 表示能直接緩解 ATE 落差，並打開與 IMU / GPS 等感測融合的介面，是「結構性升級而非性能調校」。</li><li><strong>將 L2W 的 free-form pointmap regression 改寫為「先預測 keyframe 之 rigid transform，再在世界座標下回歸殘差變形」。</strong> 此舉把「全域對齊」與「局部幾何修正」解耦，符合 rigid scene 的物理結構，能避免 pointmap 在世界座標中產生不合理的非剛性形變，也讓 retrieval 命中失敗時的退化模式更可預測。</li><li><strong>以 MonST3R 風格資料訓練 dynamic mask head，並讓 L2W 對被遮罩區域略過 scene-frame 對齊。</strong> 此延伸可在保留主架構的情況下打破「static scene」假設，是擴展可用場景最直接的路徑。</li><li><strong>以真正的 loop-closure pair（例如重複走訪同一位置）作為 retrieval 的監督，取代目前以 I2P confidence regression 的代理目標。</strong> 當前訓練讓 retrieval 學「視覺相似」，但 SLAM 任務真正需要的是「重訪偵測」；改換監督後 retrieval 將變成可信賴的 loop detector，與第 2 點搭配可形成完整的全域一致性閉環。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

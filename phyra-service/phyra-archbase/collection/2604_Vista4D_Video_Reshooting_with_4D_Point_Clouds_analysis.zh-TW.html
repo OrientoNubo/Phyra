@@ -1,0 +1,466 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Vista4D — Vista4D: Video Reshooting with 4D Point Clouds</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW --&gt;</p>
+<h1 id="vista4d-vista4d-video-reshooting-with-4d-point-clouds">Vista4D — Vista4D: Video Reshooting with 4D Point Clouds</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>Vista4D</td></tr><tr><td>Paper full title</td><td>Vista4D: Video Reshooting with 4D Point Clouds</td></tr><tr><td>arXiv ID</td><td>2604.21915</td></tr><tr><td>Release date</td><td>2026-04-23</td></tr><tr><td>Conference/Journal</td><td>CVPR 2026 (Highlight)</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2604.21915</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2604.21915</td></tr><tr><td>Code link</td><td>https://github.com/Eyeline-Labs/Vista4D</td></tr><tr><td>Project page</td><td>https://eyeline-labs.github.io/Vista4D/</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Kuan Heng Lin</td><td>Eyeline Labs; Columbia University</td><td>https://kuanhenglin.github.io/</td><td>first author (intern at Eyeline Labs; PhD student at Columbia)</td></tr><tr><td>Zhizheng Liu</td><td>Eyeline Labs; UCLA</td><td>https://scholar.google.com/citations?user=Asc7j9oAAAAJ&amp;hl=en</td><td>co-first author</td></tr><tr><td>Pablo Salamanca</td><td>Eyeline Labs; Netflix</td><td>—</td><td>author</td></tr><tr><td>Yash Kant</td><td>Eyeline Labs; Netflix</td><td>—</td><td>author</td></tr><tr><td>Ryan Burgert</td><td>Eyeline Labs; Netflix; Stony Brook University</td><td>—</td><td>author (intern)</td></tr><tr><td>Yuancheng Xu</td><td>Eyeline Labs; Netflix</td><td>—</td><td>author</td></tr><tr><td>Koichi Namekata</td><td>Eyeline Labs; Netflix; University of Oxford</td><td>—</td><td>author (intern)</td></tr><tr><td>Yiwei Zhao</td><td>Netflix</td><td>—</td><td>author</td></tr><tr><td>Bolei Zhou</td><td>UCLA</td><td>https://boleizhou.github.io/</td><td>author (advisor)</td></tr><tr><td>Micah Goldblum</td><td>Columbia University</td><td>—</td><td>author (advisor)</td></tr><tr><td>Paul Debevec</td><td>Eyeline Labs; Netflix</td><td>—</td><td>senior author</td></tr><tr><td>Ning Yu</td><td>Eyeline Labs; Netflix</td><td>https://ningyu1991.github.io/</td><td>corresponding / senior author (Lead Research Scientist)</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>video reshooting, 4D reconstruction, point cloud rendering, video diffusion model, camera control, novel-view synthesis, static pixel segmentation, Plücker embedding</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>TrajectoryCrafter</td><td>baseline</td><td>Explicit-prior 雙重重投影法產生單目訓練對；Vista4D 主要對照基線之一。</td></tr><tr><td>GEN3C</td><td>baseline</td><td>以 3D cache 與 pooling-based fusion 進行稀疏視角合成的點雲條件式重拍方法。</td></tr><tr><td>EX-4D</td><td>baseline</td><td>以 Depth Watertight Mesh 進行追蹤式 inpainting 訓練的點雲條件式重拍方法。</td></tr><tr><td>ReCamMaster</td><td>baseline</td><td>提供 MultiCamVideo 合成多視角資料集，並用 camera embeddings 控相機。</td></tr><tr><td>CamCloneMaster</td><td>baseline</td><td>以參考影片隱式複製相機軌跡的視訊重拍方法。</td></tr><tr><td>Wan2.1-T2V-14B</td><td>base model</td><td>作為微調起點的預訓練 text-to-video flow matching diffusion transformer。</td></tr><tr><td>STream3R / π3</td><td>influence</td><td>端到端 4D 重建模型，提供深度與相機以建立世界座標 4D 點雲。</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本論文聚焦於「影片重拍 (video reshooting)」：給定單目來源影片，於後製階段沿任意新相機軌跡與視角重新合成同一動態場景，以實現虛擬攝影與視覺敘事控制。Vista4D 將來源影片與目標相機共同錨定於一個世界座標下、具時間持續靜態像素的 4D 點雲表示，並結合視訊擴散模型 (video diffusion) 的生成先驗以兼顧已見內容保留與未見內容的合理生成。研究議題涵蓋穩健的 4D 重建條件化、靜態/動態像素分割、含雜訊多視角資料訓練策略、相機精準控制 (Plücker embedding)、以及在動態場景擴展、4D 場景重組與長影片分塊推論等實際應用，最終於 CVPR 2026 被選為 Highlight。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>Computer Vision</li><li>Generative AI</li><li>Video Generation</li><li>4D Reconstruction</li><li>Novel View Synthesis</li><li>Virtual Cinematography</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>Wan2.1-T2V-14B</strong>：作為基礎 video diffusion transformer，採用 flow matching 訓練目標，是 Vista4D 微調的起點 (僅訓練 patchify、self-attention、camera encoder 與 projector，其他參數凍結)。</li><li><strong>4D point cloud representation (本論文提出)</strong>：以世界座標、時間持續靜態像素為條件的顯式 4D 表徵，由 inverse perspective projection $\Phi^{-1}$ 與世界座標轉換 $\Omega$ 構成 (Eq. 1)，並透過靜態像素遮罩 $M^{\text{stc}}$ 建立 temporally-persistent 的點雲 $\overline{P}$。</li><li><strong>In-context latent token concatenation (本論文提出)</strong>：將 source video 與 point cloud render 的 patchified latent tokens 沿 frame dimension 串接到 noisy target latent tokens，取代 TrajectoryCrafter 的 cross-attention 注入，以更好保留來源外觀。</li><li><strong>Plücker embedding camera encoder</strong>：以 zero-initialized linear projection 注入 Plücker 形式的目標相機 $C^{\text{tgt}}=(K^{\text{tgt}}, T^{\text{tgt}})$，self-attention 後以 identity-initialized projection 結合，沿用 ReCamMaster 設計。</li><li><strong>STream3R / π3 (4D reconstruction)</strong>：端到端 4D 重建模型，分別用於合成多視角資料 (MultiCamVideo) 與真實世界單目資料 (OpenVidHD-0.4M 子集) 之深度與相機估計。</li><li><strong>Grounded SAM 2 + RAM + Llama-3.1-8B-Instruct</strong>：靜態像素分割 pipeline，以 RAM 取得語意類別、Llama-3.1-8B-Instruct 過濾動態名詞、Grounded SAM 2 分割逐幀動態像素並反轉得到 $M^{\text{stc}}$。</li><li><strong>Wan2.1-I2V-14B (variant)</strong>：第一幀條件版本，用於長影片 chunked autoregressive 推論以維持 chunk 間視覺一致性。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者指出既有以顯式點雲為條件的影片重拍方法 (如 TrajectoryCrafter、GEN3C、EX-4D) 之根本問題：它們多以「無瑕疵深度圖」訓練，例如以 double re-projection 從目標影片正面視角生成訓練對，使任務退化為 inpainting；一旦推論時面對真實世界動態影片中不精確的單目深度與 4D 重建，生成模型便無法修正非正面視角下的幾何瑕疵與時間閃爍。同時，逐幀相機空間點雲在目標相機與來源影片重疊度低時，既無法保留已見外觀，也無法提供足夠相機訊號。隱式條件方法 (ReCamMaster、CamCloneMaster) 又因單目深度尺度不確定而導致相機控制不精準。Vista4D 的解法因此在邏輯上是必要的兩個對應修補：(1) 建立含「時間持續靜態像素」的世界座標 4D 點雲，使任何幀都可看見靜態內容，從而在大幅度新軌跡下仍能顯式保留外觀並提供豐富相機訊號；(2) 改以含 4D 重建瑕疵的合成多視角動態資料 (MultiCamVideo + STream3R) 與單目資料混合訓練，使模型學會「修正不完美點雲」而非僅 inpainting；並透過 in-context 串接 latent token 同時條件化來源影片與點雲渲染，以從來源影片補回幾何與外觀資訊。此設計直接回應了上述根因，因此能同時在相機準確度、3D 一致性、視覺保真度與動態場景擴展等下游應用上超越現有基線。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>標題「Vista4D: Video Reshooting with 4D Point Clouds」直接點出方法名稱與核心技術主軸，揭示作者把 video reshooting 問題重新定義為「以 4D point cloud 為 grounding」的任務。Abstract 緊接著鋪陳三個關鍵命題：第一，給定一段 input video，方法可以從 different camera trajectory and viewpoint 重新合成同一個動態場景；第二，現有 video reshooting 方法在 real-world dynamic videos 上會被 depth estimation artifacts 所困，且難以同時保留原內容外觀與維持精準的相機控制；第三，Vista4D 透過「以 static pixel segmentation 與 4D reconstruction 構建 4D-grounded point cloud representation」並「用重建後的 multiview dynamic data 進行訓練」來同時克服這兩個問題。</p>
+<p>Abstract 在最後把訴求從「方法本身」延伸到「應用面」：宣稱在 4D consistency、camera control、visual quality 三個指標上勝過 SOTA baselines，並進一步泛化到 dynamic scene expansion 與 4D scene recomposition 等實際場景。這段 framing 設定了全文的三個審視維度，後續 §3 Introduction 與 §4 Experiments 會反覆呼應這三點。對讀者而言，Abstract 同時暗示了作者的方法定位，介於 explicit-prior（point cloud）與 implicit-prior（diffusion model 先驗）之間，為後續「兩條技術路線各有缺陷、Vista4D 取兩者之長」的論述鋪路。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(520 words)</p>
+<p>Introduction 從電影攝影機作為「敘事視覺語言」的隱喻切入，把 video reshooting 抬升到 post-production 中操控視覺說故事的新維度，這是非常典型 Eyeline Labs/Netflix 系作者群會採用的開場修辭。在這個包裝下，作者把 task 形式化為：給定 source video，從新的 camera trajectories 與 viewpoints 渲染同一個動態場景，且需同時做到「對 seen content 的忠實重建」、「對 unseen content 的合理生成」、以及「精準可控的相機」。</p>
+<p>接著 Intro 給出技術選型的兩個前提：（1）採用 video diffusion models 作為 dynamic content 的強先驗；（2）結合 4D reconstruction 把 monocular source video 提升為 4D point cloud，提供 spatiotemporal grounding 與 camera control 的 rich signal。這兩個前提合起來定義了 Vista4D 的方法骨幹：以「temporally-persistent static pixels 的 4D-grounded point cloud」做空間錨定，再以 video diffusion 的生成先驗補完缺漏。</p>
+<p>然後作者建立 contrast：既有 video reshooting 工作（[7–9]）以 per-frame depth-lifted point cloud 作為 conditioning，問題是它們通常在精準 depth maps 上訓練，因此遇到真實世界 dynamic videos 的 4D reconstruction 不準時，會出現 geometry artifacts 與 temporal flickering，且在挑戰性的 target trajectories 下相機控制與內容保留都會崩。這段把 baseline 的失敗原因歸因到「訓練/推論分布錯配」，為後續方法選擇做出具體 motivation。</p>
+<p>接著 Intro 列出 Vista4D 的兩個關鍵設計：第一，建立 static pixels 跨幀可見的 4D-grounded point cloud（取代 per-frame 3D point cloud），讓 seen content 即使 target camera 與 source video 幾乎沒有 per-frame overlap 仍能被保留並提供 camera signal；第二，以「帶 4D-reconstructed depth artifacts」的 dynamic multiview video pairs 增強訓練，讓模型學會在 non-frontal view 的 noisy point cloud render 上仍可生成 plausible content。這個訓練資料設計也順勢解鎖了在 inference 時直接編輯 4D point cloud 的能力，引出後續的 application stories。</p>
+<p>最後 Intro 以三點 contributions 收尾：(i) 提出 Vista4D，以 4D point cloud grounding 兼顧 geometric/physical plausibility 與 seen content preservation；(ii) 透過 quantitative、qualitative 與 user study 的廣泛比較，證明 content preservation、camera controllability、visual quality 全面勝出；(iii) 訓練設計使 Vista4D 額外延伸出 dynamic scene expansion、4D scene recomposition、long video inference with memory 等應用。這個 contribution list 同時定義了 §4 的評估面向與 §4.4 的 application 章節結構，把整篇論文的論證鏈鋪設完整。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(330 words)</p>
+<p>Related Work 分成三條軸線，並刻意排序為「explicit prior、implicit prior、4D reconstruction」，與 Intro 中的方法定位完全對齊。第一條 axis「Video reshooting with explicit priors」回顧以 per-frame camera-space point cloud 作為 conditioning 的方法（[7–9, 12–14]），它們依賴 video depth estimators（[15–17]），並順帶把 depth prior 的應用面擴及 static scene NVS 與 video motion control。作者明確指出這條路線的弱點：「常在精準 depth maps 上訓練 → 對 real-world imperfect depth 不耐 → per-frame 條件難以保留 seen content 且難挑戰性 trajectory 上保持精準相機控制」，這直接合理化 Vista4D 的兩個關鍵設計（temporally-persistent point cloud + 含 artifact 的 multiview 訓練）。</p>
+<p>第二條 axis「Video reshooting with implicit priors」介紹靠 camera embeddings 或 reference videos 對 video diffusion 做 finetune 的路線（[10, 21, 22]），並把它與 image- and camera-conditioned NVS 與 camera-controlled video generation 連結。對這條路線的批判則落在「monocular video 的 depth scale ambiguity 使 implicit-prior 的相機控制不精準，且無法像 point cloud 那樣顯式 preview」。這層對比把 Vista4D 推到「保留 explicit point cloud 的可預覽相機控制，同時引入 video diffusion 的隱式先驗來補足 reconstruction 不完美」的中間位置。</p>
+<p>第三條 axis「4D reconstruction」說明 Vista4D 為何能假設 source video 可被 lift 成 world-space point cloud：傳統 SfM（[31–33]）對 dynamic scene 不夠 robust，而結合 learning-based depth（[15–17, 34–36]）與 SLAM（[40]）的 dynamic reconstruction 工作（[37–39]），以及近期 end-to-end 4D reconstruction 模型（[11, 44–47]）與 monocular 4D Gaussians（[48–50]）已能提供可用的 4D 表示。這段同時也預告 §3.4 與實驗中具體採用的 STream3R [11] 與 π3 [44] 兩個重建後端。</p>
+<p>整體而言，Related Work 並未獨立陳述 preliminaries，而是把每條 axis 的痛點直接對應到 Vista4D 的設計選擇，讓 §3 Method 一進場就站在「explicit + implicit 混合，且訓練分布貼合 real-world reconstruction」這個已被反覆論證合理性的地基上。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(380 words)</p>
+<p>§3 Method 的敘事節奏明確分為四步：先建立 4D-grounded representation，再說明訓練資料的選擇，接著討論 conditioning 設計，最後給出訓練細節。整節的核心 thesis 是：「以 temporally-persistent 的 4D point cloud 作為 explicit grounding，搭配能容忍 reconstruction artifact 的訓練資料與 in-context source video conditioning，讓 video diffusion 同時擁有顯式相機控制與隱式生成先驗」。</p>
+<p>§3.1 先把 source video $X^{src}$ 透過 4D reconstruction 取得 $D^{src}, T^{src}, K^{src}$，再透過 segmentation 取得 static pixel mask $M^{stc}$，將每幀像素 lift 至 world-space point cloud $\vec{P}$（Eq. 1，由 inverse perspective projection $\Phi^{-1}$ 與 world-space transform $\Omega$ 組成）。關鍵差異在於使用 $M^{stc}$ 把 static pixels 設為「跨所有幀都 persistent」，得到 temporally-persistent 的 $\mathcal{P}$。從 target cameras 渲染 $\mathcal{P}$ 得到 point cloud render $X^{src \to tgt}$ 與 alpha mask $M^{src \to tgt}$，作為 4D-grounded 的條件，用來解決 baseline 在 target camera 與 source 重疊很少時崩掉的問題。</p>
+<p>§3.2 直擊訓練分布問題。作者點明：因 4D reconstruction 不完美，inference 時的 point cloud render 在 non-frontal view 常含幾何 artifact（特別是動態像素）。既有方法以 double-reprojection 訓練於 artifact-free 的 frontal view，把 reshooting 簡化成 inpainting；Vista4D 反其道而行，使用「具 4D-reconstructed depth artifacts」的 multiview dynamic videos（如 MultiCamVideo + STream3R 重建），讓模型學會「校正不完美的點雲幾何」，並以 monocular real-world data（OpenVidHD-0.4M + π3）做 double-reprojection 補強泛化。</p>
+<p>§3.3 處理 conditioning。除了 point cloud render，作者也將 source video 一併作為條件，以利用 diffusion model 的 implicit prior 傳遞 geometry/appearance；與 TrajectoryCrafter 的 cross-attention 注入不同，Vista4D 將 source video 與 point cloud render 的 patchified latent tokens 沿 frame 軸與 noisy target latent token concatenate，做 in-context conditioning（更能保留 source 內容、對 artifact 更穩健）。Loss 採 flow matching（Eq. 2），target cameras 以 Plücker embeddings 透過 zero-initialized 線性投影注入，self-attention 後再加 identity-initialized 投影，模仿 ReCamMaster 的設計。</p>
+<p>§3.4 鎖定具體訓練配置：以 Wan2.1-T2V-14B 為底，先在 672×384 fine-tune 30,000 步、再在 1280×720 fine-tune 300 步，皆 49 frames、batch 8、AdamW lr 1e-5；只訓練 patchify 層、self-attention、camera encoders 與 projector，其餘凍結。資料處理上以 RAM + Llama-3.1-8B-Instruct + Grounded SAM 2 自動產生 static pixel mask。整節整體論述完成「為何要這樣建模、為何要這樣訓練、為何要這樣 condition」的完整因果鏈，為 §4 的全面比較提供 method-level 的辯護基礎。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(360 words)</p>
+<p>§4 Experiments 的整體故事是：把 Vista4D 與「explicit-prior（point cloud 條件）」與「implicit-prior（camera embedding/reference video 條件）」兩派 SOTA 全面對齊比較，證明它在三個維度上同時勝出，並用 application 段落把方法的延展性實證化。</p>
+<p>作者首先把 baseline 切成兩派：explicit-prior 包含 TrajectoryCrafter [7]（double-reprojection 訓練）、EX-4D [9]（Depth Watertight Mesh）、GEN3C [8]（pooling-based 3D cache）；implicit-prior 包含 ReCamMaster [10]（synthetic multiview camera-conditioned）與 CamCloneMaster [22]（reference-video camera 複製）。所有量化評估與 user study 採用 672×384 的 checkpoint，以求公平。</p>
+<p>評估資料集自製 110 video-camera pairs：51 段來自 DAVIS [68] 與 Pexels [69]，搭配 π3 [44] 重建與 Grounded SAM 2 segmentation，再以自家 camera design UI 為每段設計 2–3 條 trajectory。</p>
+<p>§4.1 量化比較鋪設三條 axis：(a)「Camera control accuracy + 3D consistency」用 translation/rotation/intrinsics error 與 SuperGlue 下的 reprojection error（RE@SG），Vista4D 在所有四個指標上皆最佳，明顯壓過 implicit-prior 派的 camera 不準與 explicit-prior 派的 3D consistency 不足；(b)「Novel-view video synthesis」用 iphone dataset [60]，以 mPSNR/mSSIM/mLPIPS、PSNR/SSIM/LPIPS、EPE 衡量，Vista4D 在 PSNR、LPIPS、EPE 上領先，作者也誠實點出 SSIM 落後 TrajectoryCrafter 但其輸出含明顯 artifact；(c)「Video fidelity」用 FID、FVD、CLIP-T、VBench 與 VBench-2.0，Vista4D 全面壓過 explicit-prior baselines，並解釋為何 implicit-prior 在 FID/FVD/consistency 上看似領先（因相機幾乎沒動）。</p>
+<p>§4.2 質化比較與 user study（30 對、42 位受試者）顯示 Vista4D 在 source preservation、camera accuracy、overall fidelity 三個維度都拿到 67–77% 的偏好率，遠勝任一 baseline。Figure 6 也補上對 segmentation failure（如 tennis racket 未被分割）的 robustness 展示。</p>
+<p>§4.3 Ablation 聚焦在「沒有 depth artifact 訓練」「沒有 source video」「cross-attention 注入」「沒有 temporal persistence」四種變體，結論：「含 artifact 訓練 + in-context source video」是 robust 的關鍵，去掉 temporal persistence 則會嚴重損害 static content 保留與相機準確度。</p>
+<p>§4.4 把方法推到三個 application：dynamic scene expansion（共重建 casual scene capture 提供更豐富環境先驗）、4D scene recomposition（直接編輯點雲做插入/刪除/縮放，包含跨光照插入 rhino 的範例）、long video inference with memory（chunk-by-chunk 推論，藉 4D point cloud 保留靜態內容記憶）。這些 application 把 §3.2 的「訓練要對 artifact 穩健」的設計回收為實用的解鎖能力，閉合了論文的論證迴圈。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(260 words)</p>
+<p>§5 Conclusion 以三段式收尾：先重述方法定位與核心結果，再點出已知限制，最後談 broader impacts 與致謝。作者重申 Vista4D 是一個「以 temporally-persistent 4D point cloud 對 seen content 進行顯式保留、並以 4D-reconstructed dynamic multiview data 訓練 video diffusion 以對抗真實世界點雲 artifacts」的 video reshooting 框架。它在 4D consistency、camera control accuracy、video fidelity 三個維度被量化、質化與 user study 全面驗證勝過 SOTA，且能延伸到 dynamic scene expansion、4D scene recomposition 與 long video inference with memory 等實際應用——這些再度呼應 §1 的 contributions 與 §4 的章節順序。</p>
+<p>Limitations 段落集中在一個明確的設計缺口：使用者目前無法調控「要多忠於 point cloud」 vs.「要多依賴 video model prior 來修正幾何」之間的權衡。作者指出，當點雲本身有不完美時，模型只會以 fixed 的方式做修正；他們提議的 future work 是引入一個可在 explicit prior（point cloud）與 implicit prior（source video + camera embedding）之間 interpolate 的控制機制，讓使用者依 use case 取捨。這個方向也順帶承接了 §4.3 ablation 中觀察到的「兩種 prior 互補」結論。</p>
+<p>Broader impacts 則承認，作為基於 video diffusion 的方法，Vista4D 繼承了大型生成模型固有的倫理疑慮：對任何影片進行相機控制都可能改變其情感影響與公眾觀感，引發 content ownership 與 transformative work 的爭議。最後致謝段點名來自 Eyeline Labs/Netflix 與外部合作者的技術討論、demo 演出與製作支援，沒有實質技術貢獻補充。整體 §5 短而精準，把方法成果、未解問題與後續方向一條線串起，為讀者留下「方法已 strong，但 controllability 仍是未來重點」的明確 takeaway。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>在自製 110 段 video-camera pair 評測集上，Vista4D 在相機控制誤差全面領先：translation error 1.251、rotation error 4.647、intrinsics error 4.927，皆優於 GEN3C/EX-4D/TrajectoryCrafter (Table 1, p. 4)。</li><li>同表的 3D consistency 指標 RE@SG 為 7.504，遠低於最接近的 GEN3C (12.99) 與顯著優於 TrajectoryCrafter (120.5)，顯示 4D-grounded point cloud 確實壓低了重投影誤差 (Table 1, p. 4)。</li><li>在 iphone dataset 的 novel-view video synthesis 上，mPSNR 14.09、mLPIPS 0.461、EPE 1.142 同時取得最佳，EPE 約為次佳 TrajectoryCrafter (2.375) 的一半 (Table 2, p. 4)。</li><li>在 explicit-prior baseline 比較中，Vista4D 在 aesthetic quality (0.567)、imaging quality (0.716)、temporal style (0.253) 與 human anatomy (0.857) 等 VBench 子項皆為最高 (Table 3, p. 5)。</li><li>User study 中 42 位受試者於 30 段 pair 上選出 Vista4D 在 source preservation (67.06%)、camera accuracy (68.17%)、overall fidelity (77.38%) 三維度皆以絕對多數勝出 (Table 4, p. 5)。</li><li>透過 in-context concatenate latent token 同時餵入 source video 與 point cloud render，讓模型學「修正不完美點雲」而非單純 inpainting (§3.2–3.3, p. 4)。</li><li>在訓練資料上採 MultiCamVideo + STream3R 的合成多視角資料與 OpenVidHD-0.4M 的 monocular + π3 混合 (1:1)，使 4D reconstruction artifact 暴露給模型 (§3.4, p. 5)。</li><li>Figure 6 (p. 7) 演示了即使 Grounded SAM 2 漏切網球拍導致 streaking artifact，模型仍可透過 in-context source video 修正幾何瑕疵。</li><li>額外延伸應用：Figure 7 的 dynamic scene expansion、Figure 8 的 4D scene recomposition (含跨光照插入犀牛)、以及 Figure 9 的 chunk-autoregressive 長片推論 (&gt;400 frames)，皆在同一架構下達成 (§4.4, pp. 7–8)。</li><li>Plücker embedding 以 zero-init linear projection 注入、在 self-attention 後接 identity-init affine projector，這套輕量化 ReCamMaster-style 注入讓 14B base model 僅需訓練 patchify/self-attention/camera encoder/projector (§3.3, §B, p. 13)。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li><strong>缺乏 explicit/implicit prior 之間的使用者可調介面</strong>：當點雲本身有瑕疵時，使用者無法決定模型該「忠於點雲」還是「以影片先驗修正」，作者點名這是未來延伸方向 (§5 Limitations, p. 8)。</li><li><strong>生成式相機控制的倫理疑慮</strong>：作者承認 video diffusion 重拍會深刻改變影片觀感與情緒效應，引發內容所有權與 transformative work 的爭議 (§5 Broader impacts, p. 9)。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>**camera accuracy 的評估與訓練/推論皆使用同一個 π3 模型來估姿態 (§4.1, p. 5；§E, p. 21)，存在 circular evaluation：被測影片的「真實相機」與生成影片的「預測相機」由同一個 4D reconstructor 給出，可能系統性偏好點雲條件式方法。</li><li>**explicit-prior 方法的 FID/FVD/consistency 落後是被作者用一句「baselines 因相機跟得差所以畫面偏靜態才看起來好」帶過 (Table 3 caption, p. 5)，但並未提供「校正相機差異後再比 FID/FVD」的實驗來證實這個解釋。</li><li><strong>base model 規模差異未被控制</strong>：Vista4D 跑 Wan2.1-T2V-14B，而 ReCamMaster/CamCloneMaster 跑 Wan2.1-T2V-1.3B、TrajectoryCrafter 跑 CogVideoX-Fun-5B (Table 5, p. 21)，因此「Vista4D 勝出」與「14B 比 1.3B/5B 強」兩個因素糾纏，無消融。</li><li>**mSSIM 0.480 落後 TrajectoryCrafter 的 0.492 (Table 2, p. 4) 被以「肉眼看就有 artifact，SSIM 抓不到」一句帶過，未做 LPIPS-against-SSIM 的散點分析或盲測來支持「SSIM 在此 misleading」的論點。</li><li>**核心 ablation (no depth artifacts / no source video / cross-attn vs in-context / no temporal persistence) 全數搬到 Supplementary F (§4.3, p. 7)，主文僅以一段散文描述，讀者無法核對哪個設計到底貢獻多少分。</li><li><strong>推論成本龐大且未被誠實標示為缺點</strong>：672×384 解析度約 1195 秒/clip，1280×720 達 9924 秒 (~2.76 小時) /clip on A100 80GB (Table 5, p. 21)，在實際 post-production 工作流中是否可行幾乎沒被討論。</li><li><strong>720p checkpoint 僅微調 300 步 vs 672×384 的 30,000 步</strong> (§3.4, p. 5)，意味著公開的高解析度 demo 多半是欠訓 checkpoint，但所有量化評測也只在 672×384 比較，720p 品質沒有量化基準。</li><li><strong>static pixel segmentation pipeline (RAM → Llama-3.1-8B → Grounded SAM 2 反向取靜態) 失敗代價的量化研究缺席</strong>：論文只用 Figure 6 一個「漏切網球拍」例子佐證「robust」，沒有 stress test 數據 (§4.2 Robustness to segmentation failure, p. 7)。</li><li><strong>user study 設計細節仍顯薄弱</strong>：30 段 pair × 42 人 × 3 題，但未報告 inter-rater agreement、未說明是否有訓練/說明回饋、未排除「Vista4D 顯著是 14B base 的視覺辨識度」等可能引導效應 (§D, p. 17)。</li><li><strong>長片推論建立在客製化的 chunk-autoregressive π3</strong> (§A.1, p. 13)，這個延伸並非 π3 原本支援的模式，accuracy/drift 無量化評估，僅給三段 qualitative Figures (Fig. 9, 15)。</li><li>**iphone dataset 上的絕對 PSNR 僅 14.09/14.14 (Table 2, p. 4)，整體仍處於低保真度區段，但作者僅做相對排名，未討論這個絕對水位是否實用。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>Vista4D 真正新的貢獻是兩件互補的設計：(1) 把世界座標下的「時間持續靜態像素」當成 explicit 4D 條件，以及 (2) 用含 4D 重建瑕疵的多視角合成資料訓練，將任務從 inpainting 推到「修正不完美點雲」。其餘多數技術 (Plücker embedding、in-context token concat、Wan2.1 微調) 屬扎實工程整合而非概念創新。最關鍵未解的是 evaluator/inferer 同源 (π3) 帶來的循環評估、以及 base model 體量未被消融，使「方法贏」與「14B 贏 1.3B」難以分離。整體仍是 video reshooting 領域目前最完整的 explicit-prior 方案，但「贏多少來自設計、贏多少來自規模」尚未被釐清。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>Vista4D 將 video reshooting 形式化為「給定來源影片 $\mathbf{X}^{src}$ 與目標相機 $\mathbf{C}^{tgt}=(\mathbf{K}^{tgt}, \mathbf{T}^{tgt})$，合成同一動態場景在目標相機軌跡下的影片 $\mathbf{X}^{tgt}$」的條件式生成問題。其方法核心由三個彼此呼應的設計組成：(1) 建立含「時間持續靜態像素」的世界座標 4D point cloud $\bar{\mathbf{P}}$，使任何幀均能看到整個場景的靜態結構；(2) 改以含 4D 重建瑕疵的合成多視角動態資料 (MultiCamVideo + STream3R) 與真實單目資料 (OpenVidHD-0.4M + π3) 混合訓練，使模型學會「修正不完美點雲」而非僅 inpainting；(3) 透過 in-context concatenation 串接 patchified latent tokens 同時條件化來源影片、點雲渲染與 alpha mask，並以 Plücker embeddings 注入目標相機。</p>
+<p>整體流程可分為前處理、渲染與生成三段。前處理階段以 4D reconstruction 模型 (STream3R 用於合成多視角、π3 用於真實單目) 估計每幀 depth $\mathbf{D}^{src}$、camera extrinsics $\mathbf{T}^{src}$、intrinsics $\mathbf{K}^{src}$；以 RAM + Llama-3.1-8B-Instruct 篩選動態名詞，並由 Grounded SAM 2 分割每幀動態像素，反轉得到 static pixel mask $\mathbf{M}^{stc}$。透過 Eq. 1 將 RGB-D 提升至世界座標得到 per-frame point cloud $\mathbf{P}$，再依 $\mathbf{M}^{stc}$ 將靜態像素跨所有幀持續，形成 $\bar{\mathbf{P}}$。</p>
+<p>渲染階段將 $\bar{\mathbf{P}}$ 在使用者指定的 $\mathbf{C}^{tgt}$ 下投影，產出點雲渲染影像 $\mathbf{X}^{src \to tgt}$ 與 alpha mask $\mathbf{M}^{src \to tgt}$。生成階段以 Wan2.1-T2V-14B 為基礎之 flow matching DiT $\boldsymbol{\epsilon}_\theta$ 接收 $(\mathbf{X}^{src}, \mathbf{X}^{src \to tgt}, \mathbf{M}^{src \to tgt}, \mathbf{C}^{tgt}, \mathbf{X}^{tgt}_t, t)$，預測 velocity $\hat{\mathbf{V}}$；對單目資料因無 ground-truth $\mathbf{X}^{src}$，改以 double-reprojected $\mathbf{X}^{tgt \to src}$ 充當 occluded source。微調僅更新 patchify layers (for $\mathbf{X}^{src}$ and $\mathbf{X}^{src \to tgt}$)、self-attention layers、camera encoders 與 projectors，其餘 14B 權重凍結。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input: source video X_src                        [B, T=49, 3, H=384, W=672]
+   │
+   ├→ 4D Reconstruction (STream3R / π3)
+   │     ├→ Depth     D_src                      [B, 49, 1, 384, 672]
+   │     ├→ Extrinsics T_src                     [B, 49, 4, 4]
+   │     └→ Intrinsics K_src                     [B, 49, 3, 3]
+   │
+   └→ Dynamic Pixel Segmentation
+         RAM tags → Llama-3.1-8B filter → Grounded SAM 2 → invert
+         └→ Static mask M_stc                    [B, 49, 1, 384, 672]
+
+Image-to-World Lifting (Eq. 1)
+   P = Ω( Φ⁻¹([X_src, D_src], K_src), T_src )    [B, 49, N≤H·W, 3]
+
+Static Persistence
+   {P, M_stc} → P̄ (static pixels persist across all 49 frames)
+                                                 [B, 49, N&#x27;≈?, 3]
+                       (paper does not specify N&#x27; or merge/dedup strategy)
+
+User-defined Target cameras  C_tgt = (K_tgt, T_tgt)
+                                                 [B, 49, 3, 3] / [B, 49, 4, 4]
+
+Differentiable Point Cloud Rendering at C_tgt
+   ├→ Point cloud render X_src→tgt               [B, 49, 3, 384, 672]
+   └→ Alpha mask        M_src→tgt                [B, 49, 1, 384, 672]
+
+Wan2.1 VAE Encoder (per stream; T compress 4×, S compress 8×)
+   X_src,    X_src→tgt (+M_src→tgt as 4ch?), X^tgt_t (noisy)
+        ⇒ z_src,  z_srctgt,  z^tgt_t            [B, T&#x27;=13, C=16, H&#x27;=48, W&#x27;=84]
+
+Patchify (patch p=1×2×2; paper does not specify)
+   each z → tokens                               [B, 13·24·42, D=?]
+
+In-context Concatenation along frame dim
+   [tokens(z_src) ⊕ tokens(z_srctgt) ⊕ tokens(z^tgt_t)]
+        ⇒ joint sequence                         [B, 3·(13·24·42), D=?]
+
+Plücker Camera Embedding for C_tgt
+   per-pixel rays                                [B, 49, 6, 384, 672]
+   → downsample / encode to latent grid          [B, 13, 6, 48, 84]
+   → zero-init linear projection (added pre self-attn)
+   → identity-init linear projection (after self-attn)
+
+DiT ε_θ (Wan2.1-T2V-14B, partial finetune)
+   self-attention over joint sequence + camera projections
+   trained: patchify(X_src), patchify(X_src→tgt), self-attn, cam encoders/projectors
+   frozen : everything else
+   → predicts V̂ for target tokens               [B, 13·24·42, D=?]
+   → un-patchify                                 [B, 13, 16, 48, 84]
+
+Flow Matching Loss (Eq. 2)
+   L = ‖ ε_θ(X^tgt_t, X_src→tgt, M_src→tgt, X_src, C_tgt, t) − V ‖,  V = X^tgt − ε
+
+VAE Decoder
+   predicted target latent → X^tgt               [B, 49, 3, 384, 672]</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-4d-reconstruction-front-end">5.3.1 4D Reconstruction Front-End</h4>
+<p><strong>Function:</strong> 從來源影片估計每幀 depth、extrinsics、intrinsics，作為點雲提升 (Eq. 1) 的輸入。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\mathbf{X}^{src}$</li><li>Shape: $[B, 49, 3, 384, 672]$</li><li>Source: 使用者輸入</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $(\mathbf{D}^{src}, \mathbf{T}^{src}, \mathbf{K}^{src})$</li><li>Shape: $[B, 49, 1, 384, 672]$, $[B, 49, 4, 4]$, $[B, 49, 3, 3]$</li><li>Consumer: §5.3.3 點雲提升模組</li></ul>
+<p><strong>Processing:</strong> 對 MultiCamVideo (合成多視角時間同步資料) 採用 STream3R (跨視角 causal transformer)，對真實單目影片採用 π3 (permutation-equivariant feed-forward)。兩者皆為 frozen，不參與後續微調。</p>
+<p><strong>Key Formulas:</strong> N/A (僅作為前端推論)。</p>
+<p><strong>Implementation Details:</strong> Depth 數值範圍 (metric vs scale-ambiguous)、世界座標慣例與第一幀對齊策略，論文未明確說明 (the paper does not specify)。</p>
+<h4 id="5-3-2-dynamic-pixel-segmentation-pipeline">5.3.2 Dynamic Pixel Segmentation Pipeline</h4>
+<p><strong>Function:</strong> 產生 static pixel mask $\mathbf{M}^{stc}$，以決定哪些像素可在 4D 點雲中跨幀持續。</p>
+<p><strong>Input:</strong> $\mathbf{X}^{src}$，$[B, 49, 3, 384, 672]$。</p>
+<p><strong>Output:</strong> $\mathbf{M}^{stc}$，$[B, 49, 1, 384, 672]$ (binary)，供 §5.3.3 使用。</p>
+<p><strong>Processing:</strong> (1) 以 RAM (Recognize Anything Model) 對每幀產生語意標籤；(2) 以 Llama-3.1-8B-Instruct 從標籤集合中篩出「動態」主體/名詞；(3) 將動態名詞作為 Grounded SAM 2 的 prompt 進行分割；(4) 對每幀動態遮罩取 logical NOT 得 $\mathbf{M}^{stc}$。整體設計受 Uni4D 啟發。</p>
+<p><strong>Key Formulas:</strong> 無顯式公式；為 LLM-guided open-vocabulary segmentation pipeline。</p>
+<p><strong>Implementation Details:</strong> 論文於 §4.2 Robustness 與 Fig. 6 表明對分割失敗 (例如未將 tennis racket 標為動態) 具備一定 robustness，因 in-context 條件化的 source video 可由視訊先驗修正 streaking 等瑕疵。</p>
+<h4 id="5-3-3-world-space-point-cloud-lifting-and-static-persistence">5.3.3 World-Space Point Cloud Lifting and Static Persistence</h4>
+<p><strong>Function:</strong> 將 RGB-D 提升至世界座標形成 per-frame $\mathbf{P}$，再依 $\mathbf{M}^{stc}$ 跨幀持續靜態像素得到 4D 點雲 $\bar{\mathbf{P}}$。</p>
+<p><strong>Input:</strong> $(\mathbf{X}^{src}, \mathbf{D}^{src}, \mathbf{K}^{src}, \mathbf{T}^{src}, \mathbf{M}^{stc})$，shapes 同 §5.3.1 / §5.3.2。</p>
+<p><strong>Output:</strong> $\bar{\mathbf{P}}$，$[B, 49, N&#x27;, 3]$，N&#x27; 為靜態跨幀累積後的點數 (paper does not specify 上限或去重策略)。</p>
+<p><strong>Processing:</strong> 以 Eq. 1 將像素 $[\mathbf{X}^{src}, \mathbf{D}^{src}]$ 經 inverse perspective $\Phi^{-1}(\cdot, \mathbf{K}^{src})$ 轉為相機空間 3D 點，再以 extrinsics $\Omega(\cdot, \mathbf{T}^{src})$ 變換至世界空間。對 $\mathbf{M}^{stc}=1$ 的像素，將其世界座標下的 3D 點視為跨所有 49 幀皆可見；對 $\mathbf{M}^{stc}=0$ 的像素 (即動態) 僅在當幀有效。</p>
+<p><strong>Key Formulas (Eq. 1):</strong></p>
+<p>$$ \vec{P} = \Omega\!\left(\Phi^{-1}\!\left([\vec{X}^{src}, \vec{D}^{src}], \vec{K}^{src}\right), \vec{T}^{src}\right) $$</p>
+<p><strong>Implementation Details:</strong> $\Phi^{-1}$ 的具體 parameterization (e.g., inverse-depth vs linear-depth)、靜態點重複合併之去重 (e.g., voxel-grid downsampling) 與每點屬性 (RGB、normal、半徑) 論文未明確規範。</p>
+<h4 id="5-3-4-target-camera-point-cloud-rendering">5.3.4 Target Camera Point Cloud Rendering</h4>
+<p><strong>Function:</strong> 將 $\bar{\mathbf{P}}$ 在使用者指定的 $\mathbf{C}^{tgt}$ 下進行可微分點雲渲染，產出 RGB 影像與覆蓋率 alpha mask 作為 in-context 條件。</p>
+<p><strong>Input:</strong> $(\bar{\mathbf{P}}, \mathbf{C}^{tgt})$，分別為 $[B, 49, N&#x27;, 3]$ 與 $\mathbf{K}^{tgt}\in[B,49,3,3]$、$\mathbf{T}^{tgt}\in[B,49,4,4]$。</p>
+<p><strong>Output:</strong> $\mathbf{X}^{src \to tgt}\in[B,49,3,384,672]$ 與 $\mathbf{M}^{src \to tgt}\in[B,49,1,384,672]$，供 §5.3.5。</p>
+<p><strong>Processing:</strong> 對每個目標相機，將 $\bar{\mathbf{P}}$ 之 3D 點透過 perspective projection 投影至像素平面並著色，同時記錄每像素是否被點雲覆蓋以形成 alpha mask。</p>
+<p><strong>Key Formulas:</strong> 標準針孔投影 $\mathbf{x} = \mathbf{K}^{tgt}\,[\mathbf{R}^{tgt}|\mathbf{t}^{tgt}]\,\mathbf{X}_{world}$，論文未提供顯式公式。</p>
+<p><strong>Implementation Details:</strong> Renderer 類型 (Pulsar / 3DGS-style splatting / NeRF-based)、point radius、alpha 合成方式論文未指定。</p>
+<h4 id="5-3-5-in-context-conditioning-video-dit-wan2-1-t2v-14b">5.3.5 In-Context Conditioning Video DiT (Wan2.1-T2V-14B)</h4>
+<p><strong>Function:</strong> 以 in-context concatenation 同時條件化來源影片、點雲渲染、alpha mask 與目標相機，預測 noisy target latent 之 flow matching velocity。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(\mathbf{X}^{src}, \mathbf{X}^{src \to tgt}, \mathbf{M}^{src \to tgt}, \mathbf{X}^{tgt}_t, \mathbf{C}^{tgt}, t)$</li><li>Shape: 影像 $[B,49,3,384,672]$、mask $[B,49,1,384,672]$、相機 $\{[B,49,3,3],[B,49,4,4]\}$、scalar $t$</li><li>Source: §5.3.1, §5.3.4 與 forward diffusion 之 noisy target</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 預測 velocity $\hat{\mathbf{V}}$</li><li>Shape: 對應目標 latent，un-patchify 後為 $[B,13,16,48,84]$</li><li>Consumer: Eq. 2 flow matching loss / VAE decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>VAE 編碼</strong>：以 Wan2.1 VAE (T 壓縮 4×、S 壓縮 8×、16 latent channels) 將 $\mathbf{X}^{src}$、$\mathbf{X}^{src \to tgt}$ (與 $\mathbf{M}^{src \to tgt}$ 一同處理) 與 $\mathbf{X}^{tgt}_t$ 編碼至 $[B, 13, 16, 48, 84]$。</li><li><strong>Patchify</strong>：對 $\mathbf{X}^{src}$ 與 $\mathbf{X}^{src \to tgt}$ 各有可訓練的 patchify layer (patch size 論文未說明，Wan2.1 預設為 $1\times2\times2$)；切成 token 序列 $[B, 13\cdot24\cdot42, D=?]$。</li><li><strong>In-context 串接</strong>：沿 frame 維度將三 stream tokens 串接，joint 序列長度為單一 stream 的 3 倍：$[B, 3\cdot(13\cdot24\cdot42), D]$。</li><li><strong>Plücker camera 注入</strong>：將 $\mathbf{C}^{tgt}$ 編碼為 6 通道 Plücker rays $[B,49,6,384,672]$，downsample 至 latent 解析度後，以 zero-initialized linear projection 加至 self-attention 輸入；self-attention 後再經 identity-initialized projection 殘差合併 (受 ReCamMaster 啟發)。</li><li><strong>Self-attention DiT layers</strong>：14B DiT 處理 joint 序列；只訓練 patchify layers ($\mathbf{X}^{src}$, $\mathbf{X}^{src \to tgt}$)、self-attention layers、camera encoders、projectors，其餘參數凍結。</li><li><strong>Un-patchify</strong>：取 joint 序列中對應 noisy target 的 token 子集，還原為 latent 形狀並輸出 velocity。</li></ol>
+<p><strong>Key Formulas (Eq. 2):</strong></p>
+<p>$$ \mathcal{L} = \left\lVert \boldsymbol{\epsilon}_\theta\!\left(\vec{X}^{tgt}_t, \vec{X}^{src \to tgt}, \vec{M}^{src \to tgt}, \vec{X}^{src}, \vec{C}^{tgt}, t\right) - \vec{V} \right\rVert $$</p>
+<p>其中 $\mathbf{V} = \mathbf{X}^{tgt} - \boldsymbol{\epsilon}$，$\mathbf{X}^{tgt}_t$ 為對 $\mathbf{X}^{tgt}$ 加入 sampled Gaussian $\boldsymbol{\epsilon}$ 的 noisy latent。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Base model: Wan2.1-T2V-14B (pretrained text-to-video flow matching DiT)。</li><li>Resolution schedule: 先以 $672\times384$ 訓練 30,000 steps，後接 $1280\times720$ 共 300 steps。</li><li>視訊長度 49 frames，global batch size 8，optimizer AdamW，learning rate $1\times10^{-5}$。</li><li>對單目資料 (無 ground-truth $\mathbf{X}^{src}$)，以 $\mathbf{X}^{tgt \to src}$ (double-reprojected) 與其 alpha mask 充當 occluded source video。</li><li>確切 patch size、token 維度 $D$、layer 數、camera encoder 結構與 frozen/unfrozen 參數明細列於 Supplementary B；本文僅給出高階摘要 (the paper does not specify these in the main text)。</li></ul>
+<h4 id="5-3-6-training-data-curation">5.3.6 Training Data Curation</h4>
+<p><strong>Function:</strong> 構造同時涵蓋多視角合成資料與真實單目資料的混合訓練集，使模型同時學會「修正不完美點雲」與「填補未見區域」。</p>
+<p><strong>Input / Output:</strong> Source-target video pairs 及其 4D 重建輸出 (depths、cameras) 與分割遮罩。</p>
+<p><strong>Processing:</strong></p>
+<ul><li><strong>MultiCamVideo (合成多視角時間同步)</strong>：直接以 STream3R 對所有視角進行 4D 重建；source 視角點雲渲染至 target 視角，自然產生非正面視角下的幾何瑕疵 (Fig. 3 (b))，使模型暴露於真實推論時的失敗模式。</li><li><strong>OpenVidHD-0.4M 60K 子集 (真實單目)</strong>：以 π3 重建，並依 TrajectoryCrafter 之 double re-projection (target → heuristic source camera → target) 產生 occluded paired data。</li></ul>
+<p><strong>Key Formulas:</strong> 無顯式公式；為資料管線設計。</p>
+<p><strong>Implementation Details:</strong> 動態名詞篩選使用 Llama-3.1-8B-Instruct，靜態遮罩由 Grounded SAM 2 動態遮罩反轉取得。混合比例論文未明文揭露 (the paper does not specify)。</p>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>MultiCamVideo [10]</td><td>多視角時間同步合成影片 (4D reconstruction by STream3R [11])</td><td>4 種 intrinsics × 各取前 512 個 scenes (共 ~2,048 scenes)</td><td>train</td></tr><tr><td>OpenVidHD-0.4M [65]</td><td>真實世界單目影片 (4D reconstruction by π3 [44])</td><td>60K 子集，過濾掉標記為 &quot;static&quot; 的影片並用 PySceneDetect 切除剪接</td><td>train</td></tr><tr><td>DAVIS [68]</td><td>真實世界動態影片</td><td>13 部影片</td><td>test (110 video-camera 評估集的一部分)</td></tr><tr><td>Pexels [69]</td><td>真實世界動態影片 (royalty-free stock)</td><td>38 部影片</td><td>test (110 video-camera 評估集的一部分)</td></tr><tr><td>iphone dataset [60]</td><td>真實世界 time-synchronized multiview 動態場景 NVS</td><td>the paper does not specify exact count</td><td>test (novel-view video synthesis 評估，Table 2)</td></tr></tbody></table>
+<p>備註：總共 51 部影片 (DAVIS 13 + Pexels 38) 各設計 2–3 條 target camera trajectories，組成 110 video-camera pairs 用於 Table 1, 3 與 user study。</p>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Translation / Rotation / Intrinsics error</td><td>將生成影片用 π3 [44] 與 source 共同 4D 重建後，與 target cameras 比對 (公式見 Supplementary E)</td><td>yes</td></tr><tr><td>RE@SG (reprojection error under SuperGlue)</td><td>用 SuperPoint [58] landmarks + SuperGlue [57] 計算 source 與 output 之間的 per-frame 3D consistency</td><td>yes</td></tr><tr><td>mPSNR / mSSIM / mLPIPS</td><td>iphone dataset [60] 上的 masked novel-view 合成品質</td><td>yes</td></tr><tr><td>PSNR / SSIM / LPIPS</td><td>iphone dataset 上未遮罩的整幀合成品質</td><td>no</td></tr><tr><td>EPE (endpoint error)</td><td>optical flow endpoint error，衡量生成影片與 ground truth 的場景動態還原</td><td>yes</td></tr><tr><td>FID [71] / FVD [72]</td><td>影片視覺保真度與分佈相似度</td><td>no</td></tr><tr><td>CLIP-T [73]</td><td>與 prompt 的對齊度</td><td>no</td></tr><tr><td>VBench [61] (aesthetic quality, imaging quality, subject consistency, background consistency, temporal style)</td><td>影片品質多維評估</td><td>no</td></tr><tr><td>VBench-2.0 [62] (human anatomy)</td><td>人體解剖正確性</td><td>no</td></tr><tr><td>User study (source preservation / camera accuracy / overall fidelity)</td><td>42 位參與者於 30 對 video-camera pairs 上的偏好率</td><td>yes</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li>Base model：Wan2.1-T2V-14B [2]，主 checkpoint；另額外 finetune Wan2.1-I2V-14B 用於 long-video chunked inference (Supplementary C.2)。</li><li>解析度與步數：先以 $672 \times 384$ finetune 30,000 steps，再以 $1280 \times 720$ finetune 300 steps，每段影片 49 frames。</li><li>Optimizer：AdamW，learning rate $1 \times 10^{-5}$，global batch size 8。</li><li>可訓練參數：source video 與 point cloud render 的 patchify layers、self-attention layers、camera encoders、projector；其餘凍結 (Supplementary B 詳述 zero-init alpha-mask patchify 與 identity-init projector)。</li><li>條件 dropout：source video / point cloud render / prompt / camera 條件各 10% random drop；I2V 變體額外對 image 條件做 30% drop 並加 $\alpha = 0.05$ 的 noise augmentation $\tilde{X}_{\text{img}} = (1-\alpha)X_{\text{img}} + \alpha \epsilon$ (Supplementary C.2)。</li><li>資料採樣：multiview 與 monocular videos 採 1:1 比例；MultiCamVideo 因 source/target first frame 必相同，做 50% random time-reversal 以打破 matching-first-frame 限制。</li><li>Inference：所有方法皆 50 steps；硬體為 NVIDIA A100 80GB；Vista4D 在 $672 \times 384$ 下 segmentation 22.75s、4D reconstruction (π3) 3.110s、model inference 1195s，720p 下 model inference 上升至 9924s (Table 5)。</li><li>評估時統一以 $672 \times 384$ checkpoint 進行所有量化比較與 user study；對不支援不同首幀 source/target camera 的 baselines，採用 TrajectoryCrafter 的 <code>infer_direct</code> 流程作公平比較 (Supplementary D)。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>Camera control 與 3D consistency (110 video-camera pair eval set，Table 1)：</p>
+<table><thead><tr><th>Method</th><th>Translation err ↓</th><th>Rotation err ↓</th><th>Intrinsics err ↓</th><th>RE@SG ↓</th><th>Notes</th></tr></thead><tbody><tr><td>ReCamMaster [10]</td><td>1.574</td><td>12.79</td><td>11.16</td><td>23.66</td><td>implicit prior</td></tr><tr><td>CamCloneMaster [22]</td><td>2.132</td><td>23.77</td><td>6.422</td><td>23.38</td><td>implicit prior</td></tr><tr><td>TrajectoryCrafter [7]</td><td>1.434</td><td>6.838</td><td>6.671</td><td>120.5</td><td>explicit, point cloud</td></tr><tr><td>EX-4D [9]</td><td>1.325</td><td>5.941</td><td>5.182</td><td>13.11</td><td>explicit, point cloud</td></tr><tr><td>GEN3C [8]</td><td>1.309</td><td>4.751</td><td>5.085</td><td>12.99</td><td>explicit, point cloud</td></tr><tr><td><strong>Vista4D (ours)</strong></td><td><strong>1.251</strong></td><td><strong>4.647</strong></td><td><strong>4.927</strong></td><td><strong>7.504</strong></td><td>全項最佳，RE@SG 大幅領先</td></tr></tbody></table>
+<p>Novel-view video synthesis (iphone [60]，Table 2)：</p>
+<table><thead><tr><th>Method</th><th>mPSNR ↑</th><th>mLPIPS ↓</th><th>PSNR ↑</th><th>LPIPS ↓</th><th>EPE ↓</th><th>Notes</th></tr></thead><tbody><tr><td>ReCamMaster</td><td>10.84</td><td>0.692</td><td>10.96</td><td>0.755</td><td>4.681</td><td></td></tr><tr><td>CamCloneMaster</td><td>11.14</td><td>0.651</td><td>11.17</td><td>0.713</td><td>4.318</td><td></td></tr><tr><td>TrajectoryCrafter</td><td>13.82</td><td>0.569</td><td>13.06</td><td>0.656</td><td>2.375</td><td>SSIM 在 mSSIM/SSIM 為 0.492/0.320</td></tr><tr><td>EX-4D</td><td>12.85</td><td>0.596</td><td>12.64</td><td>0.669</td><td>4.269</td><td></td></tr><tr><td>GEN3C</td><td>12.19</td><td>0.608</td><td>12.06</td><td>0.679</td><td>3.019</td><td></td></tr><tr><td><strong>Vista4D (ours)</strong></td><td><strong>14.09</strong></td><td><strong>0.461</strong></td><td><strong>14.14</strong></td><td><strong>0.514</strong></td><td><strong>1.142</strong></td><td>mSSIM 0.480 (TrajectoryCrafter 較高，但作者指其有可見 artifacts)</td></tr></tbody></table>
+<p>Video fidelity (Table 3)：Vista4D 在 CLIP-T (0.326)、aesthetic quality (0.567)、imaging quality (0.716)、temporal style (0.253)、human anatomy (0.857) 取得最佳；FID/FVD 與 subject/background consistency 略遜於 implicit-prior baselines，作者解釋為這些方法 camera 幾乎不動，靠近 source 自然分數高。</p>
+<p>User study (Table 4，42 人 × 30 pairs)：Vista4D 在三項偏好率分別為 source preservation 67.06%、camera accuracy 68.17%、overall fidelity 77.38%，皆遠高於最強 baseline (CamCloneMaster 11–15% 區間、GEN3C 5–11%)。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<p>論文於 §4.3 與 Supplementary F 報告 ablations，組合以下設計：(a) no depth artifacts (一律使用 double reprojection 訓練，等同只做 inpainting)；(b) no source video (移除 source video 條件)；(c) cross-attention source video injection (改用 TrajectoryCrafter 風格而非 in-context concat)；(d) no temporal persistence (取消 static pixel 跨幀持續性)。主要結論：</p>
+<ul><li>Depth artifacts + in-context source video：兩者結合是 Vista4D 對 4D reconstruction artifacts (空間：非正面視角的不準確深度；時間：抖動深度) 的關鍵。屬診斷型 ablation，直接對應 §3.2 與 §3.3 的核心宣稱。</li><li>Cross-attention vs. in-context source 條件 (對應 §3.3)：in-context 對 source content 保留更佳、對 point cloud artifacts 更穩健。屬診斷型 ablation，回答了 &quot;為何不沿用 TrajectoryCrafter 的 cross-attn 注入&quot;。</li><li>移除 temporal persistence (對應 §3.1)：當 source video 與 target cameras 每幀重疊低時，static content 保留與 camera 控制均下降。屬診斷型 ablation。</li><li>無 source video / 無 depth artifacts 兩支單獨 ablation 偏向 sanity check (預期會壞)，但與其他組合一起呈現時，能切出「資料端」與「條件端」的貢獻。</li></ul>
+<p>⚠️ 限制：論文僅以定性圖示 (Supplementary F) 呈現，未在正文提供 ablation 的量化數字表 (即未報出每個變體在 Table 1/2/3 metrics 上的差值)；the paper does not specify 各 ablation 在 RE@SG / EPE / FID 等指標上的具體下降幅度。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 與五個近期 SoTA 比較：TrajectoryCrafter (ICCV&#x27;25)、GEN3C (CVPR&#x27;25)、EX-4D、ReCamMaster (ICCV&#x27;25)、CamCloneMaster (SIGGRAPH Asia&#x27;25)，涵蓋 explicit-prior 與 implicit-prior 兩類。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 量化跑 110 video-camera pair eval set (DAVIS+Pexels)、iphone dataset 真實多視角；定性涵蓋 dynamic scene expansion、4D scene recomposition、long-video inference 三個衍生應用。</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — Depth artifacts、in-context vs cross-attn、temporal persistence 屬診斷；但只有定性結果，未配合 Table 1–3 上的數值差，難以量化各成分的貢獻 (Supplementary F)。</li><li>[missing] Has a scaling study (size, length, or compute) — 未針對模型大小 (僅用 14B) 或訓練步數做 scaling 研究；只有 $672 \times 384 \to 1280 \times 720$ 兩個解析度 checkpoint，且 720p 僅 train 300 steps，並非 scaling 探究。</li><li>[covered] Has an efficiency / wall-clock comparison — Table 5 列出 segmentation、4D reconstruction、model inference 的秒數 (A100 80GB，50 steps)，並坦承 Vista4D 較慢 (in-context conditioning + 較大 base model)。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — Table 1–3 皆為單一 run 的點估計，無 std 或 multi-seed；user study 的偏好率亦未報置信區間。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 文中宣稱會於 project page (eyeline-labs.github.io/Vista4D) 釋出 code、weights、110-pair eval set 與 camera design UI；但訓練資料含 OpenVidHD-0.4M 60K 子集的具體 ID list、MultiCamVideo 子集索引並未於正文列出，且發表時實際 release 狀態無法從論文文字本身驗證。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1：在 explicit 4D point cloud grounding 下顯式保留可見內容、並提供豐富相機訊號。</strong></li></ul>
+<p>  支持。Table 1 (p. 4) 的 RE@SG 7.504 vs GEN3C 12.99；Table 4 (p. 5) 的 67.06% source preservation 偏好率，皆吻合此主張。但「temporal persistence 帶來多少分」需看 Supplementary F 的 ablation 才能拆解，主文只給定性論述。</p>
+<ul><li><strong>Claim 2：以含 4D 重建瑕疵的多視角資料訓練讓模型學會修正而非 inpaint。</strong></li></ul>
+<p>  部分支持。Figure 3 (p. 3) 直觀說明訓練/推論瑕疵分布的對齊；Figure 6 (p. 7) 顯示對 segmentation 失敗的修正能力。然而「修正 ≠ inpaint」的決定性實驗（如同視角下強制注入合成 depth artifact 看模型修復）並未提供，仍以 ablation+qualitative 為主。</p>
+<ul><li><strong>Claim 3：camera control、3D consistency、video fidelity 全面超越 SOTA。</strong></li></ul>
+<p>  部分支持。camera control (Table 1) 與 3D consistency 是清楚勝出；但 fidelity 上 explicit-prior 內部的確最佳，對 implicit-prior 卻在 FID/FVD/subject/background consistency 落後 (Table 3, p. 5)。作者以「baseline 相機跟不上所以畫面靜態」解釋，但無實驗校正混淆，故這項屬 partial。</p>
+<ul><li><strong>Claim 4：方法可延伸至 dynamic scene expansion、4D scene recomposition、long video inference with memory。</strong></li></ul>
+<p>  部分支持。三個應用都有 qualitative demo (Figs. 7–9, 13–15)，且確實展示同一 checkpoint 多用途；但三項皆無量化評估 (沒有 expansion 的 fidelity 對照、沒有 recomposition 的 user study、長片無 drift 量測)，故定性可信、定量未驗。</p>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>循環評估與 4D backbone 相依性。</strong> 推論時用 π3 做 4D reconstruction，camera accuracy 評估時也用 π3 把生成影片回算成相機姿態 (§E, p. 21)。這意味 Vista4D 的「相機準確度」其實在比「生成影片是否能被 π3 重建出與訓練條件一致的姿態」。要消除這層循環，需要至少一個獨立 SfM/SLAM (例如 GLOMAP) 或 ground-truth multi-camera capture，但作者明說傳統方法在動態場景下會崩，因此目前無法在現有公開資料集上提供獨立 verification。</p>
+<p><strong>對 static/dynamic segmentation 的承諾過強。</strong> 所有「temporal persistence」的價值都建立在「可被 RAM+Llama+Grounded SAM 2 正確標為靜態的像素」上 (§3.4, p. 5；§C.1, p. 15)。當場景幾乎全動 (流水、群眾、煙、火、晃動樹葉) 或 segmentation 漏切大面積動態主體時，世界座標 4D point cloud 等同退化為單幀 3D point cloud，方法相對 baseline 的優勢應顯著縮小。論文沒有報告這類 worst-case 上的退化曲線。</p>
+<p><strong>推論成本與 base model 綁定。</strong> 1195 秒/49 frames (672×384) 與 9924 秒/49 frames (1280×720) 的成本來自 14B base model + in-context token concat (Table 5, p. 21)。In-context concat 的 attention cost 隨 frame 維度線性放大，且這一架構選擇是核心貢獻之一，難以被「換小模型」消除而不傷害品質。後製場景下 hours-per-clip 的延遲意味著此方法目前不適合 iterative directing。</p>
+<p><strong>explicit prior 與 video model prior 之間沒有可調融合介面。</strong> 作者已點明這是 Limitation (§5, p. 8)。在當前公式 (Eq. 2, p. 4) 中，模型在訓練時就決定了「在哪些情況忠於點雲、在哪些情況忠於 source video」，使用者只能透過 segmentation 邊界或重建出的點雲幾何間接影響行為。這在 production 中等於「導演無法在 take 之間調整 trade-off」，是一個結構性而非超參數性的限制。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[7] TrajectoryCrafter (ICCV 2025)</strong>：本文最重要的對照基線、double-reprojection 技術源頭、以及 baseline inference 模式 (<code>infer direct mode</code>) 的提供者。讀此文可理解 explicit-prior 路線的「inpainting 化」根因。</li><li><strong>[10] ReCamMaster (ICCV 2025)</strong>：提供 MultiCamVideo 訓練資料、以及 Plücker embedding + identity-init projector 的注入範式。Vista4D 的工程基底大量來自此論文。</li><li><strong>[11] STream3R / [44] π3</strong>：本論文 4D reconstruction backbone；尤其 π3 同時負責訓練、推論、評測，理解其失效模式對複現與獨立 verification 至關重要。</li><li><strong>[2] Wan2.1-T2V-14B</strong>：base model；由於本文未做 base model 規模 ablation，要評估 Vista4D 真實貢獻必須先理解這個 14B 模型相對 1.3B/5B 在 motion/geometry 上的天生差距。</li><li><strong>[62] VBench-2.0</strong>：本文用於 human anatomy 0.857 vs baseline 最高 0.790 的關鍵差距 (Table 3, p. 5)；要判斷此一指標是否真正衡量「點雲修正能力」而非「14B base model 的 prior」，需先理解該 benchmark 的定義與已知偏差。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 若改用獨立於訓練 backbone 的 4D reconstructor (例如 MegaSAM 或 GLOMAP) 重做 Table 1 的相機誤差評估，Vista4D 的領先幅度是否仍維持？</li><li>[ ] 在「全動態場景」(例如海浪、群眾) 上，static pixel 比例 &lt; 10% 時，temporal persistence 帶來的優勢相對 GEN3C 是否會消失？論文未提供此切片。</li><li>[ ] base model 控制：把 baselines 也接到 Wan2.1-T2V-14B 重訓，相對 Vista4D 還剩多少差距？</li><li>[ ] Table 3 中 implicit-prior 在 FID/FVD/consistency 上的優勢若用「相機軌跡相似度」校正後是否真的反轉，還是 Vista4D 在自然圖像分布上仍偏離？</li><li>[ ] 720p checkpoint 僅 300 步微調，量化評測在 672×384 進行；若把所有指標重做於 720p，Vista4D 的優勢是否仍成立？</li><li>[ ] long video inference 的 chunk-autoregressive π3 在 N&gt;3 個 chunk 後的 drift 是多少？論文僅給三段 qualitative。</li><li>[ ] 4D scene recomposition 中，被插入物件的光照一致性是來自 video model prior 還是 point cloud appearance baking？換不同光照條件 source video 時是否仍 plausible？</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>獨立的相機評估管線</strong>。把 camera accuracy 評估從 π3 換成 SfM-only baseline (如 GLOMAP)，或使用 multi-camera capture 提供 ground-truth 相機，消除 inferer/evaluator 同源造成的循環偏差。可行性高、改動只在評測腳本。</li><li><strong>增加 base-model size 控制 ablation</strong>。提供 Wan2.1-T2V-1.3B + Vista4D 條件設計的版本，與 ReCamMaster (Wan2.1-T2V-1.3B) 公平對拍。可行性中等，需要額外微調預算但訓練配方既有。</li><li><strong>加上 explicit/implicit prior 的可控融合 knob</strong>。在 inference 時加入 classifier-free guidance 對 point cloud 條件做 strength scaling (s_pc) 或對 source video 條件做 (s_src)，使導演可在「忠於點雲」與「信賴 video model 補洞」間連續切換。作者本人在 Limitations 也提及，技術上是 inference-only 改動。</li><li><strong>誠實的 720p 量化評測</strong>。延長 1280×720 微調到與 672×384 相當的 step 預算後，在同一 110 pair 評測集重跑 Tables 1–3，公開 720p 真實 SOTA 落點。可行性中等，主要是算力。</li><li><strong>dynamic-heavy scenes 的 stress test</strong>。建立一個專門「&lt; 10% static pixel」的子集，再跑 Vista4D vs GEN3C/EX-4D，量化 temporal persistence 在退化情境下的剩餘價值。可行性高，純資料分群與重跑。</li><li><strong>減少推論延遲</strong>。對 in-context concatenated latent 試 token-length pruning 或 caching (例如對 source video tokens 在 denoising 多步間 reuse KV)，並評估 quality/latency Pareto。可行性中等、潛在收益大但需要 attention 層改動。</li><li><strong>long video 的量化評估指標</strong>。針對 chunk-autoregressive 推論定義 inter-chunk drift (例如 SuperGlue RE 在 chunk 邊界的跳變、或同一靜態物件跨 chunk 的 LPIPS) 並回填到 Table 1/2。可行性高、純評測層改動。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

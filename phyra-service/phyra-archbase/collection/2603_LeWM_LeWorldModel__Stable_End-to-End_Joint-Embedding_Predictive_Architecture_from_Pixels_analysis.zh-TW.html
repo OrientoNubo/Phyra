@@ -1,0 +1,462 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>LeWM — LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW --&gt;</p>
+<h1 id="lewm-leworldmodel-stable-end-to-end-joint-embedding-predictive-architecture-from-pixels">LeWM — LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>LeWM</td></tr><tr><td>Paper full title</td><td>LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels</td></tr><tr><td>arXiv ID</td><td>2603.19312</td></tr><tr><td>Release date</td><td>2026-03-24</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2603.19312</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2603.19312</td></tr><tr><td>Code link</td><td>—</td></tr><tr><td>Project page</td><td>—</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Lucas Maes</td><td>Mila &amp; Université de Montréal</td><td>https://lucas-maes.github.io/</td><td>first author, corresponding author</td></tr><tr><td>Quentin Le Lidec</td><td>New York University</td><td>https://quentinll.github.io/</td><td>co-first author</td></tr><tr><td>Damien Scieur</td><td>Mila &amp; Université de Montréal; Samsung SAIL</td><td>—</td><td>co-author</td></tr><tr><td>Yann LeCun</td><td>New York University</td><td>—</td><td>co-author</td></tr><tr><td>Randall Balestriero</td><td>Brown University</td><td>—</td><td>co-author</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>Joint-Embedding Predictive Architecture, world model, self-supervised learning, representation collapse, SIGReg, latent planning, model predictive control, Vision Transformer</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>PLDM (Sobal et al.)</td><td>baseline</td><td>唯一既有的 end-to-end JEPA 方法,以 VICReg 加上額外正則項學習表徵,訓練不穩且需多項超參數</td></tr><tr><td>DINO-WM</td><td>baseline</td><td>以凍結的 DINO 預訓練 vision encoder 為基礎的 latent world model,LeWM 主要與其比較規劃速度與成功率</td></tr><tr><td>DreamerV4 (Hafner et al.)</td><td>baseline</td><td>task-specific、reward-driven 的 generative world model,以 reconstruction 為主要學習訊號</td></tr><tr><td>TD-MPC</td><td>baseline</td><td>state-based、reward-reconstruction 的 task-specific world model,作為 LeWM 的對照分類</td></tr><tr><td>JEPA (LeCun, 2022)</td><td>predecessor</td><td>提出 Joint-Embedding Predictive Architecture 框架,LeWM 直接延續此 latent 預測學習路線</td></tr><tr><td>SIGReg (Sketched Isotropic Gaussian Regularizer)</td><td>influence</td><td>提供 LeWM 唯一使用的 anti-collapse 正則項,將 latent 投影至隨機方向上做 Epps–Pulley normality test</td></tr><tr><td>I-JEPA / V-JEPA</td><td>influence</td><td>以 EMA 與 stop-gradient 預訓練 JEPA 表徵的代表方法,LeWM 強調無需此類啟發式</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本研究探討如何從原始像素端到端地學習一個穩定的 latent world model。作者聚焦於 Joint-Embedding Predictive Architecture (JEPA) 此一以低維潛在空間預測未來為核心的框架,目標是不依賴 reward、不仰賴 image reconstruction、也不需要凍結的預訓練 vision encoder,即可在 2D 與 3D 控制任務中進行 latent planning。研究主題涵蓋 representation collapse 的防止機制、單 GPU 可訓練的緊湊架構設計、以 Cross-Entropy Method 在 latent space 進行 model predictive control 的決策框架,以及透過 probing 與 violation-of-expectation 評估 latent 空間是否編碼具物理意義的結構與直覺物理理解能力。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>machine learning</li><li>self-supervised representation learning</li><li>world models</li><li>model-based reinforcement learning</li><li>robot learning</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>Vision Transformer (ViT-Tiny) encoder</strong>:作為 LeWM 的影像編碼器,將每張 frame observation $o_t$ 映射到低維 latent $z_t$,使用 patch size 14、12 層、3 個 attention heads、hidden dim 192,並取最後一層 [CLS] token 經 1-layer MLP + Batch Normalization 投影。</li><li><strong>Transformer-based predictor</strong>:6 層、16 個 attention heads、10% dropout 的因果 transformer,以 Adaptive Layer Normalization (AdaLN) 注入 action 條件,自迴歸地由 $(z_t, a_t)$ 預測下一步 latent $\hat{z}_{t+1}$。</li><li><strong>Joint-Embedding Predictive Architecture (JEPA)</strong>:LeWM 所延續的整體學習框架,將動態建模置於 latent space 而非 pixel space,僅以 next-embedding prediction 為主訊號。</li><li><strong>SIGReg (Sketched Isotropic Gaussian Regularizer)</strong>:本文唯一的 anti-collapse 正則項,將 latent 投影到 $M$ 個隨機單位方向上,並對每個一維邊際施以 Epps–Pulley normality test,藉 Cramér–Wold 定理保證聯合分布為各向同性高斯。</li><li><strong>Cross-Entropy Method (CEM) latent MPC planner</strong>:在訓練後固定 world model,於 latent space 中以 CEM 進行有限視界軌跡優化,並以 receding-horizon 方式重規劃,實現比 DINO-WM 快至 48× 的 planning。</li><li><strong>ResNet-18 encoder (ablation)</strong>:作為 ViT 之外的替代視覺骨幹,用於驗證 LeWM 對編碼器架構的不敏感性。</li><li><strong>Decoder for latent visualization (post-hoc)</strong>:訓練後額外搭建、不參與訓練 loss 的解碼器,僅用於將 latent 可視化以驗證表徵保留的場景資訊。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者指出現有 JEPA 系列方法之所以難以穩定地端到端訓練,根本原因在於 next-embedding prediction loss 本身存在一個 trivial 解:encoder 將所有觀察映射到單一常數表徵即可零成本滿足預測目標,造成 representation collapse。為了避開此退化,既有工作不得不引入 stop-gradient、exponential moving average、預訓練 frozen encoder、reward 訊號、reconstruction 目標、proprioceptive 輸入或多項加權的 VICReg 變體等啟發式手段,代價是六個以上的 loss 超參數、缺乏理論收斂保證與訓練不穩定。作者主張真正需要的是一個能直接約束 latent 邊際分布、具有理論保證且結構簡潔的 anti-collapse 正則項。基於此邏輯,他們採用 SIGReg:將 latent 投影到隨機單位方向上,以 Epps–Pulley 統計量檢定每個一維邊際是否為高斯,並由 Cramér–Wold 定理推得當所有一維投影皆為高斯時,聯合分布即為各向同性高斯,自然排除常數塌縮解。此設計使得整個訓練目標僅由 prediction loss 加上 SIGReg 兩項組成,有效超參數壓縮為單一 $\lambda$,可用對數複雜度 bisection search 調整;並且不再需要 stop-gradient 或 EMA,所有梯度可端到端流經 encoder 與 predictor,在 15M 參數、單 GPU 條件下達成穩定訓練,進而支援快速 latent MPC 規劃。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>論文標題「LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels」一次點明三個關鍵主張：屬於 JEPA 家族、強調「stable end-to-end」訓練、且直接從 pixels 學起，不依賴預訓練視覺骨幹。Abstract 隨即把這三點轉化成具體的對比敘事：作者指出現有 JEPA 方法為了避免 representation collapse，普遍仰賴 multi-term loss、exponential moving averages、pre-trained encoders 或 auxiliary supervision，導致系統「fragile」。在這個問題框架下，LeWM 被定位為「the first JEPA」能完全 end-to-end 從 raw pixels 穩定訓練，且 loss 只剩兩項（next-embedding prediction loss 與 Gaussian 化的 regularizer），可調超參數從六個降到一個。Abstract 接著拋出三條量化亮點來支撐「便宜且強」這個敘事：15M 參數、單張 GPU 數小時、planning 比 foundation-model-based world model 快 48×。最後，Abstract 把貢獻從 control 任務延伸到「physical understanding」，預告 §5 會用 probing 與 surprise evaluation 來證明 latent space 編碼了有意義的物理結構。整段 Abstract 為後文鋪好「簡單／穩定／便宜／可解釋」四條主軸。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(540 words)</p>
+<p>Introduction 從一個高度抽象的 AI 願景開場：希望 agent 能直接從感官輸入（特別是 vision）以單一統一範式跨任務學習，而不依賴手工狀態表徵。作者把 World Models 定位為實現此願景的關鍵家族，因其讓 agent 能在「imagination space」中規劃並自我改善，特別契合 offline、無環境互動的設定。接著，文章把焦點收束到 JEPA：相較於完整重建環境，JEPA 只在 compact latent space 中預測未來，因而更聚焦於「relevant features」。</p>
+<p>緊接著作者建立關鍵的問題敘事——JEPA 雖然概念簡單，卻 highly prone to collapse：模型會把所有輸入映射到幾乎相同的 representation 來作弊滿足 temporal prediction objective。這段設定了全文要解決的核心痛點，並帶出 Fig. 2 的方法分類圖：end-to-end 派（PLDM）需要許多 hyperparameters 且 anti-collapse 缺乏理論保證；foundation-based 派（DINO-WM）凍結預訓練 encoder 來避免 collapse 但失去 end-to-end 性質；task-specific 派（Dreamer、TD-MPC）依賴 reward 或 privileged state。LeWM 的賣點是「同時補足三個類別的缺點」：end-to-end、task-agnostic、pixel-based、reconstruction-free、reward-free，且只有一個超參數並具 provable anti-collapse。</p>
+<p>論述策略上，Introduction 的次要敘事線是「降低門檻」：強調 LeWM 可在單張 GPU 訓練，這既是工程貢獻也是研究民主化的訴求，與 Abstract 的 15M 參數、單 GPU 一致。然後文章透過 Fig. 3 預告實證亮點——LeWM planning 0.98 秒、相對 DINO-WM 約 50× 加速；在 PushT 與 OGB-Cube 上，固定 FLOPs 預算下 success rate 顯著超越 DINO-WM。這些數字的功能是讓讀者在進入 Method 之前先相信「簡化方法不會犧牲性能」。</p>
+<p>最後，Introduction 以 bullet 條列三項貢獻：(1) 提出可在單 GPU 訓練、兩項 loss、對架構與超參穩健、超參搜尋為對數時間複雜度的 end-to-end JEPA；(2) 在多樣 2D／3D 任務上以 15M 參數模型超越現有 end-to-end JEPA，且與 foundation-model-based 對手競爭，planning 最高快 48×；(3) 透過 probing 與 violation-of-expectation 評估 latent space 中的物理理解能力。這三項貢獻同時為後續 §3（Method 與 Latent Planning）、§4（Latent Planning Performance）與 §5（Quantifying Physical Understanding）三大實驗章節各鋪好一條敘事路線，使整篇 Introduction 既是動機 setup，也是論文結構的骨架。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(360 words)</p>
+<p>Related Work 分成三條軸線，依序對應 LeWM 的三項定位主張。</p>
+<p>第一條是 World Models 的 generative 派系。作者把 IRIS、DIAMOND、∆-IRIS、OASIS、DreamerV4 等視為 pixel-space generative simulator，能模擬 Minecraft、Counter-Strike、Crafter 等環境並提升 RL sample efficiency；Genie、HunyuanWorld 則代表生成全新可互動模擬器的方向。這段的論述功能是劃清界線：這些方法多假設可取得 reward signal、聯合建模 dynamics 與 value，而 LeWM 主動選擇 reward-free 設定，與 JEPA 線一致，目標是學「generic, task-agnostic」的 world model。</p>
+<p>第二條是 JEPA 本身的演進。從 LeCun [5] 提出框架後，分支主要差在目標任務與避免 collapse 的策略。Self-supervised representation learning 一支（I-JEPA、V-JEPA、Echo-JEPA、Brain-JEPA）使用 EMA target encoder 與 stop-gradient 來防 collapse，但作者強調這些技巧「do not in general correspond to the minimization of a well-defined objective」，理論基礎薄弱。Action-conditioned latent world modeling 一支則分為兩類：依賴 pre-trained encoders（如 DINO-WM）以避免 collapse 但受限於預訓練表徵；以及 PLDM／VICReg 式 end-to-end 訓練，雖能聯合學表徵卻有 known training instabilities 與 scalability limitations。這段為 LeWM 的兩項 loss、Gaussian regularizer 設計打下對照背景，強調自家方法既 end-to-end 又有理論依據。</p>
+<p>第三條是 Planning with Latent Dynamics，把 World Models 的使用方式拆成兩種：用 latent dynamics 做 RL policy training（Dreamer 系列），訓練完成後 world model 退出 control loop；以及在 test time 直接用 MPC 在 latent space 規劃（TD-MPC、DINO-WM、PLDM 等），world model 持續參與決策但計算成本較高。這段為 §3.2 Latent Planning 預埋伏筆——LeWM 採用後者 MPC 路線，因此 §4 中「planning speed」才會成為核心評估指標。</p>
+<p>整體而言，Related Work 的功能不是單純列舉文獻，而是構造一個三維座標：reward 依賴度、是否 end-to-end、是否需 pre-trained encoder。在這個座標中，LeWM 被刻意定位在「reward-free × end-to-end × pixel-based」的角落，呼應 Fig. 2 並讓 §3 Method 自然成為填補此空缺的解。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(620 words)</p>
+<p>§3 的整體敘事策略是「先設定學習問題，再給出最小可行方案，最後再說明如何用它做決策」。作者把 Method 章節拆成 §3.1 Learning the Latent World Model 與 §3.2 Latent Planning，分別對應「訓練」與「推論」兩個階段。</p>
+<p>§3.1 開頭用一段 Offline Dataset 段落把問題設定講清楚：LeWM 處於 fully offline、reward-free 設定，只用 unannotated trajectories of observations 與 actions，呼應 §2 對 JEPA 的定位。這段刻意強調「behavior policies with no optimality requirements」，意思是訓練資料只需「足夠覆蓋環境動態」，不需專家示範或 reward，這同時是賣點，也限制了實驗評估的形態（goal-conditioned control 而非 reward maximization）。</p>
+<p>接著 Model Architecture 段落描述兩個元件：一個 ViT encoder（tiny config，約 5M 參數，patch size 14，12 層、3 heads、hidden dim 192，從 last-layer [CLS] 取出 embedding 再經 1-layer MLP + BatchNorm 投影）以及一個 transformer predictor（6 層、16 heads、10% dropout，約 10M 參數，actions 透過 AdaLN 注入並初始化為零）。這裡的論述功能是讓讀者明白 LeWM 不是靠新奇架構取勝，所有元件都是現成構件；真正的貢獻在 loss 設計。投影層的 BatchNorm 設計是個小但關鍵的細節：因為 ViT 末端的 LayerNorm 會破壞 anti-collapse 目標，必須加投影抵消。</p>
+<p>Training Objective 是 Method 的核心。作者把 loss 分成兩項：(1) prediction loss $L_{\text{pred}} = \|\hat z_{t+1} - z_{t+1}\|_2^2$，提供「可預測性」誘因；(2) anti-collapse 正則化 SIGReg，藉由 Cramér–Wold 把高維 normality test 化約為沿 $M$ 個隨機方向投影後的 univariate Epps–Pulley 統計量平均，使 latent 分佈逼近 isotropic Gaussian。完整 loss 是 $L_{\text{LeWM}} = L_{\text{pred}} + \lambda \, \text{SIGReg}(Z)$，只有兩個超參數 $M$ 與 $\lambda$，且作者宣稱 $M$ 對下游性能影響甚小，使 $\lambda$ 成為唯一有效超參，可用 bisection 以對數複雜度搜尋。Algorithm 1 提供約十行 pseudo-code，把訊息精煉到「結構簡單、可一頁實現」的程度。這段同時刻意對比 PLDM 的七項 loss，讓讀者直觀感受到「複雜度差距」。</p>
+<p>§3.2 Latent Planning 把訓練好的 world model 接到決策環節。作者採取最簡單的選擇：在 latent space 跑 finite-horizon optimal control，cost 是「最終預測 latent state 與目標 latent embedding」之 squared distance $C(\hat z_H) = \|\hat z_H - z_g\|_2^2$；用 Cross-Entropy Method (CEM) 求解 $a_{1:H}^*$；以 receding-horizon MPC 緩解 auto-regressive rollout 累積誤差，每輪只執行前 $K$ 步即重新規劃。Fig. 4 用一張示意圖把整個 prediction–optimization 迴路圖像化。</p>
+<p>整段 Method 的敘事邏輯是：先用「reward-free + offline」設定排除外部監督，再用兩項 loss 排除 collapse 與啟發式技巧，最後用 CEM + MPC 排除對額外 policy network 的需求——三層「拿掉東西」之後剩下的最小核心，就是 LeWM。這個 minimalism 也直接決定了 §4 的評估邏輯：在固定 FLOPs 與固定設定下比 success rate 與 planning time，因為這正是「簡化是否要付代價」的關鍵實驗問題。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(720 words)</p>
+<p>實證章節橫跨 §4 Latent Planning Performance 與 §5 Quantifying Physical Understanding in LeWM，整體敘事分成三層問題：(1) 在多樣控制任務下 LeWM 是否與更複雜方法競爭？(2) 訓練動力學與超參設計是否真的更穩定簡單？(3) latent space 是否捕捉到有意義的物理結構？</p>
+<p>§4.1 Planning evaluation setup 先建立評估場景。作者選了四個環境：Push-T（2D 推塊操作）、OGBench-Cube（3D 機械臂抓取）、Two-Room（2D 導航）、Reacher（DeepMind Control Suite 的 2-joint 夠到目標）。所有環境皆為連續動作空間，覆蓋 manipulation、navigation、locomotion 三類。Baselines 涵蓋兩條軸：JEPA 系（DINO-WM、PLDM）與通用 goal-conditioned offline 控制（GCBC、GCIVL、GCIQL）。重點比較對象是 PLDM（最接近的 end-to-end pixel JEPA，七項 loss）與 DINO-WM（凍結 DINOv2，但預設不給 proprioceptive 訊號以便公平比較）。為避免 per-environment 調參偏袒某方法，所有方法在所有環境共用一組超參。</p>
+<p>§4.2 Towards Efficient Planning 是性能主敘事。在 PushT 上 LeWM 達 96% 成功率，超越 DINO-WM（74%）與 PLDM（78%），即便 DINO-WM 加上 proprioceptive 也僅 92%；Reacher 上 LeWM 86% 高於 PLDM 78%、DINO-WM 79%；OGBench-Cube 上 DINO-WM 86% 略勝 LeWM 74%，作者誠實歸因於該環境視覺更複雜且 3D 結構讓 encoder 訓練更難；Two-Room 上 LeWM 反而落後（87% vs PLDM 97%、DINO-WM 100%），作者主動承認這是 SIGReg 在 intrinsic dimensionality 過低資料集中的結構性弱點——把高維 latent 強制 Gaussian 化反而傷害了表徵。這種「主動指出不利結果」的敘事選擇強化全文可信度。Fig. 3 與 Fig. 6 共同證明：LeWM 在固定 FLOPs 下成績競爭，且 planning time 從 DINO-WM 的 47s 壓縮到 0.98s，達 48× 加速。</p>
+<p>§4.3 Towards Stable Training 把焦點從「結果」轉到「過程」。Ablations 顯示：SIGReg 的內部參數（projections 數、integration knots 數）對性能幾乎無影響；embedding dim 過了某門檻就飽和；ResNet-18 替換 ViT 仍維持競爭力。這支撐了 §3 的「只有 $\lambda$ 是有效超參」聲明，並把超參搜尋從 PLDM 的 $O(n^6)$ 降到 $O(\log n)$。Training curves 部分以 Fig. 18／19 對比 LeWM 平滑單調的兩項 loss 與 PLDM 七項 loss 的 noisy、non-monotonic 行為，把「穩定」從口號落地為可視化證據。</p>
+<p>§5 切換到「physical understanding」這條延伸戰線。§5.1 用 linear 與 MLP probes 從 latent embeddings 預測 Push-T 的 Agent Location、Block Location、Block Angle，LeWM 在 MLP 設定下的 Block Location 達 $r=0.999$、Block Angle $r=0.990$，全面勝過 PLDM 並逼近 DINO-WM——值得注意的是 DINO-WM 的優勢被作者解釋為 DINOv2 預訓練於 124M 圖片，因此把這個比較放在「不同公平性座標」上看。Decoding Latent Space 進一步用一個訓練後才接上的 decoder 從 192 維 [CLS] embedding 還原視覺場景（Fig. 8），證明即使從未用 reconstruction loss，latent 仍保留了足夠的物理狀態資訊。t-SNE 視覺化顯示 PushT latent 保留 spatial neighborhood structure。Temporal Latent Path Straightening 借用神經科學的 perceptual straightening 假說，發現 LeWM latent trajectories 在訓練中自然變直，甚至比有專門 temporal smoothness 正則的 PLDM 更直，是「emergent」現象。</p>
+<p>§5.2 引入 violation-of-expectation 框架，在 TwoRoom、PushT、OGBench-Cube 三環境注入兩類擾動：visual perturbation（物體顏色突變）與 physical perturbation（物體傳送）。Fig. 10 顯示 LeWM 對 physical 擾動的 surprise（prediction MSE）顯著高於 visual 擾動（paired t-test, $p&lt;0.01$），對 cube color 擾動則無顯著上升。這恰恰是想要的選擇性：模型對違反物理連續性的事件更敏感，對表面視覺變化較不敏感，符合直覺物理預期。整段實驗章節因此完成從「能控制」到「會理解」的論述閉環。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(310 words)</p>
+<p>Conclusion 段落的功能是把整篇論文的論點壓縮成一段可記憶的總結，並順勢交代尚未解決的問題。作者重申 LeWM 是一個 stable end-to-end JEPA：encoder 把 image observations 映射到 latent space，predictor 在 embedding space 中以 action-conditioned 方式預測未來，兩者共同訓練。文章再度強調在多樣連續控制環境、僅用 raw pixel 輸入的條件下，LeWM 在「data efficiency、planning time、training time、stability」四項指標上勝過先前方法，同時保有競爭性的最終任務表現。穩定性與簡單性的根源被歸結為一個設計選擇：明確要求 latent embeddings 服從 isotropic Gaussian 以避免 collapse，這同時帶來 §5 觀察到的「principled training dynamics」與「interpretable and emergent representation properties」。這段並未引入新主張，而是把 §3、§4、§5 的論證收束到一句總結：LeWM 是現有 latent world model 的 scalable alternative。</p>
+<p>Limitations &amp; Future Work 段落主動點出三項弱點，且每項都直接對應一條未來研究方向，敘事節奏緊湊。第一，目前 latent world models 的 planning 只能處理短 horizon；hierarchical world modeling 被點名為解決長 horizon 推理與規劃的有望方向。第二，方法仍依賴具足夠互動覆蓋率的 offline dataset，採集成本高；更關鍵的是，當資料多樣性過低（intrinsic dimensionality 太小）時，SIGReg 在高維 latent 中強制 isotropic Gaussian 會失效——這正好回應 §4.2 中 Two-Room 表現下滑的觀察，使 limitations 與實證結果首尾呼應。作者建議透過大型多樣自然影片資料的 pre-training 提供更強表徵 prior，同時降低對特定領域資料的依賴。第三，現有 end-to-end latent world model 仍依賴 action labels 來預測未來狀態，這在實務上昂貴；解法方向是用 inverse dynamics modeling 學習 future action representations，以減少對顯式 action annotations 的依賴。整段透過「限制 → 對應方向」的對偶結構，把 LeWM 從「一篇結束的工作」轉化為「一個可繼續延伸的研究路徑」，為後續工作預留接口。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>LeWM 是首個僅用兩項 loss(next-embedding prediction + SIGReg)即可端到端從像素穩定訓練的 JEPA,將 PLDM 的 6 個 loss 超參數壓縮為單一 $\lambda$(Sec. 3.1, Eq. 3)。</li><li>模型僅 ~15M 參數,可在單張 NVIDIA L40S GPU 上於數小時內訓練完成(Sec. 1 contributions, App. D)。</li><li>在 Push-T 上,LeWM 規劃時間 0.98s,DINO-WM 為 47s,加速約 48×,主因是 LeWM 編碼產生的 token 數比 DINO-WM 少約 200×(Fig. 3)。</li><li>Push-T 成功率:LeWM 96% &gt; DINO-WM+proprioception 92% &gt; PLDM 78% &gt; DINO-WM 74%(Fig. 6),即使 LeWM 完全不使用 proprioceptive 輸入。</li><li>Reacher 成功率:LeWM 86% &gt; DINO-WM 79% &gt; PLDM 78%(Fig. 6),為三個 JEPA 變體中最佳。</li><li>摒棄 stop-gradient、EMA、pre-trained frozen encoder 等啟發式技巧,梯度可端到端流經 encoder 與 predictor(Sec. 3.1)。</li><li>$\lambda$ 為唯一有效超參數,可用 $O(\log n)$ bisection search 調整;PLDM 對應的網格搜尋為 $O(n^6)$(Sec. 4.3, App. G)。</li><li>在 Push-T 上,linear/MLP probing 顯示 LeWM 對 agent location、block location 的物理量恢復力與 DINO-WM(基於 DINOv2,預訓練於 ~124M 圖像)相當,且優於 PLDM(Tab. 1)。</li><li>即使 PLDM 內含明確的 temporal smoothness 正則項,LeWM 在訓練過程中仍展現出更高的 emergent temporal straightening,符合神經科學中的 perceptual straightening 假說(Sec. 5.1, Fig. 17, App. H)。</li><li>Encoder 與 SIGReg 內部超參數(projection 數 $M$、integration knots 數)幾乎不影響下游成功率;ViT-Tiny 與 ResNet-18 表現相當(Tab. 8, Fig. 15)。</li><li>在 TwoRoom 與 Push-T 中,VoE 框架顯示 LeWM 對物理 teleport 擾動產生顯著的 surprise spike(paired t-test, $p&lt;0.01$,Fig. 10)。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>規劃僅限於短時程,長時程推理需要階層式 world model(Sec. 6 Limitations)。</li><li>方法仰賴具備充足互動覆蓋的 offline 資料集,蒐集成本高(Sec. 6)。</li><li>在 intrinsic dimensionality 極低的環境(如 Two-Room)中,將 latent 投影到高維空間並強制其逼近 isotropic Gaussian 可能導致表徵欠結構化,這正是 Two-Room 上 LeWM 87% 落後 PLDM 97%、DINO-WM 100% 的主因(Sec. 4.2 末段, Sec. 6)。</li><li>OGBench-Cube 上 LeWM 74% 落後 DINO-WM 86%,作者推測歸因於 3D 場景視覺複雜度較高、encoder 訓練更困難(Sec. 4.2)。</li><li>預測 rollout 在 OGBench-Cube 上對 end-effector 朝向等細部資訊還原不佳,Tab. 4 顯示 block quaternion/yaw 的 probing 對所有方法皆困難(Sec. 5.1, Fig. 7, Fig. 11, Tab. 4)。</li><li>VoE 中,OGBench-Cube 的 cube color 視覺擾動所誘發的 surprise 提升幅度較弱,且不具統計顯著性(Fig. 10 caption)。</li><li>仰賴 action label,作者建議未來以 inverse dynamics modeling 緩解(Sec. 6)。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>「provable anti-collapse」的論證仰賴 Cramér–Wold 定理在 $M\to\infty$ 的漸近極限(App. A 的 weak convergence 表述);實作中僅以 $M=1024$ 個方向估計,有限樣本下並不保證避免任何形式的退化解,論文未給出 finite-$M$ 收斂率或樣本複雜度。</li><li>與 DINO-WM 的 probing 比較(Tab. 1, Tab. 4)結構性不對等:DINOv2 在 ~124M 自然圖像上預訓練,而 LeWM 僅看見 10–20k 條任務軌跡,作者亦於 Tab. 1 註腳承認此優勢;然而正文仍以「competitive with foundation-model」收斂,弱化了不對等的評估前提。</li><li>PLDM 的 6 個損失係數僅在 Push-T 上以 256-config 網格搜尋,然後跨所有環境固定使用(App. C.2);任何 PLDM 在 OGBench-Cube、Reacher、TwoRoom 上的劣勢都可能來自此次優調參而非方法缺陷。</li><li>「只有一個有效超參數」的說法淡化了仍存在的多項設計選擇:projection 數 $M$、integration knots 數、quadrature 節點範圍 $[0.2,4]$、embedding dim 192、projection MLP 中的 BatchNorm(Sec. 3.1 自承為避免 LayerNorm 抑制 SIGReg 而引入)等,這些雖然對成功率不敏感,但仍是未驗證魯棒性的隱藏旋鈕。</li><li>與生成式 world model(DreamerV4、DIAMOND、IRIS)沒有任何同協議的量化比較;Fig. 2 雖將其歸類為「task-specific」並排除於主比較,但這是一個分類性論證而非實證論證。</li><li>Section 3.1 將 BatchNorm 引入 projection MLP 以「讓 anti-collapse objective 能被有效優化」,本身即為一種 normalization 啟發式手段,與「無啟發式」的整體敘事略有張力。</li><li>訓練穩定性主要以 PushT 的訓練曲線(Fig. 18/19)與 Tab. 5 的 multi-seed 重測呈現,但未在更激進的學習率、更大的 ViT backbone、或 noisier 資料下做 stress test。</li><li>主結果條形圖(Fig. 6)未顯示 error bar;Tab. 5 雖宣稱多種子變異小,但僅針對單一環境呈報。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>LeWM 真正新穎之處在於將 LeJEPA 提出的 SIGReg 移植到 action-conditioned latent world model,並證明僅憑 prediction + SIGReg 兩項即可取代 VICReg 衍生的 6 項 loss、EMA、stop-gradient 等啟發式手段,代表 JEPA 訓練配方的一次有意義簡化。其他主打成果(48× 規劃加速、單 GPU 訓練、強 probing 表現)主要源自編碼器的緊湊性與計算重新分配,屬於工程整合而非新的物理建模能力。本工作未解決的核心問題是:當資料從 224×224 玩具環境擴展到自然影片或高維機器人場景時,isotropic Gaussian 先驗是否仍與真實感知資料的內在流形相容,Two-Room 上的反例已預示了這個結構性風險。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>LeWorldModel (LeWM) 由兩個共同訓練的網路組成:一個將原始像素映射到低維 latent 的 vision encoder $\mathrm{enc}_\theta$,以及一個在 latent space 中建模環境動態的 predictor $\mathrm{pred}_\phi$。給定一段長度為 $T$ 的觀察序列 $o_{1:T}$ 與對應動作 $a_{1:T}$,encoder 將每個 frame 獨立映射為 $z_t = \mathrm{enc}_\theta(o_t)$,predictor 則以 teacher-forcing 的方式自回歸地由 $(z_t, a_t)$ 預測下一步 latent $\hat z_{t+1} = \mathrm{pred}_\phi(z_t, a_t)$。整個架構為 task-agnostic 與 reward-free,僅需 unannotated trajectories 即可訓練,且全部約 15M 參數可在單張 GPU 上完成端到端優化。LeWM 不使用 stop-gradient、EMA 或預訓練 frozen encoder,所有梯度直接流經 encoder 與 predictor 的所有參數。</p>
+<p>架構上,encoder 以 ViT-Tiny 為 backbone(patch size = 14、12 層、3 個 attention heads、hidden dimension = 192,約 5M 參數),取最後一層 [CLS] token 通過一個 1-layer MLP + Batch Normalization 的 projector,得到 latent $z_t$。Projector 是必要設計:ViT 最後一層的 LayerNorm 會把表徵限制到單位球面附近,直接套用 anti-collapse 目標(高斯化 latent 邊際)會與該約束衝突,因此先以 BatchNorm 後的線性投影把 [CLS] token 映射到一個能被 SIGReg 有效優化的表徵空間。Predictor 為 6 層、16 個 attention heads、dropout 10% 的 Transformer(約 10M 參數),動作透過每層的 Adaptive Layer Normalization (AdaLN) 注入,其 AdaLN 參數初始化為零以漸進式地引入 action conditioning,並以 temporal causal masking 保證自回歸性。Predictor 之後同樣接一個與 encoder projector 同構的 1-layer MLP + BatchNorm。</p>
+<p>訓練目標為 prediction loss 與 anti-collapse regularizer 的兩項加權和:$\mathcal L_{\text{LeWM}} = \mathcal L_{\text{pred}} + \lambda\,\mathrm{SIGReg}(Z)$。$\mathcal L_{\text{pred}}$ 是預測 latent 與下一步 encoder latent 之間的 MSE;$\mathrm{SIGReg}$ 將一個 batch 中收集到的 latent 張量 $Z \in \mathbb{R}^{N \times B \times d}$ 投影到 $M$ 個從 $\mathbb{S}^{d-1}$ 取樣的隨機單位方向 $u^{(m)}$,對每個一維投影 $h^{(m)} = Z u^{(m)}$ 計算 univariate Epps–Pulley 常態性檢定統計量,再對所有方向取平均。由 Cramér–Wold 定理,當所有一維邊際都為高斯時,聯合分布即為各向同性高斯,因此 SIGReg 直接約束 latent 邊際分布,排除 encoder 將所有觀察映射到單一常數的塌縮解。實驗顯示 $M$ 對下游表現幾乎無影響,使 $\lambda$ 成為唯一有效的超參數,可用對數複雜度 bisection search 高效調整(預設 $\lambda = 0.1$、$M = 1024$)。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input
+   ├→ observations  o_{1:T}   shape: [B, T, C=3, H, W]
+   └→ actions       a_{1:T}   shape: [B, T, A]
+                                        (A: env-specific action dim)
+
+Per-frame flatten
+   [B, T, 3, H, W]  ──reshape──▶  [B*T, 3, H, W]
+
+ViT-Tiny encoder  (patch=14, L=12, h=3, hidden=192, ~5M params)
+   patch tokens + [CLS] + pos. emb           [B*T, N_p+1, 192]
+                                              (N_p = ?, depends on H, W
+                                               not specified in paper)
+   12× Transformer blocks (LayerNorm-based)  [B*T, N_p+1, 192]
+   take last-layer [CLS] only                [B*T, 192]
+
+Encoder projector  (1-layer MLP + BatchNorm)
+   [B*T, 192]  ──▶  [B*T, d]   (d: embedding dim, ? — see §5.3.2)
+
+Reshape back
+   [B*T, d]  ──▶  z_{1:T}  shape: [B, T, d]
+
+       ├──────────────────────────────────┐
+       │                                   ▼
+       │                          SIGReg(Z) (anti-collapse)
+       │                          Z = z.transpose(0,1) ∈ R^{T×B×d}
+       │                          project onto M=1024 random
+       │                          u^{(m)} ∈ S^{d-1}; Epps–Pulley
+       │                          per 1-D projection; mean over m
+       ▼
+Predictor  (Transformer: L=6, h=16, dropout=0.1, ~10M params)
+   inputs:  z_{1:T}  [B, T, d]
+            a_{1:T}  [B, T, A]   ──AdaLN(zero-init) per layer──┐
+   temporal causal mask                                         │
+   6× Transformer blocks ◀──────────────────────────────────────┘
+                                                  [B, T, d]
+
+Predictor projector  (1-layer MLP + BatchNorm, same as encoder’s)
+   [B, T, d]  ──▶  ẑ_{1:T}  shape: [B, T, d]
+
+Prediction loss (teacher forcing, Eq. 1)
+   L_pred = ||ẑ_{t+1} − z_{t+1}||²₂
+          ≡ MSE( z[:,1:],  ẑ[:,:-1] )         shapes: [B, T-1, d]
+
+Final objective (Eq. 3)
+   L_LeWM = L_pred + λ · SIGReg(Z)            λ = 0.1, M = 1024</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-vision-encoder-vit-tiny">5.3.1 Vision Encoder (ViT-Tiny)</h4>
+<p><strong>Function:</strong> 將單張原始像素 frame 映射為一個低維、與 SIGReg 目標相容的 latent vector。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $o_t$ (per-frame view of $o_{1:T}$)</li><li>Shape: <code>[B*T, 3, H, W]</code>(由 <code>[B, T, 3, H, W]</code> reshape)</li><li>Source: 離線資料集中的 raw pixel observations</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 最後一層 [CLS] token embedding(尚未經 projector)</li><li>Shape: <code>[B*T, 192]</code></li><li>Consumer: §5.3.2 Encoder/Predictor Projector</li></ul>
+<p><strong>Processing:</strong></p>
+<p>依 ViT 標準流程,對每個 frame 取 patch size = 14 進行非重疊切塊得到 $N_p$ 個 patch token,加上一個可學習的 [CLS] token 與 positional embedding,送入 12 層 Transformer encoder(每層 3 個 attention heads、hidden dimension 192、自帶 LayerNorm 與 residual)。取最後一層的 [CLS] token 作為該 frame 的全域表徵。整體參數量約為 5M。注意到 ViT 最後一層的 LayerNorm 會把輸出拉到單位球面附近,因此此處的 [CLS] token 還不能直接餵給 SIGReg。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>無顯式公式;遵循 Dosovitskiy et al. (2021) 的標準 ViT 前向計算。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Backbone: ViT-Tiny configuration(paper §3.1 Model Architecture)</li><li>Patch size: 14</li><li>Depth / heads / hidden: 12 / 3 / 192</li><li>最後一層使用 LayerNorm(此為 projector 必要存在的原因)</li><li>影像解析度 $H, W$ 與 patch 數 $N_p$ 在正文未明確指出,paper 將實作細節(batch size、解析度、sub-trajectory 構造)放於 App. D,正文中未給出具體數值</li></ul>
+<h4 id="5-3-2-encoder-predictor-projector">5.3.2 Encoder / Predictor Projector</h4>
+<p><strong>Function:</strong> 將 ViT 最後一層 LayerNorm 後的 [CLS] token(或 predictor 的輸出)映射到一個可被 anti-collapse 目標有效優化的表徵空間。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: [CLS] token(encoder 端)或 predictor 最後一層輸出(predictor 端)</li><li>Shape: <code>[B*T, 192]</code> 或 <code>[B, T, d]</code></li><li>Source: §5.3.1 Vision Encoder 或 §5.3.3 Latent Predictor</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $z_t$(encoder 端)或 $\hat z_{t+1}$(predictor 端)</li><li>Shape: <code>[B*T, d]</code> → reshape <code>[B, T, d]</code></li><li>Consumer: §5.3.3 Latent Predictor 與 §5.3.5 SIGReg(encoder 端);§5.3.4 Prediction Loss(predictor 端)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>單層線性層後接 Batch Normalization。論文明確指出此投影是必要的,因為 ViT 最後一層的 LayerNorm 會限制表徵到單位球面附近,直接套用「latent 邊際為各向同性高斯」的 anti-collapse 目標會與該約束相互衝突;改用 BatchNorm 則保留沿各維度的尺度自由度,允許 SIGReg 把分佈推向高斯。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>無顯式公式(單層線性 + BatchNorm)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>1-layer MLP + Batch Normalization</li><li>Encoder projector 與 predictor projector 為「相同實作」但參數獨立</li><li>輸出維度 $d$ 在正文未明確給出具體數值,SIGReg 段落只以符號 $d$ 表示 embedding dimension;依 Sec. 4.3 ablation,$d$ 須足夠大才能達到良好效能,但效能會在某個門檻後快速飽和</li></ul>
+<h4 id="5-3-3-latent-predictor-transformer-adaln">5.3.3 Latent Predictor (Transformer + AdaLN)</h4>
+<p><strong>Function:</strong> 在 latent space 中以 teacher-forcing 的方式,自回歸地由當前 latent $z_t$ 與動作 $a_t$ 預測下一步 latent $\hat z_{t+1}$。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Names: 歷史 latent $z_{1:T}$、動作 $a_{1:T}$</li><li>Shapes: <code>[B, T, d]</code>,<code>[B, T, A]</code></li><li>Source: §5.3.2 Encoder Projector 的輸出 + 資料集中的 action sequence</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat z_{1:T}$(再經 §5.3.2 中的 predictor projector 輸出最終預測)</li><li>Shape: <code>[B, T, d]</code></li><li>Consumer: §5.3.4 Prediction Loss</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Predictor 是一個 6 層、16 個 attention heads、dropout 10% 的 Transformer(約 10M 參數)。每層中,動作 $a_t$ 透過 Adaptive Layer Normalization (AdaLN) 注入到該 token 的 LayerNorm 條件參數中,讓 attention/MLP 的內部 normalization 能依動作改變 scale 與 shift。Self-attention 採用 temporal causal mask,使位置 $t$ 的 token 只能看到 $\le t$ 的 latent,符合自回歸 next-embedding 預測的因果設定。Predictor 取最後一層輸出,經 §5.3.2 描述的 1-layer MLP + BatchNorm projector,得到最終的 $\hat z$。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\hat z_{t+1} = \mathrm{pred}_\phi(z_t, a_t)$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Transformer 深度 / heads / dropout:6 / 16 / 0.1</li><li>動作條件:每層 AdaLN,AdaLN 參數<strong>初始化為零</strong>,讓 action conditioning 在訓練初期幾乎不干擾 base 預測,再隨訓練漸進式地起作用,以穩定訓練</li><li>Causal masking 防止資訊洩漏到未來時間步</li><li>Predictor 之後接一個與 encoder 同構的 projector(BatchNorm)</li></ul>
+<h4 id="5-3-4-prediction-loss">5.3.4 Prediction Loss</h4>
+<p><strong>Function:</strong> 給予 encoder「學出對 predictor 而言可預測的表徵」的訊號,同時驅動 predictor 學習環境動態。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Names: 真實下一步 latent $z_{t+1}$、預測 latent $\hat z_{t+1}$</li><li>Shape: <code>[B, T-1, d]</code>(對齊後)</li><li>Source: §5.3.2 Encoder Projector(target)、§5.3.3 + §5.3.2 Predictor 路徑(prediction)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\mathcal L_{\text{pred}}$</li><li>Shape: 純量</li><li>Consumer: §5.3.6 Final Training Objective</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個 batch 取 <code>emb[:, 1:]</code> 作為 target、<code>next_emb[:, :-1]</code> 作為預測,計算 element-wise MSE 後對所有元素取平均(Eq. 1)。這是一個 teacher-forcing 設定:每一步 predictor 接收的 $z_t$ 都來自 encoder 對真實 $o_t$ 的編碼,而非自己上一步的預測。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \mathcal L_{\text{pred}} \;\triangleq\; \big\lVert \hat z_{t+1} - z_{t+1} \big\rVert_2^2, \qquad \hat z_{t+1} = \mathrm{pred}_\phi(z_t, a_t) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Reduction:<code>F.mse_loss</code>,即所有元素的平均平方誤差</li><li>由於梯度同時流經 $z_t$ 與 $z_{t+1}$,本損失若單獨使用會誘發塌縮(constant encoder 即可達到零損失),需要與 SIGReg 共同使用</li></ul>
+<h4 id="5-3-5-sigreg-anti-collapse-regularizer">5.3.5 SIGReg Anti-Collapse Regularizer</h4>
+<p><strong>Function:</strong> 直接約束 encoder 輸出的 latent 邊際分布,迫使其匹配各向同性高斯,藉此排除「將所有觀察映射到單一常數」這一 trivial 解,且不需要 stop-gradient、EMA 或預訓練 encoder 等啟發式手段。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: latent 張量 $Z$(訓練中由一個 batch 蒐集而成)</li><li>Shape: <code>[N, B, d]</code>(由 $z_{1:T}$ 經 <code>transpose(0,1)</code> 得到,$N = T$ 為 history length)</li><li>Source: §5.3.2 Encoder Projector 的輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\mathrm{SIGReg}(Z)$</li><li>Shape: 純量</li><li>Consumer: §5.3.6 Final Training Objective</li></ul>
+<p><strong>Processing:</strong></p>
+<p>由於 univariate normality test 比 multivariate 版本更穩定可擴展,SIGReg 將 $Z$ 投影到 $M$ 個從單位球面 $\mathbb{S}^{d-1}$ 均勻取樣的隨機方向 $u^{(m)}$,得到 $M$ 個一維投影 $h^{(m)} = Z u^{(m)}$。對每個 $h^{(m)}$ 計算 Epps–Pulley 常態性檢定統計量 $T(\cdot)$,並對所有方向取平均(Eq. 2)。當所有一維邊際分布皆為高斯時,由 Cramér–Wold 定理可推得聯合分布為各向同性高斯,從而排除常數塌縮解(常數的所有一維投影是 Dirac mass,無法通過 Epps–Pulley 檢定)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \mathrm{SIGReg}(Z) \;\triangleq\; \frac{1}{M}\sum_{m=1}^{M} T\!\left(h^{(m)}\right), \qquad h^{(m)} = Z\,u^{(m)},\;\; u^{(m)} \in \mathbb{S}^{d-1} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$M = 1024$ random projections(預設)</li><li>隨機方向 $u^{(m)}$ 從單位球面取樣</li><li>Epps–Pulley 統計量 $T(\cdot)$ 定義細節置於 App. A,正文未展開</li><li>ablation 顯示:$M$ 與 Epps–Pulley 的數值積分 knot 數對下游表現幾乎無影響,因此實際只需調 $\lambda$</li><li>在 pseudocode 中以 <code>mean(SIGReg(emb.transpose(0, 1)))</code> 形式進行 step-wise 應用;<code>transpose(0,1)</code> 把 <code>[B, T, d]</code> 變為 <code>[T, B, d]</code>,符合 $Z \in \mathbb{R}^{N \times B \times d}$ 的 convention</li></ul>
+<h4 id="5-3-6-final-training-objective">5.3.6 Final Training Objective</h4>
+<p><strong>Function:</strong> 將 prediction loss 與 anti-collapse regularizer 線性組合成 LeWM 唯一的訓練損失,使 encoder 與 predictor 端到端地共同優化。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Names: $\mathcal L_{\text{pred}}$、$\mathrm{SIGReg}(Z)$</li><li>Shape: 純量</li><li>Source: §5.3.4 Prediction Loss、§5.3.5 SIGReg</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\mathcal L_{\text{LeWM}}$</li><li>Shape: 純量</li><li>Consumer: optimizer(梯度同時更新 encoder $\theta$ 與 predictor $\phi$)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>最終損失為兩項之和(Eq. 3),其中只有 $\lambda$ 是有效的超參數。論文強調:相較於唯一的 end-to-end JEPA baseline PLDM 需要 6 個以上的 loss 超參數(其多項 VICReg 變體加上其他額外 regularizer),LeWM 把超參數壓縮為單一 $\lambda$,且因為下游表現對 $\lambda$ 為 unimodal 的響應,可用對數複雜度的 bisection search 找最佳值,而非 grid search。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \mathcal L_{\text{LeWM}} \;\triangleq\; \mathcal L_{\text{pred}} \;+\; \lambda \cdot \mathrm{SIGReg}(Z) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$\lambda = 0.1$(預設)</li><li>不使用 stop-gradient、EMA 或 frozen pre-trained encoder</li><li>所有梯度直接流經 encoder $\mathrm{enc}_\theta$ 與 predictor $\mathrm{pred}_\phi$ 的所有參數</li><li>整體模型(encoder + predictor + 兩個 projector)共約 15M 參數,可在單張 GPU 上於數小時內完成訓練</li></ul>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>TwoRoom (Sobal et al.)</td><td>2D continuous navigation between two rooms via a door</td><td>10,000 episodes, avg. length 92 steps; collected by a noisy heuristic policy</td><td>Train world model 10 epochs; planning evaluation (budget 150 steps, goal sampled 100 steps ahead); the paper does not specify a held-out val/test split</td></tr><tr><td>Push-T (DINO-WM dataset)</td><td>2D manipulation pushing a T-shaped block to a target</td><td>20,000 expert episodes, avg. length 196 steps</td><td>Train world model 10 epochs; planning evaluation (budget 50 steps, goal 25 steps ahead); held-out set used for PLDM hyperparameter grid search</td></tr><tr><td>OGBench-Cube (single-cube variant)</td><td>3D robotic-arm pick-and-place of a cube</td><td>10,000 episodes, 200 steps each; collected with the OGBench heuristic</td><td>Train world model 10 epochs; planning evaluation (budget 50 steps, goal 25 steps ahead)</td></tr><tr><td>Reacher (DeepMind Control Suite)</td><td>2-joint arm reaching a target in a 2D plane</td><td>10,000 episodes, 200 steps each; collected by a Soft Actor-Critic policy</td><td>Train world model 10 epochs; planning evaluation (budget 50 steps, goal 25 steps ahead)</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Success Rate (%)</td><td>Fraction of goal-conditioned MPC rollouts that reach the target within the evaluation budget across the four environments</td><td>yes</td></tr><tr><td>Planning time (s)</td><td>Wall-clock time for one full CEM planning call, averaged over 50 runs</td><td>yes</td></tr><tr><td>Probing MSE</td><td>Mean-squared error of linear / MLP probes predicting physical quantities (agent/block/cube/end-effector position, joint state, yaw, quaternion) from a single latent embedding</td><td>no</td></tr><tr><td>Probing Pearson $r$</td><td>Linear correlation between probe predictions and ground-truth physical quantities</td><td>no</td></tr><tr><td>Surprise (prediction MSE)</td><td>Open-loop predictor MSE used as the violation-of-expectation signal, compared between unperturbed, visually perturbed, and physically perturbed trajectories (paired $t$-test, $p&lt;0.01$)</td><td>no</td></tr><tr><td>Temporal straightness</td><td>Cosine similarity between consecutive latent velocity vectors over training</td><td>no</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li><strong>Hardware</strong>: a single NVIDIA L40S GPU is used for both training and planning (App. D).</li><li><strong>Frameworks</strong>: training with <code>stable-pretraining</code> and <code>stable-worldmodel</code>; evaluation with PyTorch and Gymnasium (App. D).</li><li><strong>Data pipeline</strong>: frame-skip of 5 (5 raw actions are grouped into one action block), batch size 128, sub-trajectories of 4 frames × 4 action blocks, image resolution $224\times224$ (App. D).</li><li><strong>Encoder</strong>: ViT-Tiny (Hugging Face), patch size 14, 12 layers, 3 heads, hidden dim 192, $\sim$5M params; $z_t$ is the last-layer <code>[CLS]</code> token followed by a 1-layer MLP projector with BatchNorm (the projector is required because the ViT&#x27;s final LayerNorm would otherwise prevent the SIGReg objective from being optimized) (§3.1, App. D).</li><li><strong>Predictor</strong>: ViT-S backbone, 6 layers, 16 heads, 10% dropout, $\sim$10M params; actions injected via AdaLN initialised to zero; learned positional embeddings with causal masking; history length $N=3$ on PushT and OGBench-Cube and $N=1$ on TwoRoom (§3.1, App. D).</li><li><strong>Loss</strong>: $\mathcal{L}_{\text{LeWM}} = \mathcal{L}_{\text{pred}} + \lambda\,\text{SIGReg}(Z)$ with $\lambda=0.1$, $M=1024$ random projections, no stop-gradient / EMA / pretraining (§3.1).</li><li><strong>SIGReg quadrature</strong>: trapezoid scheme over $T$ nodes uniformly distributed in $[0.2,4]$ (App. A).</li><li><strong>Training length</strong>: 10 epochs per environment (App. E).</li><li><strong>Optimizer / learning-rate schedule</strong>: the paper does not specify.</li><li><strong>Planner</strong>: CEM with 300 sampled action sequences, 30 elites, initial sampling variance 1; 30 CEM iterations on PushT and 10 on the other environments; planning horizon $H=5$ (which is 25 environment timesteps under frame-skip 5); receding-horizon MPC where the entire optimised sequence of length $H$ is executed before replanning (App. B, App. D).</li><li><strong>Decoder (visualisation only)</strong>: a lightweight transformer decoder with 196 learnable query tokens producing $16\times16\times3$ patches, trained post-hoc and never used during world-model training (App. D).</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<table><thead><tr><th>Method</th><th>Two-Room SR (%)</th><th>Reacher SR (%)</th><th>Push-T SR (%)</th><th>OGBench-Cube SR (%)</th><th>Notes</th></tr></thead><tbody><tr><td><strong>LeWM (ours)</strong></td><td><strong>87</strong></td><td><strong>86</strong></td><td><strong>96</strong></td><td><strong>74</strong></td><td>End-to-end from pixels, 15M params, single GPU; planning $\sim$0.98 s</td></tr><tr><td>DINO-WM + prop.</td><td>100</td><td>–</td><td>92</td><td>–</td><td>Adds proprioceptive input; not pixels-only</td></tr><tr><td>PLDM</td><td>97</td><td>78</td><td>78</td><td>65</td><td>End-to-end pixels, 7-term VICReg-style loss</td></tr><tr><td>DINO-WM</td><td>100</td><td>79</td><td>74</td><td>86</td><td>Frozen DINOv2 encoder, $\sim$200× more tokens; planning $\sim$47 s</td></tr><tr><td>GCBC</td><td>100</td><td>–</td><td>75</td><td>84</td><td>Goal-conditioned behavioural cloning on DINOv2 features</td></tr><tr><td>GCIQL</td><td>100</td><td>–</td><td>20</td><td>64</td><td>Offline goal-conditioned RL</td></tr><tr><td>GCIVL</td><td>100</td><td>–</td><td>33</td><td>56</td><td>Offline goal-conditioned RL</td></tr><tr><td>Random</td><td>0</td><td>10</td><td>2</td><td>48</td><td>Reference lower bound</td></tr></tbody></table>
+<p>Headline efficiency claim (Fig. 3): LeWM full planning takes $0.98$ s vs. $47$ s for DINO-WM, i.e. $\sim$48× faster; under a fixed-FLOPs planning budget, LeWM reaches $90\%$ vs. $13\%$ on Push-T and $74\%$ vs. $48\%$ on OGB-Cube.</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<ul><li><strong>SIGReg weight $\lambda$ (Fig. 16)</strong> — sweeps $\lambda \in \{0.01, 0.05, 0.09, 0.095, 0.1, 0.2, 0.5\}$ on Push-T. Success rate stays above $80\%$ for $\lambda \in [0.01, 0.2]$, peaks near $\lambda=0.09$, and collapses at $\lambda=0.5$ where the regulariser overwhelms $\mathcal{L}_{\text{pred}}$. Diagnostic: directly tests the only effective hyperparameter and motivates the bisection-search claim.</li><li><strong>Number of SIGReg projections $M$ (Fig. 15, center)</strong> — sweeps $M\in\{64,256,512,1024\}$. Success rate is essentially flat ($\sim$80–95%). Useful as a robustness check, but borders on a sanity check rather than a diagnostic of <em>what SIGReg buys</em>; it does not include an ablation that drops SIGReg entirely (which presumably would collapse, but the paper does not report the curve).</li><li><strong>Number of integration knots in Epps–Pulley quadrature (Fig. 15, right)</strong> — sweeps $\{4,8,12,17,32\}$ knots. Performance is again largely insensitive. Sanity-check-flavoured: confirms numerical stability of the quadrature, not a property of the world-modelling design.</li><li><strong>Embedding dimension (Fig. 15, left)</strong> — sweeps $\{8,24,96,192,384\}$. Performance is poor below $\sim$184 and saturates above; gives a usable threshold but is a capacity sweep rather than a component ablation.</li><li><strong>Encoder architecture (Tab. 8, App. G)</strong> — replaces the default ViT-Tiny encoder with a ResNet-18 backbone; LeWM remains competitive, supporting the claim that the method is encoder-agnostic. Diagnostic of the architectural-robustness claim.</li><li><strong>Training variance / multi-seed (Tab. 5, App. G)</strong> — retrains with multiple random seeds and reports &quot;consistently high success rates with low variance&quot;; supports the stability claim.</li><li><strong>Training-curve comparison vs. PLDM (Figs. 18–19)</strong> — qualitative ablation against the closest competing objective: LeWM&#x27;s two terms decrease monotonically while several of PLDM&#x27;s seven terms are noisy / non-monotonic. Diagnostic of the central &quot;fewer hyperparameters → more stable training&quot; thesis.</li></ul>
+<p>Missing diagnostics worth flagging: there is no ablation that <em>removes</em> SIGReg (or replaces it with VICReg / EMA+stop-grad) while keeping everything else fixed — that would be the most direct test of whether SIGReg is what prevents collapse end-to-end.</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — DINO-WM (frozen DINOv2 encoder, ICML 2025) and PLDM are compared, plus GCBC/GCIQL/GCIVL on OGBench (Fig. 6).</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — four environments spanning 2D navigation, 2D manipulation, 3D manipulation, and continuous control (TwoRoom, Push-T, OGBench-Cube, Reacher).</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — $\lambda$ sweep, training-curve comparison, and encoder swap are diagnostic, but there is no ablation that removes SIGReg entirely or substitutes it with VICReg-style anti-collapse to isolate SIGReg&#x27;s contribution.</li><li>[partial] Has a scaling study (size, length, or compute) — embedding-dimension sweep covers representation capacity, but there is no study of model size, dataset size, training length, or planning horizon scaling.</li><li>[covered] Has an efficiency / wall-clock comparison — Fig. 3 reports $0.98$ s vs. $47$ s planning time for LeWM vs. DINO-WM ($\sim$48× speed-up) and a fixed-FLOPs comparison on Push-T and OGB-Cube.</li><li>[partial] Reports variance / standard deviation / multiple seeds where relevant — App. G Tab. 5 reports multi-seed stability and probing tables include $\pm$ values, but main planning results in Fig. 6 are reported as point success rates without seed counts or error bars.</li><li>[covered] Releases code / weights / data sufficient for reproducibility — the abstract advertises a website and code repository, and training/evaluation are built on the released <code>stable-pretraining</code> and <code>stable-worldmodel</code> libraries (App. D, refs. [49, 50]); the paper does not specify whether trained weights are released.</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1</strong>:「首個能端到端、僅以兩項 loss 從像素穩定訓練的 JEPA」(Sec. 1, Sec. 3.1)。<strong>Supported</strong>:Fig. 18/19 顯示 LeWM 各 loss 平滑單調收斂,而 PLDM 七項目標呈非單調波動;Tab. 5 顯示多種子穩定。</li><li><strong>Claim 2</strong>:「在多樣 2D/3D 控制任務以 15M 參數達成強表現」(Sec. 1)。<strong>Partially supported</strong>:Push-T、Reacher 上 LeWM 為最佳(Fig. 6),但 OGBench-Cube 落後 DINO-WM 12pp,Two-Room 落後 PLDM 10pp、落後 DINO-WM 13pp;「strong」一詞涵蓋了 4 環境中的 2 個 winner。</li><li><strong>Claim 3</strong>:「規劃比 foundation-model-based world model 快達 48×」(Sec. 1, Fig. 3)。<strong>Supported in wall-clock terms</strong>;但加速主要來自 token 數降低約 200×(Fig. 3 caption),並非演算法層級的新穎,屬於架構選型結果。</li><li><strong>Claim 4</strong>:「latent 空間編碼有意義的物理結構」(Sec. 1, Sec. 5)。<strong>Partially supported</strong>:Push-T 上 location 類量 probing 與 DINO-WM 相當(Tab. 1);但 OGBench-Cube 上 block quaternion、block yaw、joint velocity 的 linear 與 MLP probing 皆遠落後 DINO-WM(Tab. 4),旋轉與動量資訊未被有效編碼。</li><li><strong>Claim 5</strong>:「能可靠偵測物理上不合理的事件」(Sec. 1, Sec. 5.2)。<strong>Partially supported</strong>:teleport 擾動在三環境皆顯著($p&lt;0.01$,Fig. 10);但 cube color 視覺擾動在 OGBench-Cube 上不顯著,「reliably detects」的範圍實為「物理連續性違反」,而非廣義 implausibility。</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Isotropic Gaussian 先驗與內在維度的錯配。</strong>SIGReg 的目標是讓 $d=192$ 的 latent 邊際分布逼近標準高斯。當環境的 intrinsic dimensionality 顯著低於 $d$(例如 Two-Room 只有平面位置 2 維)時,正則項與動力學需求產生衝突:勉強將 2 維結構分散到 192 維高斯會犧牲幾何保真度。作者在 Sec. 4.2 與 Sec. 6 已承認此現象,但這是 SIGReg 框架本身的結構性限制,只能透過「自適應目標分布」或「動態 $d$」改寫才能根治,並非超參數可調好。</p>
+<p><strong>漸近保證 vs. 有限實作。</strong>Cramér–Wold 定理保證的是「對所有 1D 投影皆為高斯時聯合分布為各向同性高斯」,但 SIGReg 僅在 $M=1024$ 個 i.i.d. 方向上估算 Epps–Pulley 統計量。論文未提供 finite-$M$ 下避免常數塌縮或低秩塌縮的保證,App. A 的「weak convergence」明確以 $M\to\infty$ 為前提。實務上 $M$ 可被視為一個「精度旋鈕」,但其與 collapse 風險的定量關係仍未刻畫。</p>
+<p><strong>Encoder 容量瓶頸暴露於視覺複雜環境。</strong>LeWM 採用 ViT-Tiny(~5M 參數,patch 14)從零訓練,在 Two-Room 與 Push-T 等簡單背景上夠用,但 OGBench-Cube 的 3D 視覺複雜度即足以讓 LeWM 落後於使用凍結 DINOv2 的 DINO-WM。這暗示在「真實機器人/自然影片」設定中,從零訓練的小型 ViT 不太可能與大型預訓練 vision foundation 競爭,而 SIGReg 對更大 backbone 的訓練動力學是否仍穩定,論文未驗證。</p>
+<p><strong>Action label 與 dense offline 軌跡的依賴。</strong>LeWM 的 prediction loss 直接 condition 在 $a_t$ 上(Eq. 1),且訓練資料假設為連續軌跡。這排除了無動作標註的純 video 預訓練(此正是 V-JEPA 系列的優勢區),也使「將 LeWM 應用於大規模未標記影片以獲得通用 priors」這個方向需要先發明 inverse dynamics 配套。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[25] Balestriero &amp; LeCun, LeJEPA(arXiv:2511.08544)</strong>:SIGReg 的原始論文,理解 LeWM 必讀的前序工作,涵蓋 Epps–Pulley 統計量、Cramér–Wold 應用、quadrature 細節。</li><li><strong>[22] Sobal et al., PLDM</strong>:LeWM 唯一直接競爭的 end-to-end JEPA baseline;若要評估 LeWM 的相對貢獻,必須讀懂 PLDM 七項 loss 的個別作用,以判斷 SIGReg 是否真的「概念上等價於 VICReg + 6 項補丁」。</li><li><strong>[18] Zhou et al., DINO-WM(ICML 2025)</strong>:foundation-based latent WM 的代表;評估「end-to-end vs. frozen foundation encoder」trade-off 的關鍵對照。</li><li><strong>[44] Garrido et al., Intuitive Physics from V-JEPA(arXiv:2502.11831)</strong>:VoE 評估方法的直接前身,理解 surprise 指標的設計選擇與其在自監督模型中的詮釋極限。</li><li><strong>[55] Wang et al., Temporal Straightening for Latent Planning(arXiv:2603.12231)</strong>:Sec. 5.1 中 emergent straightening 主張的最新比較對象,用於判斷 LeWM 的 straightening 是否真的「更強」或只是不同度量下的副產品。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在自然影片(非合成、流形非高斯)上,SIGReg 強制 isotropic Gaussian 是否仍與下游預測目標相容,還是會像 Two-Room 一樣產生表徵欠結構化?</li><li>[ ] 將 encoder 從 ViT-Tiny 擴大到 ViT-B/L 或更大時,SIGReg 是否仍維持 Sec. 4.3 所示的訓練平滑性,還是會因為大量參數放大有限-$M$ 的估計噪聲而失穩?</li><li>[ ] OGBench-Cube 上落後 DINO-WM 的 12pp 是來自 encoder 容量、isotropic 先驗錯配,還是 CEM 規劃在更高維 dynamics 下的偏差,Sec. 4.2 的歸因僅為推測,需 controlled ablation。</li><li>[ ] 在固定的計算預算下,以同樣 256-config 網格逐環境重新調 PLDM 的 6 個係數,Fig. 6 的勝負是否仍然成立?</li><li>[ ] Sec. 3.1 中 projection MLP 內的 BatchNorm 是否本身就在隱性提供 anti-collapse 訊號?移除 BatchNorm 而僅保留 SIGReg 是否仍能避免塌縮?</li><li>[ ] 當 offline 軌跡轉為純探索性(非 expert / heuristic policy)時,SIGReg 是否仍能誘導出對下游規劃有用的結構,或僅是 Gaussian 殼?</li><li>[ ] 對於非 task-agnostic 的生成式 WM(DreamerV4、DIAMOND),在同樣 0.98s 規劃預算與相同資料集下,LeWM 是否仍維持速度優勢與接近的成功率?</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>以 inverse dynamics 取代或補充 action label conditioning。</strong>作者已在 Sec. 6 提及;比階層式 WM 更易實作,且能直接釋放在大規模未標記影片上預訓練的可能性,進而緩解 OGBench-Cube 的 encoder 容量瓶頸。</li><li><strong>在 SIGReg 之外允許目標分布為 anisotropic Gaussian 或 mixture。</strong>Two-Room 的反例直接指向「目標分布應與資料 intrinsic dimensionality 匹配」;最小擴充是將協方差設為可學習對角,並對其譜施加正則。Cramér–Wold 推論在這個擴充下仍適用。</li><li><strong>逐環境重新調 PLDM 的 6 個損失係數作為公平 baseline。</strong>目前 PLDM 的劣勢部分混入了「fixed across environments」的調參假設(App. C.2);這項實驗成本中等,但可量化 LeWM「真實」的方法層 advantage。</li><li><strong>將 encoder 換成預訓練後再聯合微調。</strong>作者於 Sec. 6 已提示在大規模自然影片上做表徵預訓練;這是縮小與 DINO-WM 在 OGBench-Cube 上 12pp 差距最直接的路徑,且不需修改 SIGReg 框架。</li><li><strong>以 finite-$M$ collapse 風險上界補強理論部分。</strong>目前 App. A 僅給出 $M\to\infty$ 的弱收斂,但 Epps–Pulley 統計量在固定 $M$、固定 sample size 下的 deviation bound 可由現有 U-statistic 文獻推得,能將「provable」的範圍從漸近收斂提升到工程可信的有限樣本保證。</li><li><strong>加入階層式 / multi-resolution latent prediction。</strong>作者於 Sec. 6 列為主要 future work;雖然工程成本最高,但是唯一能解決短時程規劃限制與長時程 rollout 誤差累積的結構性升級。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

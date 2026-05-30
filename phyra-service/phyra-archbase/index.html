@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>phyra-archbase</title>
+<style>
+  :root {
+    --p-primary:  #f8f8f6;            /* header 條背景（頁面頂部標題列） */
+    --p-light:    #f8f8f6;            /* body 整頁背景 */
+    --p-accent:   #c96c49;            /* 重點色：YYMM 徽章底、focus 光暈、切換鈕邊框 */
+    --p-dark:     #373734;            /* 強調文字：h1 標題、卡片論文標題、按鈕文字 */
+    --p-text:     #0b0b0b;            /* 主要正文文字 */
+    --p-muted:    #898781;            /* 次要淡字：stats 統計、卡片短名副標 */
+    --p-card-bg:  #ebebe6;            /* 卡片底色、切換鈕底色 */
+    --p-border:   #d7d7d5;            /* 卡片邊框、按鈕邊框、搜尋框邊框 */
+    --p-card-alt: #f4f4f1;            /* 只有 PDF 卡片的略灰背景（尚未分析） */
+    --p-shadow:   rgba(31, 30, 29, 0.08);   /* 卡片 hover 時的投影 */
+    --p-focus:    rgba(217, 119, 87, 0.25); /* 搜尋框與切換鈕 focus 時的外光暈 */
+    --p-toggle-bg:     rgba(0, 0, 0, 0.04); /* 主題切換 segmented 容器底色 */
+    --p-toggle-active: #ffffff;             /* 主題切換 segmented 當前選中那一格的底色 */
+    --p-header-border: #f8f8f6;             /* header 最下方那條分隔線 */
+  }
+  [data-theme="dark"] {
+    --p-primary:  #1f1f1e;            /* header 條背景 */
+    --p-light:    #1f1f1e;            /* body 整頁背景 */
+    --p-accent:   #c96c49;            /* 重點色（兩個模式一致） */
+    --p-dark:     #c2c2c2;            /* 強調文字：標題、按鈕文字） */
+    --p-text:     #ffffff;            /* 主要正文文字 */
+    --p-muted:    #c2c2b7;            /* 次要淡字 */
+    --p-card-bg:  #171717;            /* 卡片底色、切換鈕底色 */
+    --p-border:   #292929;            /* 卡片邊框、按鈕邊框、搜尋框邊框 */
+    --p-card-alt: #171717;            /* 只有 PDF 卡片的略深背景 */
+    --p-shadow:   rgba(0, 0, 0, 0.4);       /* 卡片 hover 時的投影 */
+    --p-focus:    rgba(217, 119, 87, 0.4);  /* 搜尋框與切換鈕 focus 時的外光暈 */
+    --p-toggle-bg:     rgba(255, 255, 255, 0.04); /* 主題切換 segmented 容器底色 */
+    --p-toggle-active: #2c2c2b;                   /* 主題切換 segmented 當前選中那一格的底色 */
+    --p-header-border: #1f1f1e;                   /* header 最下方那條分隔線 */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif;
+    background: var(--p-light);
+    color: var(--p-text);
+    line-height: 1.5;
+  }
+  .hub-bar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 7px 28px;
+    background: var(--p-accent);
+    color: #fff;
+    font-size: 13px;
+  }
+  .hub-bar .hub-link {
+    color: #fff; text-decoration: none; font-weight: 600;
+    padding: 3px 11px; border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transition: background 0.12s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .hub-bar .hub-link:hover { background: rgba(255, 255, 255, 0.16); }
+  .hub-bar .hub-brand { font-weight: 700; letter-spacing: 0.5px; }
+  .hub-bar .hub-arrow { opacity: 0.85; }
+  header {
+    background: var(--p-primary);
+    padding: 14px 28px;
+    border-bottom: 3px solid var(--p-header-border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .hdr-left {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    gap: 2px;
+    background: var(--p-toggle-bg);
+    border: 1px solid var(--p-border);
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .theme-toggle button {
+    width: 28px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--p-muted);
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.12s, color 0.12s;
+  }
+  .theme-toggle button:hover { color: var(--p-text); }
+  .theme-toggle button[aria-pressed="true"] {
+    background: var(--p-toggle-active);
+    color: var(--p-text);
+    box-shadow: 0 1px 2px var(--p-shadow);
+  }
+  .theme-toggle svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  header h1 {
+    margin: 0 0 2px;
+    font-size: 22px;
+    color: var(--p-dark);
+    letter-spacing: 0.5px;
+  }
+  .stats {
+    color: var(--p-dark);
+    font-size: 12.5px;
+    opacity: 0.78;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  #search {
+    flex: 1 1 280px;
+    max-width: 460px;
+    padding: 9px 13px;
+    font-size: 14px;
+    border: 2px solid var(--p-accent);
+    border-radius: 6px;
+    background: var(--p-card-bg);
+    color: var(--p-text);
+    outline: none;
+    transition: box-shadow 0.15s;
+  }
+  #search:focus {
+    box-shadow: 0 0 0 3px var(--p-focus);
+  }
+  .filter {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    gap: 2px;
+    background: var(--p-toggle-bg);
+    border: 1px solid var(--p-border);
+    border-radius: 6px;
+  }
+  .filter button {
+    padding: 5px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--p-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: background 0.12s, color 0.12s;
+  }
+  .filter button:hover { color: var(--p-text); }
+  .filter button[aria-pressed="true"] {
+    background: var(--p-toggle-active);
+    color: var(--p-text);
+    box-shadow: 0 1px 2px var(--p-shadow);
+  }
+  .sort-btn {
+    padding: 6px 11px;
+    background: var(--p-toggle-bg);
+    border: 1px solid var(--p-border);
+    border-radius: 6px;
+    color: var(--p-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: color 0.12s, background 0.12s;
+  }
+  .sort-btn:hover {
+    color: var(--p-text);
+    background: var(--p-toggle-active);
+  }
+  main { padding: 26px 40px 48px; }
+  #cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--p-card-bg);
+    border: 1px solid var(--p-border);
+    border-radius: 8px;
+    padding: 13px 15px 11px;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 12px var(--p-shadow);
+    transform: translateY(-1px);
+  }
+  .card.pdf-only {
+    background: var(--p-card-alt);
+  }
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 11px;
+    background: var(--p-accent);
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .short {
+    color: var(--p-muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--p-dark);
+    margin: 0 0 10px;
+    line-height: 1.4;
+    flex: 1;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .actions a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 9px;
+    background: var(--p-light);
+    color: var(--p-dark);
+    border: 1px solid var(--p-border);
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .actions a:hover {
+    background: var(--p-primary);
+    border-color: var(--p-accent);
+  }
+  .empty {
+    color: var(--p-muted);
+    font-size: 14px;
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+  }
+  /* delete button (top-right of each card) — gated by admin password server-side */
+  .card-del {
+    margin-left: auto;
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--p-muted); font-size: 14px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px;
+    opacity: 0.45; transition: opacity 0.12s, color 0.12s, background 0.12s;
+  }
+  .card:hover .card-del { opacity: 1; }
+  .card-del:hover { color: #fff; background: #b3402f; }
+  /* per-card tags row */
+  .card-tags {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+    margin: 0 0 10px;
+  }
+  .ctag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 4px 2px 8px;
+    background: rgba(201, 108, 73, 0.16);     /* accent 淡色底，凸顯標籤 */
+    border: 1px solid rgba(201, 108, 73, 0.42);
+    border-radius: 999px;
+    color: var(--p-accent);
+  }
+  .ctag-x {
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--p-accent); opacity: 0.65; font-size: 13px; line-height: 1;
+    padding: 0 2px; border-radius: 999px;
+  }
+  .ctag-x:hover { opacity: 1; }
+  .ctag-add {
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    padding: 2px 9px; cursor: pointer;
+    background: transparent; color: var(--p-muted);
+    border: 1px dashed var(--p-border); border-radius: 999px;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .ctag-add:hover { color: var(--p-accent); border-color: var(--p-accent); }
+  .ctag-input {
+    width: 110px; padding: 2px 8px; font: inherit; font-size: 11px;
+    border: 1px solid var(--p-accent); border-radius: 999px;
+    background: var(--p-light); color: var(--p-text); outline: none;
+  }
+  /* tag-filter bar (below the header search) */
+  .tagbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin: 0 0 18px;
+  }
+  .tagbar[hidden] { display: none; }
+  .tag-dd { position: relative; }
+  .tag-filter-btn {
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 7px 12px; cursor: pointer;
+    background: var(--p-toggle-bg); color: var(--p-dark);
+    border: 1px solid var(--p-border); border-radius: 6px;
+    transition: border-color 0.12s;
+  }
+  .tag-filter-btn:hover { border-color: var(--p-accent); }
+  .tag-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+    min-width: 200px; max-height: 320px; overflow-y: auto;
+    padding: 6px;
+    background: var(--p-card-bg);
+    border: 1px solid var(--p-border); border-radius: 8px;
+    box-shadow: 0 8px 26px var(--p-shadow);
+  }
+  .tag-menu[hidden] { display: none; }
+  .tag-opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  .tag-opt:hover { background: var(--p-toggle-bg); }
+  .tag-opt input { margin: 0; cursor: pointer; }
+  .tag-empty { padding: 8px 10px; color: var(--p-muted); font-size: 12px; }
+  .tag-active { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag-active .ctag { background: var(--p-accent); color: #fff; border-color: var(--p-accent); }
+  .tag-active .ctag-x { color: rgba(255, 255, 255, 0.85); }
+  .tag-active .ctag-x:hover { color: #fff; }
+  .tag-clear {
+    font-family: inherit; font-size: 11px; cursor: pointer;
+    background: transparent; border: 0; color: var(--p-muted);
+    text-decoration: underline;
+  }
+  .tag-clear:hover { color: var(--p-accent); }
+  .section-head {
+    grid-column: 1 / -1;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--p-muted);
+    padding: 10px 2px 6px;
+    margin-top: 4px;
+    border-bottom: 1px solid var(--p-border);
+    position: sticky;
+    top: var(--header-h, 64px);
+    background: var(--p-light);
+    z-index: 5;
+  }
+  .section-head:first-child {
+    margin-top: 0;
+    padding-top: 2px;
+  }
+  @media (max-width: 760px) {
+    header {
+      display: block;
+      padding: 16px 18px;
+      position: relative;
+    }
+    .theme-toggle {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+    }
+    .controls { margin-top: 12px; }
+    main { padding-left: 18px; padding-right: 18px; }
+    #cards { grid-template-columns: 1fr; }
+    .section-head { top: 0; }
+  }
+</style>
+<script>
+  (function () {
+    const mode = localStorage.getItem("phyra-archbase-theme") || "system";
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+    document.documentElement.setAttribute("data-theme", actual);
+  })();
+</script>
+</head>
+<body>
+<div class="hub-bar">
+  <a class="hub-link" id="hub-center" href="#"><span class="hub-arrow">←</span> <span class="hub-brand">🜂 Phyra Center</span></a>
+</div>
+<header>
+  <div class="hdr-left">
+    <h1>phyra-archbase</h1>
+    <div class="stats">73 papers · 67 fully analyzed</div>
+  </div>
+  <div class="controls">
+    <input type="search" id="search" placeholder="Filter by title or short name… (press /)" autocomplete="off">
+    <div class="filter" role="group" aria-label="Filter">
+      <button type="button" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" data-filter="analyzed" aria-pressed="false">Analyzed</button>
+      <button type="button" data-filter="bilingual" aria-pressed="false">Bilingual</button>
+      <button type="button" data-filter="pending" aria-pressed="false">PDF only</button>
+    </div>
+    <button type="button" id="sort-btn" class="sort-btn" title="Sort"></button>
+  </div>
+  <div class="theme-toggle" role="group" aria-label="Appearance">
+    <button type="button" data-mode="system" title="System" aria-label="System">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </button>
+    <button type="button" data-mode="light" title="Light" aria-label="Light">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+      <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+<main>
+  <div class="tagbar" id="tagbar" hidden>
+    <div class="tag-dd">
+      <button type="button" id="tag-dd-btn" class="tag-filter-btn">🏷 依標籤篩選 ▾</button>
+      <div class="tag-menu" id="tag-menu" hidden></div>
+    </div>
+    <div class="tag-active" id="tag-active"></div>
+  </div>
+  <datalist id="all-tags-list"></datalist>
+  <div id="cards"></div>
+</main>
+<script>
+const PAPERS = [{"key": "2605_Spark3R_Asymmetric_Token_Reduction_Makes_Fast_Feed-Forward_3D_Reconstruction", "yymm": "2605", "title": "Spark3R Asymmetric Token Reduction Makes Fast Feed-Forward 3D Reconstruction", "short": "", "files": {"original_pdf": "2605_Spark3R_Asymmetric_Token_Reduction_Makes_Fast_Feed-Forward_3D_Reconstruction.pdf", "bilingual_pdf": "2605_Spark3R_Asymmetric_Token_Reduction_Makes_Fast_Feed-Forward_3D_Reconstruction_bilingual.zh-TW.dual.pdf"}}, {"key": "2605_VGGT-Omega", "yymm": "2605", "title": "VGGT-Omega", "short": "", "files": {"original_pdf": "2605_VGGT-Omega.pdf", "bilingual_pdf": "2605_VGGT-Omega_bilingual.zh-TW.dual.pdf"}}, {"key": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos", "yymm": "2605", "title": "X2SAM: Any Segmentation in Images and Videos", "short": "X2SAM", "files": {"original_pdf": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos.pdf", "analysis_html": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos_analysis.zh-TW.html", "analysis_md": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos_analysis.zh-TW.md", "bilingual_pdf": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos_bilingual.zh-TW.dual.pdf", "draftslide_html": "2605_X2SAM_Any_Segmentation_in_Images_and_Videos_draftslide.html"}}, {"key": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective", "yymm": "2604", "title": "Feed-Forward 3D Scene Modeling: A Problem-Driven Perspective", "short": "FF3D-Survey", "files": {"original_pdf": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective.pdf", "analysis_html": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective_analysis.zh-TW.html", "analysis_md": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective_analysis.zh-TW.md", "bilingual_pdf": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_FF3DSurvey_Feed-Forward_3D_Scene_Modeling__A_Problem-Driven_Perspective_draftslide.html"}}, {"key": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images", "yymm": "2604", "title": "Generalizable Sparse-View 3D Reconstruction from Unconstrained Images", "short": "GenWildSplat", "files": {"original_pdf": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images.pdf", "analysis_html": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images_analysis.zh-TW.html", "analysis_md": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images_analysis.zh-TW.md", "bilingual_pdf": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_GenWildSplat_Generalizable_Sparse-View_3D_Reconstruction_from_Unconstrained_Images_draftslide.html"}}, {"key": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling", "yymm": "2604", "title": "INSPATIO-WORLD: A Real-Time 4D World Simulator via Spatiotemporal Autoregressive Modeling", "short": "INSPATIO-WORLD", "files": {"original_pdf": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling.pdf", "analysis_html": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling_analysis.zh-TW.html", "analysis_md": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling_analysis.zh-TW.md", "bilingual_pdf": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_InSpatioWorld_A_Real-Time_4D_World_Simulator_via_Spatiotemporal_Autoregressive_Modeling_draftslide.html"}}, {"key": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction", "yymm": "2604", "title": "Geometric Context Transformer for Streaming 3D Reconstruction", "short": "LingBot-Map", "files": {"original_pdf": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction.pdf", "analysis_html": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction_draftslide.html"}}, {"key": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds", "yymm": "2604", "title": "Lyra 2.0: Explorable Generative 3D Worlds", "short": "Lyra 2.0", "files": {"original_pdf": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds.pdf", "analysis_html": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds_analysis.zh-TW.html", "analysis_md": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds_analysis.zh-TW.md", "bilingual_pdf": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds_draftslide.html"}}, {"key": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning", "yymm": "2604", "title": "Mask World Model: Predicting What Matters for Robust Robot Policy Learning", "short": "MWM", "files": {"original_pdf": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning.pdf", "analysis_html": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning_analysis.zh-TW.html", "analysis_md": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning_analysis.zh-TW.md", "bilingual_pdf": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_MWM_Mask_World_Model__Predicting_What_Matters_for_Robust_Robot_Policy_Learning_draftslide.html"}}, {"key": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite", "yymm": "2604", "title": "PhysInOne: Visual Physics Learning and Reasoning in One Suite", "short": "PhysInOne", "files": {"original_pdf": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite.pdf", "analysis_html": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite_analysis.zh-TW.html", "analysis_md": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite_analysis.zh-TW.md", "bilingual_pdf": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_PhysInOne_Visual_Physics_Learning_and_Reasoning_in_One_Suite_draftslide.html"}}, {"key": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations", "yymm": "2604", "title": "Reconstruction by Generation: 3D Multi-Object Scene Reconstruction from Sparse Observations", "short": "RecGen", "files": {"original_pdf": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations.pdf", "analysis_html": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations_analysis.zh-TW.html", "analysis_md": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations_analysis.zh-TW.md", "bilingual_pdf": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_RecGen_Reconstruction_by_Generation__3D_Multi-Object_Scene_Reconstruction_from_Sparse_Observations_draftslide.html"}}, {"key": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe", "yymm": "2604", "title": "Efficient Training on Multiple Consumer GPUs with RoundPipe", "short": "RoundPipe", "files": {"original_pdf": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe.pdf", "analysis_html": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe_analysis.zh-TW.html", "analysis_md": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe_analysis.zh-TW.md", "bilingual_pdf": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_RoundPipe_Efficient_Training_on_Multiple_Consumer_GPUs_with_RoundPipe_draftslide.html"}}, {"key": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction", "yymm": "2604", "title": "Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction", "short": "Scal3R", "files": {"original_pdf": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction.pdf", "analysis_html": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_Scal3R_Scalable_Test-Time_Training_for_Large-Scale_3D_Reconstruction_draftslide.html"}}, {"key": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment", "yymm": "2604", "title": "TIPSv2: Advancing Vision-Language Pretraining with Enhanced Patch-Text Alignment", "short": "TIPSv2", "files": {"original_pdf": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment.pdf", "analysis_html": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment_analysis.zh-TW.html", "analysis_md": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment_analysis.zh-TW.md", "bilingual_pdf": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_TIPSv2_Advancing_Vision-Language_Pretraining_with_Enhanced_Patch-Text_Alignment_draftslide.html"}}, {"key": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation", "yymm": "2604", "title": "Tuna-2: Pixel Embeddings Beat Vision Encoders for Multimodal Understanding and Generation", "short": "Tuna-2", "files": {"original_pdf": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation.pdf", "analysis_html": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation_analysis.zh-TW.html", "analysis_md": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation_analysis.zh-TW.md", "bilingual_pdf": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_Tuna2_Pixel_Embeddings_Beat_Vision_Encoders_for_Multimodal_Understanding_and_Generation_draftslide.html"}}, {"key": "2604_VGGT-SLAM_VGGT-SLAM++", "yymm": "2604", "title": "VGGT-SLAM++", "short": "VGGT-SLAM++", "files": {"original_pdf": "2604_VGGT-SLAM_VGGT-SLAM++.pdf", "analysis_html": "2604_VGGT-SLAM_VGGT-SLAM++_analysis.zh-TW.html", "analysis_md": "2604_VGGT-SLAM_VGGT-SLAM++_analysis.zh-TW.md", "bilingual_pdf": "2604_VGGT-SLAM_VGGT-SLAM++_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_VGGT-SLAM_VGGT-SLAM++_draftslide.html"}}, {"key": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds", "yymm": "2604", "title": "Vista4D: Video Reshooting with 4D Point Clouds", "short": "Vista4D", "files": {"original_pdf": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds.pdf", "analysis_html": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds_analysis.zh-TW.html", "analysis_md": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds_analysis.zh-TW.md", "bilingual_pdf": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_Vista4D_Video_Reshooting_with_4D_Point_Clouds_draftslide.html"}}, {"key": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation", "yymm": "2604", "title": "World-R1: Reinforcing 3D Constraints for Text-to-Video Generation", "short": "World-R1", "files": {"original_pdf": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation.pdf", "analysis_html": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation_analysis.zh-TW.html", "analysis_md": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation_analysis.zh-TW.md", "bilingual_pdf": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_WorldR1_Reinforcing_3D_Constraints_for_Text-to-Video_Generation_draftslide.html"}}, {"key": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference", "yymm": "2604", "title": "X-Cache: Cross-Chunk Block Caching for Few-Step Autoregressive World Models Inference", "short": "X-Cache", "files": {"original_pdf": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference.pdf", "analysis_html": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference_analysis.zh-TW.html", "analysis_md": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference_analysis.zh-TW.md", "bilingual_pdf": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_XCache_Cross-Chunk_Block_Caching_for_Few-Step_Autoregressive_World_Models_Inference_draftslide.html"}}, {"key": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising", "yymm": "2604", "title": "Unified 4D World Action Modeling from Video Priors with Asynchronous Denoising", "short": "X-WAM", "files": {"original_pdf": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising.pdf", "analysis_html": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising_analysis.zh-TW.html", "analysis_md": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising_analysis.zh-TW.md", "bilingual_pdf": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising_bilingual.zh-TW.dual.pdf", "draftslide_html": "2604_XWAM_Unified_4D_World_Action_Modeling_from_Video_Priors_with_Asynchronous_Denoising_draftslide.html"}}, {"key": "2603_DROIDW_DROID-SLAM_in_the_Wild", "yymm": "2603", "title": "DROID-SLAM in the Wild", "short": "DROID-W", "files": {"original_pdf": "2603_DROIDW_DROID-SLAM_in_the_Wild.pdf", "analysis_html": "2603_DROIDW_DROID-SLAM_in_the_Wild_analysis.zh-TW.html", "analysis_md": "2603_DROIDW_DROID-SLAM_in_the_Wild_analysis.zh-TW.md", "bilingual_pdf": "2603_DROIDW_DROID-SLAM_in_the_Wild_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_DROIDW_DROID-SLAM_in_the_Wild_draftslide.html"}}, {"key": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving", "yymm": "2603", "title": "DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving", "short": "DynamicVGGT", "files": {"original_pdf": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving.pdf", "analysis_html": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving_analysis.zh-TW.html", "analysis_md": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving_analysis.zh-TW.md", "bilingual_pdf": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_DynamicVGGT_Learning_Dynamic_Point_Maps_for_4D_Scene_Reconstruction_in_Autonomous_Driving_draftslide.html"}}, {"key": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning", "yymm": "2603", "title": "Make Geometry Matter for Spatial Reasoning", "short": "GeoSR", "files": {"original_pdf": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning.pdf", "analysis_html": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning_analysis.zh-TW.html", "analysis_md": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning_analysis.zh-TW.md", "bilingual_pdf": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_GeoSR_Make_Geometry_Matter_for_Spatial_Reasoning_draftslide.html"}}, {"key": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer", "yymm": "2603", "title": "HD-VGGT: High-Resolution Visual Geometry Transformer", "short": "HD-VGGT", "files": {"original_pdf": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer.pdf", "analysis_html": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer_analysis.zh-TW.html", "analysis_md": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer_analysis.zh-TW.md", "bilingual_pdf": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_HD-VGGT_High-Resolution_Visual_Geometry_Transformer_draftslide.html"}}, {"key": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model", "yymm": "2603", "title": "InSpatio-WorldFM: An Open-Source Real-Time Generative Frame Model", "short": "InSpatio-WorldFM", "files": {"original_pdf": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model.pdf", "analysis_html": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model_analysis.zh-TW.html", "analysis_md": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model_analysis.zh-TW.md", "bilingual_pdf": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_WorldFM_InSpatio-WorldFM__An_Open-Source_Real-Time_Generative_Frame_Model_draftslide.html"}}, {"key": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels", "yymm": "2603", "title": "LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels", "short": "LeWM", "files": {"original_pdf": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels.pdf", "analysis_html": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels_analysis.zh-TW.html", "analysis_md": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels_analysis.zh-TW.md", "bilingual_pdf": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_LeWM_LeWorldModel__Stable_End-to-End_Joint-Embedding_Predictive_Architecture_from_Pixels_draftslide.html"}}, {"key": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory", "yymm": "2603", "title": "LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory", "short": "LoGeR", "files": {"original_pdf": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory.pdf", "analysis_html": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory_analysis.zh-TW.html", "analysis_md": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory_analysis.zh-TW.md", "bilingual_pdf": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_LoGeR_Long-Context_Geometric_Reconstruction_with_Hybrid_Memory_draftslide.html"}}, {"key": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer", "yymm": "2603", "title": "MoRe: Motion-aware Feed-forward 4D Reconstruction Transformer", "short": "MoRe", "files": {"original_pdf": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer.pdf", "analysis_html": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer_analysis.zh-TW.html", "analysis_md": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer_analysis.zh-TW.md", "bilingual_pdf": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_MoRe_Motion-aware_Feed-forward_4D_Reconstruction_Transformer_draftslide.html"}}, {"key": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences", "yymm": "2603", "title": "PAS3R: Pose-Adaptive Streaming 3D Reconstruction for Long Video Sequences", "short": "PAS3R", "files": {"original_pdf": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences.pdf", "analysis_html": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences_analysis.zh-TW.html", "analysis_md": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences_analysis.zh-TW.md", "bilingual_pdf": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_PAS3R_Pose-Adaptive_Streaming_3D_Reconstruction_for_Long_Video_Sequences_draftslide.html"}}, {"key": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction", "yymm": "2603", "title": "ReconDrive: Fast Feed-Forward 4D Gaussian Splatting for Autonomous Driving Scene Reconstruction", "short": "ReconDrive", "files": {"original_pdf": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction.pdf", "analysis_html": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction_analysis.zh-TW.html", "analysis_md": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_ReconDrive_Fast_Feed-Forward_4D_Gaussian_Splatting_for_Autonomous_Driving_Scene_Reconstruction_draftslide.html"}}, {"key": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models", "yymm": "2603", "title": "S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models", "short": "S-VGGT", "files": {"original_pdf": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models.pdf", "analysis_html": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models_analysis.zh-TW.html", "analysis_md": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models_analysis.zh-TW.md", "bilingual_pdf": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_SVGGTStructure_S-VGGT__Structure-Aware_Subscene_Decomposition_for_Scalable_3D_Foundation_Models_draftslide.html"}}, {"key": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning", "yymm": "2603", "title": "SpatialStack: Layered Geometry-Language Fusion for 3D VLM Spatial Reasoning", "short": "SpatialStack", "files": {"original_pdf": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning.pdf", "analysis_html": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning_analysis.zh-TW.html", "analysis_md": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning_analysis.zh-TW.md", "bilingual_pdf": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_SpatialStack_Layered_Geometry-Language_Fusion_for_3D_VLM_Spatial_Reasoning_draftslide.html"}}, {"key": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction", "yymm": "2603", "title": "STAC: Plug-and-Play Spatio-Temporal Aware Cache Compression for Streaming 3D Reconstruction", "short": "STAC", "files": {"original_pdf": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction.pdf", "analysis_html": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_STAC_Plug-and-Play_Spatio-Temporal_Aware_Cache_Compression_for_Streaming_3D_Reconstruction_draftslide.html"}}, {"key": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model", "yymm": "2603", "title": "ThinkJEPA: Empowering Latent World Models with Large Vision-Language Reasoning Model", "short": "ThinkJEPA", "files": {"original_pdf": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model.pdf", "analysis_html": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model_analysis.zh-TW.html", "analysis_md": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model_analysis.zh-TW.md", "bilingual_pdf": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_ThinkJEPA_Empowering_Latent_World_Models_with_Large_Vision-Language_Reasoning_Model_draftslide.html"}}, {"key": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model", "yymm": "2603", "title": "VGGT-World: Transforming VGGT into an Autoregressive Geometry World Model", "short": "VGGT-World", "files": {"original_pdf": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model.pdf", "analysis_html": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model_analysis.zh-TW.html", "analysis_md": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model_analysis.zh-TW.md", "bilingual_pdf": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_VGGT-World_Transforming_VGGT_into_an_Autoregressive_Geometry_World_Model_draftslide.html"}}, {"key": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training", "yymm": "2603", "title": "ZipMap: Linear-Time Stateful 3D Reconstruction via Test-Time Training", "short": "ZipMap", "files": {"original_pdf": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training.pdf", "analysis_html": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training_analysis.zh-TW.html", "analysis_md": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training_analysis.zh-TW.md", "bilingual_pdf": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training_bilingual.zh-TW.dual.pdf", "draftslide_html": "2603_ZipMap_Linear-Time_Stateful_3D_Reconstruction_via_Test-Time_Training_draftslide.html"}}, {"key": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry", "yymm": "2602", "title": "LongStream: Long-Sequence Streaming Autoregressive Visual Geometry", "short": "LongStream", "files": {"original_pdf": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry.pdf", "analysis_html": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry_analysis.zh-TW.html", "analysis_md": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry_analysis.zh-TW.md", "bilingual_pdf": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry_bilingual.zh-TW.dual.pdf", "draftslide_html": "2602_LongStream_Long-Sequence_Streaming_Autoregressive_Visual_Geometry_draftslide.html"}}, {"key": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation", "yymm": "2602", "title": "SceneVGGT: VGGT-Based Online 3D Semantic SLAM for Indoor Scene Understanding and Navigation", "short": "SceneVGGT", "files": {"original_pdf": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation.pdf", "analysis_html": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation_analysis.zh-TW.html", "analysis_md": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation_analysis.zh-TW.md", "bilingual_pdf": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2602_SceneVGGT_VGGT-Based_Online_3D_Semantic_SLAM_for_Indoor_Scene_Understanding_and_Navigation_draftslide.html"}}, {"key": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction", "yymm": "2602", "title": "tttLRM: Test-Time Training for Long Context and Autoregressive 3D Reconstruction", "short": "tttLRM", "files": {"original_pdf": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction.pdf", "analysis_html": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2602_tttLRM_Test-Time_Training_for_Long_Context_and_Autoregressive_3D_Reconstruction_draftslide.html"}}, {"key": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale", "yymm": "2602", "title": "VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale", "short": "VGG-T3", "files": {"original_pdf": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale.pdf", "analysis_html": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale_analysis.zh-TW.html", "analysis_md": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale_analysis.zh-TW.md", "bilingual_pdf": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale_bilingual.zh-TW.dual.pdf", "draftslide_html": "2602_MLP_VGG-T3__Offline_Feed-Forward_3D_Reconstruction_at_Scale_draftslide.html"}}, {"key": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency", "yymm": "2602", "title": "VGGT-Motion: Motion-Aware Calibration-Free Monocular SLAM for Long-Range Consistency", "short": "VGGT-Motion", "files": {"original_pdf": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency.pdf", "analysis_html": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency_analysis.zh-TW.html", "analysis_md": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency_analysis.zh-TW.md", "bilingual_pdf": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency_bilingual.zh-TW.dual.pdf", "draftslide_html": "2602_VGGT-Motion_Motion-Aware_Calibration-Free_Monocular_SLAM_for_Long-Range_Consistency_draftslide.html"}}, {"key": "2601_3GS_Geometry-Grounded_Gaussian_Splatting", "yymm": "2601", "title": "Geometry-Grounded Gaussian Splatting", "short": "GGGS", "files": {"original_pdf": "2601_3GS_Geometry-Grounded_Gaussian_Splatting.pdf", "analysis_html": "2601_3GS_Geometry-Grounded_Gaussian_Splatting_analysis.zh-TW.html", "analysis_md": "2601_3GS_Geometry-Grounded_Gaussian_Splatting_analysis.zh-TW.md", "bilingual_pdf": "2601_3GS_Geometry-Grounded_Gaussian_Splatting_bilingual.zh-TW.dual.pdf", "draftslide_html": "2601_3GS_Geometry-Grounded_Gaussian_Splatting_draftslide.html"}}, {"key": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields", "yymm": "2601", "title": "InfiniDepth: Arbitrary-Resolution and Fine-Grained Depth Estimation with Neural Implicit Fields", "short": "InfiniDepth", "files": {"original_pdf": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields.pdf", "analysis_html": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields_analysis.zh-TW.html", "analysis_md": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields_analysis.zh-TW.md", "bilingual_pdf": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields_bilingual.zh-TW.dual.pdf", "draftslide_html": "2601_InfiniDepth_Arbitrary-Resolution_and_Fine-Grained_Depth_Estimation_with_Neural_Implicit_Fields_draftslide.html"}}, {"key": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation", "yymm": "2601", "title": "PointWorld: Scaling 3D World Models for In-The-Wild Robotic Manipulation", "short": "PointWorld", "files": {"original_pdf": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation.pdf", "analysis_html": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation_analysis.zh-TW.html", "analysis_md": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation_analysis.zh-TW.md", "bilingual_pdf": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2601_PointWorld_Scaling_3D_World_Models_for_In-The-Wild_Robotic_Manipulation_draftslide.html"}}, {"key": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction", "yymm": "2601", "title": "TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction", "short": "TTSA3R", "files": {"original_pdf": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction.pdf", "analysis_html": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2601_TTSA3R_Training-Free_Temporal-Spatial_Adaptive_Persistent_State_for_Streaming_3D_Reconstruction_draftslide.html"}}, {"key": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer", "yymm": "2512", "title": "4DLangVGGT: 4D Language-Visual Geometry Grounded Transformer", "short": "4DLangVGGT", "files": {"original_pdf": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer.pdf", "analysis_html": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer_analysis.zh-TW.html", "analysis_md": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer_analysis.zh-TW.md", "bilingual_pdf": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer_bilingual.zh-TW.dual.pdf", "draftslide_html": "2512_SBD_4DLangVGGT__4D_Language-Visual_Geometry_Grounded_Transformer_draftslide.html"}}, {"key": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners", "yymm": "2512", "title": "Vision Transformers are Circulant Attention Learners", "short": "CircViT", "files": {"original_pdf": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners.pdf", "analysis_html": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners_analysis.zh-TW.html", "analysis_md": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners_analysis.zh-TW.md", "bilingual_pdf": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners_bilingual.zh-TW.dual.pdf", "draftslide_html": "2512_CircViT_Vision_Transformers_are_Circulant_Attention_Learners_draftslide.html"}}, {"key": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images", "yymm": "2512", "title": "DGGT: Feedforward 4D Reconstruction of Dynamic Driving Scenes using Unposed Images", "short": "DGGT", "files": {"original_pdf": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images.pdf", "analysis_html": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images_analysis.zh-TW.html", "analysis_md": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images_analysis.zh-TW.md", "bilingual_pdf": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images_bilingual.zh-TW.dual.pdf", "draftslide_html": "2512_DGGT_Feedforward_4D_Reconstruction_of_Dynamic_Driving_Scenes_using_Unposed_Images_draftslide.html"}}, {"key": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models", "yymm": "2512", "title": "N3D-VLM: Native 3D Grounding Enables Accurate Spatial Reasoning in Vision-Language Models", "short": "N3D-VLM", "files": {"original_pdf": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models.pdf", "analysis_html": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models_analysis.zh-TW.html", "analysis_md": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models_analysis.zh-TW.md", "bilingual_pdf": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models_bilingual.zh-TW.dual.pdf", "draftslide_html": "2512_N3D-VLM_Native_3D_Grounding_Enables_Accurate_Spatial_Reasoning_in_Vision-Language_Models_draftslide.html"}}, {"key": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling", "yymm": "2512", "title": "WorldPlay: Towards Long-Term Geometric Consistency for Real-Time Interactive World Modeling", "short": "WorldPlay", "files": {"original_pdf": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling.pdf", "analysis_html": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling_analysis.zh-TW.html", "analysis_md": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling_analysis.zh-TW.md", "bilingual_pdf": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling_bilingual.zh-TW.dual.pdf", "draftslide_html": "2512_WorldPlay_Towards_Long-Term_Geometric_Consistency_for_Real-Time_Interactive_World_Modeling_draftslide.html"}}, {"key": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views", "yymm": "2511", "title": "Depth Anything 3: Recovering the Visual Space from Any Views", "short": "Depth Anything 3", "files": {"original_pdf": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views.pdf", "analysis_html": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views_analysis.zh-TW.html", "analysis_md": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views_analysis.zh-TW.md", "bilingual_pdf": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views_bilingual.zh-TW.dual.pdf", "draftslide_html": "2511_DA3_Depth_Anything_3__Recovering_the_Visual_Space_from_Any_Views_draftslide.html"}}, {"key": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving", "yymm": "2511", "title": "DriveVGGT: Calibration-Constrained Visual Geometry Transformers for Multi-Camera Autonomous Driving", "short": "DriveVGGT", "files": {"original_pdf": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving.pdf", "analysis_html": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving_analysis.zh-TW.html", "analysis_md": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving_analysis.zh-TW.md", "bilingual_pdf": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving_bilingual.zh-TW.dual.pdf", "draftslide_html": "2511_DriveVGGT_Calibration-Constrained_Visual_Geometry_Transformers_for_Multi-Camera_Autonomous_Driving_draftslide.html"}}, {"key": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning", "yymm": "2511", "title": "G2VLM: Geometry Grounded Vision Language Model with Unified 3D Reconstruction and Spatial Reasoning", "short": "G2VLM", "files": {"original_pdf": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning.pdf", "analysis_html": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning_analysis.zh-TW.html", "analysis_md": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning_analysis.zh-TW.md", "bilingual_pdf": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning_bilingual.zh-TW.dual.pdf", "draftslide_html": "2511_G2VLM_Geometry_Grounded_Vision_Language_Model_with_Unified_3D_Reconstruction_and_Spatial_Reasoning_draftslide.html"}}, {"key": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer", "yymm": "2511", "title": "OmniVGGT: Omni-Modality Driven Visual Geometry Grounded Transformer", "short": "OmniVGGT", "files": {"original_pdf": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer.pdf", "analysis_html": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer_analysis.zh-TW.html", "analysis_md": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer_analysis.zh-TW.md", "bilingual_pdf": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer_bilingual.zh-TW.dual.pdf", "draftslide_html": "2511_OmniVGGT_Omni-Modality_Driven_Visual_Geometry_Grounded_Transformer_draftslide.html"}}, {"key": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes", "yymm": "2511", "title": "SwiftVGGT: A Scalable Visual Geometry Grounded Transformer for Large-Scale Scenes", "short": "SwiftVGGT", "files": {"original_pdf": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes.pdf", "analysis_html": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes_analysis.zh-TW.html", "analysis_md": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes_analysis.zh-TW.md", "bilingual_pdf": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes_bilingual.zh-TW.dual.pdf", "draftslide_html": "2511_SwiftVGGT_A_Scalable_Visual_Geometry_Grounded_Transformer_for_Large-Scale_Scenes_draftslide.html"}}, {"key": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views", "yymm": "2510", "title": "Think with 3D: Geometric Imagination Grounded Spatial Reasoning from Limited Views", "short": "3DThinker", "files": {"original_pdf": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views.pdf", "analysis_html": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views_analysis.zh-TW.html", "analysis_md": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views_analysis.zh-TW.md", "bilingual_pdf": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views_bilingual.zh-TW.dual.pdf", "draftslide_html": "2510_3DThinker_Think_with_3D__Geometric_Imagination_Grounded_Spatial_Reasoning_from_Limited_Views_draftslide.html"}}, {"key": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training", "yymm": "2510", "title": "DiT360: High-Fidelity Panoramic Image Generation via Hybrid Training", "short": "DiT360", "files": {"original_pdf": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training.pdf", "analysis_html": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training_analysis.zh-TW.html", "analysis_md": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training_analysis.zh-TW.md", "bilingual_pdf": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training_bilingual.zh-TW.dual.pdf", "draftslide_html": "2510_DiT360_High-Fidelity_Panoramic_Image_Generation_via_Hybrid_Training_draftslide.html"}}, {"key": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction", "yymm": "2509", "title": "MapAnything: Universal Feed-Forward Metric 3D Reconstruction", "short": "MapAnything", "files": {"original_pdf": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction.pdf", "analysis_html": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2509_MapAnything_Universal_Feed-Forward_Metric_3D_Reconstruction_draftslide.html"}}, {"key": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training", "yymm": "2509", "title": "TTT3R: 3D Reconstruction as Test-Time Training", "short": "TTT3R", "files": {"original_pdf": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training.pdf", "analysis_html": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training_analysis.zh-TW.html", "analysis_md": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training_analysis.zh-TW.md", "bilingual_pdf": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training_bilingual.zh-TW.dual.pdf", "draftslide_html": "2509_TTT3R_3D_Reconstruction_as_Test-Time_Training_draftslide.html"}}, {"key": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation", "yymm": "2508", "title": "Mixture of Contexts for Long Video Generation", "short": "MoC", "files": {"original_pdf": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation.pdf", "analysis_html": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation_analysis.zh-TW.html", "analysis_md": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation_analysis.zh-TW.md", "bilingual_pdf": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2508_MoC_Mixture_of_Contexts_for_Long_Video_Generation_draftslide.html"}}, {"key": "2507_Streaming_4D_Visual_Geometry_Transformer", "yymm": "2507", "title": "Streaming 4D Visual Geometry Transformer", "short": "", "files": {"original_pdf": "2507_Streaming_4D_Visual_Geometry_Transformer.pdf", "bilingual_pdf": "2507_Streaming_4D_Visual_Geometry_Transformer_bilingual.zh-TW.dual.pdf"}}, {"key": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences", "yymm": "2507", "title": "VGGT-Long: Chunk it, Loop it, Align it, Pushing VGGT's Limits on Kilometer-scale Long RGB Sequences", "short": "VGGT-Long", "files": {"original_pdf": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences.pdf", "analysis_html": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences_analysis.zh-TW.html", "analysis_md": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences_analysis.zh-TW.md", "bilingual_pdf": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences_bilingual.zh-TW.dual.pdf", "draftslide_html": "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences_draftslide.html"}}, {"key": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval", "yymm": "2506", "title": "Context as Memory: Scene-Consistent Interactive Long Video Generation with Memory Retrieval", "short": "Context-as-Memory", "files": {"original_pdf": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval.pdf", "analysis_html": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval_analysis.zh-TW.html", "analysis_md": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval_analysis.zh-TW.md", "bilingual_pdf": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval_bilingual.zh-TW.dual.pdf", "draftslide_html": "2506_CtxMem_Context_as_Memory__Scene-Consistent_Interactive_Long_Video_Generation_with_Memory_Retrieval_draftslide.html"}}, {"key": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory", "yymm": "2506", "title": "Video World Models with Long-term Spatial Memory", "short": "SpMem", "files": {"original_pdf": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory.pdf", "analysis_html": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory_analysis.zh-TW.html", "analysis_md": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory_analysis.zh-TW.md", "bilingual_pdf": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory_bilingual.zh-TW.dual.pdf", "draftslide_html": "2506_SpMem_Video_World_Models_with_Long-term_Spatial_Memory_draftslide.html"}}, {"key": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation", "yymm": "2506", "title": "Voyager: Long-Range and World-Consistent Video Diffusion for Explorable 3D Scene Generation", "short": "Voyager", "files": {"original_pdf": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation.pdf", "analysis_html": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation_analysis.zh-TW.html", "analysis_md": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation_analysis.zh-TW.md", "bilingual_pdf": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation_bilingual.zh-TW.dual.pdf", "draftslide_html": "2506_Voyager_Long-Range_and_World-Consistent_Video_Diffusion_for_Explorable_3D_Scene_Generation_draftslide.html"}}, {"key": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold", "yymm": "2505", "title": "VGGT-SLAM: Dense RGB SLAM Optimized on the SL(4) Manifold", "short": "VGGT-SLAM", "files": {"original_pdf": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold.pdf", "analysis_html": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold_analysis.zh-TW.html", "analysis_md": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold_analysis.zh-TW.md", "bilingual_pdf": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold_bilingual.zh-TW.dual.pdf", "draftslide_html": "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold_draftslide.html"}}, {"key": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction", "yymm": "2505", "title": "VLM-3R: Vision-Language Models Augmented with Instruction-Aligned 3D Reconstruction", "short": "VLM-3R", "files": {"original_pdf": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction.pdf", "analysis_html": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction_analysis.zh-TW.html", "analysis_md": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction_analysis.zh-TW.md", "bilingual_pdf": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction_bilingual.zh-TW.dual.pdf", "draftslide_html": "2505_VLM3R_Vision-Language_Models_Augmented_with_Instruction-Aligned_3D_Reconstruction_draftslide.html"}}, {"key": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory", "yymm": "2504", "title": "WORLDMEM: Long-term Consistent World Simulation with Memory", "short": "WorldMem", "files": {"original_pdf": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory.pdf", "analysis_html": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory_analysis.zh-TW.html", "analysis_md": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory_analysis.zh-TW.md", "bilingual_pdf": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory_bilingual.zh-TW.dual.pdf", "draftslide_html": "2504_WorldMem_Long-term_Consistent_World_Simulation_with_Memory_draftslide.html"}}, {"key": "2503_DUNE_Distilling_a_Universal_Encoder_from_Heterogeneous_2D_and_3D_Teachers", "yymm": "2503", "title": "DUNE Distilling a Universal Encoder from Heterogeneous 2D and 3D Teachers", "short": "", "files": {"original_pdf": "2503_DUNE_Distilling_a_Universal_Encoder_from_Heterogeneous_2D_and_3D_Teachers.pdf", "bilingual_pdf": "2503_DUNE_Distilling_a_Universal_Encoder_from_Heterogeneous_2D_and_3D_Teachers_bilingual.zh-TW.dual.pdf"}}, {"key": "2503_VGGT_Visual_Geometry_Grounded_Transformer", "yymm": "2503", "title": "VGGT Visual Geometry Grounded Transformer", "short": "", "files": {"original_pdf": "2503_VGGT_Visual_Geometry_Grounded_Transformer.pdf", "bilingual_pdf": "2503_VGGT_Visual_Geometry_Grounded_Transformer_bilingual.zh-TW.dual.pdf"}}, {"key": "2501_CubeDiff_Repurposing_Diffusion-Based_Image_Models_for_Panorama_Generation", "yymm": "2501", "title": "CubeDiff Repurposing Diffusion-Based Image Models for Panorama Generation", "short": "", "files": {"original_pdf": "2501_CubeDiff_Repurposing_Diffusion-Based_Image_Models_for_Panorama_Generation.pdf", "bilingual_pdf": "2501_CubeDiff_Repurposing_Diffusion-Based_Image_Models_for_Panorama_Generation_bilingual.zh-TW.dual.pdf"}}, {"key": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos", "yymm": "2412", "title": "SLAM3R: Real-Time Dense Scene Reconstruction from Monocular RGB Videos", "short": "SLAM3R", "files": {"original_pdf": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos.pdf", "analysis_html": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos_analysis.zh-TW.html", "analysis_md": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos_analysis.zh-TW.md", "bilingual_pdf": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos_bilingual.zh-TW.dual.pdf", "draftslide_html": "2412_SLAM3R_Real-Time_Dense_Scene_Reconstruction_from_Monocular_RGB_Videos_draftslide.html"}}, {"key": "2402_Genie_Generative_Interactive_Environments", "yymm": "2402", "title": "Genie: Generative Interactive Environments", "short": "Genie", "files": {"original_pdf": "2402_Genie_Generative_Interactive_Environments.pdf", "analysis_html": "2402_Genie_Generative_Interactive_Environments_analysis.zh-TW.html", "analysis_md": "2402_Genie_Generative_Interactive_Environments_analysis.zh-TW.md", "bilingual_pdf": "2402_Genie_Generative_Interactive_Environments_bilingual.zh-TW.dual.pdf", "draftslide_html": "2402_Genie_Generative_Interactive_Environments_draftslide.html"}}];
+let TAGS = {};                       // { paperKey: [tag, …] } — fetched from /api/tags
+const selectedTags = new Set();      // tags currently chosen in the filter dropdown
+const ADMIN_PW_KEY = "phyra-archbase-admin-pw";   // sessionStorage; remembered per browser session
+
+// "← 返回 Phyra Center" link. Built from THIS browser's hostname so the
+// same generated page works locally and over the LAN; the Center port is
+// baked at generation time (PHYRA_CENTER_PORT, default 8035).
+(function () {
+  const l = document.getElementById("hub-center");
+  if (l) l.href = location.protocol + "//" + location.hostname + ":8035/";
+})();
+
+// Keep the sticky date/letter section headers flush under the (also-sticky)
+// page header, whatever its current height — it wraps taller on narrow screens.
+(function () {
+  const header = document.querySelector("header");
+  if (!header) return;
+  const setH = () => document.documentElement.style.setProperty(
+    "--header-h", header.offsetHeight + "px");
+  setH();
+  window.addEventListener("resize", setH);
+})();
+
+function enc(name) { return "collection/" + encodeURIComponent(name); }
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+function cardHtml(p) {
+  const f = p.files || {};
+  const btn = [];
+  if (f.original_pdf)    btn.push(`<a href="${enc(f.original_pdf)}"    target="_blank">📄 PDF</a>`);
+  if (f.analysis_html)   btn.push(`<a href="${enc(f.analysis_html)}"   target="_blank">📖 Analysis</a>`);
+  if (f.draftslide_html) btn.push(`<a href="${enc(f.draftslide_html)}" target="_blank">🎞 Slide</a>`);
+  if (f.bilingual_pdf)   btn.push(`<a href="${enc(f.bilingual_pdf)}"   target="_blank">🌐 雙語</a>`);
+  const pdfOnly = !f.analysis_html && !f.draftslide_html && !f.bilingual_pdf;
+  const titleEq = p.short && p.title && p.short.toLowerCase() === p.title.toLowerCase();
+  const shortHtml = (p.short && !titleEq)
+    ? `<span class="short">${escapeHtml(p.short)}</span>` : '';
+  const title = p.title || p.short || p.key;
+  const tags = TAGS[p.key] || [];
+  const chips = tags.map(t =>
+    `<span class="ctag">${escapeHtml(t)}<button class="ctag-x" data-tag="${escapeHtml(t)}" title="移除標籤" aria-label="移除">×</button></span>`).join('');
+  return `<div class="card${pdfOnly ? ' pdf-only' : ''}">
+    <div class="card-top">
+      <span class="badge">${escapeHtml(p.yymm)}</span>
+      ${shortHtml}
+      <button class="card-del" data-key="${escapeHtml(p.key)}" data-title="${escapeHtml(title)}" title="從論文庫刪除" aria-label="刪除">🗑</button>
+    </div>
+    <h3 class="title">${escapeHtml(title)}</h3>
+    <div class="card-tags" data-key="${escapeHtml(p.key)}">
+      ${chips}
+      <button class="ctag-add" type="button">＋ 標籤</button>
+    </div>
+    <div class="actions">${btn.join('')}</div>
+  </div>`;
+}
+
+function sectionFor(p, mode) {
+  if (mode === "title-asc") {
+    const t = (p.title || p.short || '').trim();
+    const ch = t.charAt(0).toUpperCase();
+    if (ch >= 'A' && ch <= 'Z') return { key: ch, label: ch };
+    return { key: '#', label: '#' };
+  }
+  const y = p.yymm || '';
+  if (/^\d{4}$/.test(y)) {
+    return { key: y, label: '20' + y.slice(0, 2) + ' · ' + y.slice(2) };
+  }
+  return { key: y || '?', label: y || '?' };
+}
+
+function render(list) {
+  const root = document.getElementById("cards");
+  if (!list.length) {
+    root.innerHTML = '<div class="empty">No matches</div>';
+    return;
+  }
+  const parts = [];
+  let lastKey = null;
+  for (const p of list) {
+    const sec = sectionFor(p, sortMode);
+    if (sec.key !== lastKey) {
+      parts.push(`<div class="section-head">${escapeHtml(sec.label)}</div>`);
+      lastKey = sec.key;
+    }
+    parts.push(cardHtml(p));
+  }
+  root.innerHTML = parts.join('');
+}
+
+const themeToggle = document.querySelector(".theme-toggle");
+const themeButtons = themeToggle.querySelectorAll("button[data-mode]");
+const prefersDarkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+let themeMode = localStorage.getItem("phyra-archbase-theme") || "system";
+
+function resolveActual(mode) {
+  if (mode === "system") return prefersDarkMQ.matches ? "dark" : "light";
+  return mode;
+}
+function applyTheme(mode) {
+  themeMode = mode;
+  document.documentElement.setAttribute("data-theme", resolveActual(mode));
+  themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  localStorage.setItem("phyra-archbase-theme", mode);
+}
+themeButtons.forEach(b => {
+  b.addEventListener("click", () => applyTheme(b.dataset.mode));
+});
+prefersDarkMQ.addEventListener?.("change", () => {
+  if (themeMode === "system") applyTheme("system");
+});
+applyTheme(themeMode);
+
+const search = document.getElementById("search");
+const filterButtons = document.querySelectorAll(".filter button[data-filter]");
+const sortBtn = document.getElementById("sort-btn");
+
+let filterMode = "all";       // all | analyzed | bilingual | pending
+let sortMode = "date-desc";   // date-desc | date-asc | title-asc
+const SORT_ORDER = ["date-desc", "date-asc", "title-asc"];
+const SORT_LABELS = {
+  "date-desc": "↓ Date",
+  "date-asc":  "↑ Date",
+  "title-asc": "A→Z",
+};
+
+function isAnalyzed(p) {
+  const f = p.files || {};
+  return !!(f.analysis_html || f.draftslide_html || f.bilingual_pdf);
+}
+function isBilingual(p) { return !!(p.files && p.files.bilingual_pdf); }
+
+function applyFilters() {
+  const q = search.value.trim().toLowerCase();
+  let list = PAPERS.filter(p => {
+    if (filterMode === "analyzed"  && !isAnalyzed(p))  return false;
+    if (filterMode === "bilingual" && !isBilingual(p)) return false;
+    if (filterMode === "pending"   &&  isAnalyzed(p))  return false;
+    if (selectedTags.size) {
+      const tg = TAGS[p.key] || [];           // OR: keep papers having ANY selected tag
+      if (![...selectedTags].some(t => tg.includes(t))) return false;
+    }
+    if (q) {
+      const t = (p.title || '').toLowerCase();
+      const s = (p.short || '').toLowerCase();
+      if (!t.includes(q) && !s.includes(q)) return false;
+    }
+    return true;
+  });
+  list.sort((a, b) => {
+    if (sortMode === "title-asc") {
+      return (a.title || '').localeCompare(b.title || '');
+    }
+    const da = parseInt(a.yymm, 10) || 0;
+    const db = parseInt(b.yymm, 10) || 0;
+    const tieBreak = (a.short || a.title || '').localeCompare(b.short || b.title || '');
+    return sortMode === "date-asc" ? (da - db || tieBreak) : (db - da || tieBreak);
+  });
+  render(list);
+}
+
+filterButtons.forEach(b => {
+  b.addEventListener("click", () => {
+    filterMode = b.dataset.filter;
+    filterButtons.forEach(x => x.setAttribute("aria-pressed", x.dataset.filter === filterMode));
+    applyFilters();
+  });
+});
+
+sortBtn.addEventListener("click", () => {
+  const i = SORT_ORDER.indexOf(sortMode);
+  sortMode = SORT_ORDER[(i + 1) % SORT_ORDER.length];
+  sortBtn.textContent = SORT_LABELS[sortMode];
+  applyFilters();
+});
+sortBtn.textContent = SORT_LABELS[sortMode];
+
+search.addEventListener("input", applyFilters);
+
+document.addEventListener("keydown", (e) => {
+  const tag = (document.activeElement && document.activeElement.tagName) || "";
+  const inField = tag === "INPUT" || tag === "TEXTAREA";
+  if (e.key === "/" && !inField) {
+    e.preventDefault();
+    search.focus();
+    search.select();
+  } else if (e.key === "Escape" && document.activeElement === search) {
+    if (search.value) {
+      search.value = "";
+      applyFilters();
+    } else {
+      search.blur();
+    }
+  }
+});
+
+/* ---- tags + delete ---------------------------------------------------- */
+const cardsRoot = document.getElementById("cards");
+const tagbar = document.getElementById("tagbar");
+const tagMenu = document.getElementById("tag-menu");
+const tagMenuBtn = document.getElementById("tag-dd-btn");
+const tagActive = document.getElementById("tag-active");
+const tagDatalist = document.getElementById("all-tags-list");
+
+function allTags() {
+  const s = new Set();
+  for (const k in TAGS) (TAGS[k] || []).forEach(t => s.add(t));
+  return [...s].sort((a, b) => a.localeCompare(b));
+}
+
+// rebuild the filter dropdown + datalist whenever the tag universe changes
+function rebuildTagUI() {
+  const tags = allTags();
+  tagbar.hidden = tags.length === 0;
+  tagDatalist.innerHTML = tags.map(t => `<option value="${escapeHtml(t)}">`).join("");
+  for (const t of [...selectedTags]) if (!tags.includes(t)) selectedTags.delete(t);
+  tagMenu.innerHTML = tags.length
+    ? tags.map(t =>
+        `<label class="tag-opt"><input type="checkbox" value="${escapeHtml(t)}"${selectedTags.has(t) ? " checked" : ""}><span>${escapeHtml(t)}</span></label>`).join("")
+    : `<div class="tag-empty">尚無標籤</div>`;
+  renderActiveTags();
+}
+
+function renderActiveTags() {
+  if (!selectedTags.size) { tagActive.innerHTML = ""; return; }
+  const chips = [...selectedTags].sort((a, b) => a.localeCompare(b)).map(t =>
+    `<span class="ctag">${escapeHtml(t)}<button class="ctag-x" data-unsel="${escapeHtml(t)}" aria-label="取消">×</button></span>`).join("");
+  tagActive.innerHTML = chips + `<button type="button" class="tag-clear" id="tag-clear">清除</button>`;
+}
+
+tagMenuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  tagMenu.hidden = !tagMenu.hidden;
+});
+tagMenu.addEventListener("click", (e) => e.stopPropagation());
+tagMenu.addEventListener("change", (e) => {
+  const cb = e.target.closest("input[type=checkbox]");
+  if (!cb) return;
+  if (cb.checked) selectedTags.add(cb.value); else selectedTags.delete(cb.value);
+  renderActiveTags();
+  applyFilters();
+});
+tagActive.addEventListener("click", (e) => {
+  if (e.target.id === "tag-clear") { selectedTags.clear(); rebuildTagUI(); applyFilters(); return; }
+  const x = e.target.closest("[data-unsel]");
+  if (x) { selectedTags.delete(x.dataset.unsel); rebuildTagUI(); applyFilters(); }
+});
+document.addEventListener("click", () => { tagMenu.hidden = true; });
+
+async function postTags(key, tags) {
+  try {
+    const r = await fetch("/api/tags", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, tags }),
+    });
+    const res = await r.json();
+    if (res && res.ok) {
+      if (res.tags && res.tags.length) TAGS[key] = res.tags; else delete TAGS[key];
+    } else {
+      alert("標籤儲存失敗。");
+    }
+  } catch (_) {
+    alert("標籤儲存失敗（伺服器無回應）。");
+  }
+  rebuildTagUI();
+  applyFilters();
+}
+
+function addTag(key, tag) {
+  const cur = (TAGS[key] || []).slice();
+  if (!cur.some(t => t.toLowerCase() === tag.toLowerCase())) cur.push(tag);
+  return postTags(key, cur);
+}
+function removeTag(key, tag) {
+  return postTags(key, (TAGS[key] || []).filter(t => t !== tag));
+}
+
+function openTagInput(btn) {
+  const row = btn.closest(".card-tags");
+  const key = row.dataset.key;
+  const wrap = document.createElement("span");
+  wrap.innerHTML = `<input class="ctag-input" list="all-tags-list" placeholder="標籤名稱" maxlength="40">`;
+  btn.replaceWith(wrap);
+  const input = wrap.querySelector("input");
+  input.focus();
+  let done = false;
+  const commit = () => {
+    if (done) return; done = true;
+    const v = input.value.trim();
+    if (v) addTag(key, v); else applyFilters();   // re-render restores the ＋ button
+  };
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    else if (ev.key === "Escape") { ev.preventDefault(); done = true; applyFilters(); }
+  });
+  input.addEventListener("blur", commit);
+}
+
+async function deletePaper(key, title) {
+  if (!confirm(`確定從論文庫刪除「${title}」？\n會移除該論文在 collection/ 的所有檔案（原文 PDF、雙語 PDF、analysis、slide），且無法復原。`))
+    return;
+  let pw = sessionStorage.getItem(ADMIN_PW_KEY) || "";
+  if (!pw) { pw = prompt("請輸入管理員密碼以刪除：") || ""; if (!pw) return; }
+  let r;
+  try {
+    r = await fetch("/api/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, password: pw }),
+    });
+  } catch (_) { alert("刪除失敗（伺服器無回應）。"); return; }
+  if (r.status === 401) { sessionStorage.removeItem(ADMIN_PW_KEY); alert("管理員密碼錯誤。"); return; }
+  if (r.status === 403) {
+    const e = await r.json().catch(() => ({}));
+    alert(e.error || "刪除功能未啟用（啟動時未設定管理員密碼）。");
+    return;
+  }
+  if (!r.ok) { alert("刪除失敗：" + (await r.text())); return; }
+  sessionStorage.setItem(ADMIN_PW_KEY, pw);    // remember for the rest of this session
+  location.reload();                            // index.html was regenerated server-side
+}
+
+cardsRoot.addEventListener("click", (e) => {
+  const del = e.target.closest(".card-del");
+  if (del) { deletePaper(del.dataset.key, del.dataset.title); return; }
+  const x = e.target.closest(".ctag-x");
+  if (x) { removeTag(x.closest(".card-tags").dataset.key, x.dataset.tag); return; }
+  const add = e.target.closest(".ctag-add");
+  if (add) { openTagInput(add); return; }
+});
+
+applyFilters();                          // first paint (tags fill in once fetched)
+(async function loadTags() {
+  try { TAGS = (await (await fetch("/api/tags")).json()) || {}; }
+  catch (_) { TAGS = {}; }
+  rebuildTagUI();
+  applyFilters();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tuna-2: Pixel Embeddings Beat Vision Encoders for Multimodal Understanding and Generation</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">Tuna-2: Pixel Embeddings Beat Vision Encoders for Multimodal Understanding and Generation</h1>
+          <p class="cover-meta">Zhiheng Liu, Weiming Ren, et al. (Meta AI / HKU / Waterloo)</p>
+          <p class="cover-meta">2604.24763 · arXiv preprint · 2026-04-27</p>
+          <div class="cover-tagline"><p>本論文聚焦於原生統一多模態模型（native unified multimodal model, UMM）的視覺表徵設計，探討是否能完全捨棄預訓練視覺編碼器（VAE 與 representation encoder），改以原始 pixel 直接進行端到端訓練，同時支援視覺理解與圖像生成。作者以 Tuna 為基礎，先移除 VAE 形成 Tuna-R（保留 representation encoder），再進一步移除 representation encoder，僅以簡單的 patch embedding 層將影像送入 LLM decoder，並以 pixel-space flow matching（x-prediction、v-loss）執行高解析度圖像生成。為了在高維 pixel 空間中學到穩健表徵，論文提出 masking-based 視覺特徵學習機制，將遮罩同時應用於理解與生成範例。研究議題橫跨多模態理解、文字到圖像生成、圖像編輯，以及對 encoder-based 與 encoder-free UMM 的訓練動態與細粒度感知能力的系統性比較。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本論文聚焦於原生統一多模態模型（native unified multimodal model, UMM）的視覺表徵設計，探討是否能完全捨棄預訓練視覺編碼器（VAE 與 representation encoder），改以原始 pixel 直接進行端到端訓練，同時支援視覺理解與圖像生成。作者以 Tuna 為基礎，先移除 VAE 形成 Tuna-R（保留 representation encoder），再進一步移除 representation encoder，僅以簡單的 patch embedding 層將影像送入 LLM decoder，並以 pixel-space flow matching（x-prediction、v-loss）執行高解析度圖像生成。為了在高維 pixel 空間中學到穩健表徵，論文提出 masking-based 視覺特徵學習機制，將遮罩同時應用於理解與生成範例。研究議題橫跨多模態理解、文字到圖像生成、圖像編輯，以及對 encoder-based 與 encoder-free UMM 的訓練動態與細粒度感知能力的系統性比較。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者指出，現有統一多模態模型仍普遍仰賴預訓練視覺編碼器（如 SigLIP、CLIP 用於理解，VAE 用於生成），即使近期所謂「unified representation」的方法把兩條路合併，也只是改用單一 vision encoder，並未真正擺脫編碼器帶來的固有限制。這些編碼器各自有預訓練的 inductive bias、固定輸入解析度，並會丟失對細粒度感知任務（如 OCR、計數、視覺細節推理）至關重要的低階像素資訊；同時，為了同時服務理解與生成，模型架構往往得拆成多塊模組，無法完全端到端最佳化，造成兩種任務之間的表徵錯配。基於此根因，作者主張解法必須是「徹底移除預訓練視覺編碼器」，讓單一 transformer 直接從原始 pixel 學習統一表徵：以 patch embedding 取代 representation encoder，並以 JiT 風格的 pixel-space flow matching（x-prediction + v-loss）取代 latent diffusion，使理解與生成共享同一條前向路徑，可一次端到端優化。但在高維 pixel 空間直接學習極易陷入 shortcut，因此他們再引入 masking-based 視覺特徵學習：對生成樣本以 masked denoising 強迫模型由部分觀測重建乾淨圖像，對理解樣本則作為 regularizer 迫使模型在不完整視覺輸入下推理，藉此學到更穩健、更具細節感知能力的 pixel-space 表徵。實驗顯示，雖然 encoder-based 的 Tuna-R 在預訓練早期收斂較快，但在足夠規模的訓練後 encoder-free 的 Tuna-2 在生成上與其相當，理解上特別在 pixel-centric、細粒度感知的 benchmark 上明顯勝出，證實去除預訓練視覺編碼器是邁向更強統一視覺表徵的可行且具擴展性的路徑。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>在 7B 規模的 native UMM 中，Tuna-2 於 fine-grained 視覺理解 benchmark 全面領先 encoder-based 同類模型，如 OCRBench 79.7、CountBench 81.7、V* 59.2、VisuLogic 28.8 (Table 1, p. 6)。</li><li>在純 pixel-space 條件下執行 text-to-image generation，於 GenEval Overall 達 0.87、DPG-Bench Overall 86.54，與 latent-space 的 Mogao (0.89/84.33)、BAGEL (0.88/85.07) 同等競爭 (Table 2, p. 7)。</li><li>透過 controlled comparison（同一 LLM backbone、同一資料配方）首次清楚呈現「encoder-based 早期收斂快、encoder-free 後期反超」的訓練動態 (Figure 6, p. 10)。</li><li>提出 masking-based visual feature learning，在 Tuna-R 與 Tuna-2 上一致提升 OCRBench、MMVP、CountBench、GenEval，且 Tuna-2 受益更大 (Table 6, p. 9)。</li><li>採用 JiT 風格的 $x$-prediction + $v$-loss 訓練 pixel-space flow matching，將 pixel diffusion 從 ImageNet 級別擴展到 free-form text-to-image 與 image editing 的大規模設定 (§2.1, p. 4)。</li><li>在 image reconstruction 上達到 rFID 0.15 / PSNR 32.80 / SSIM 0.93，超越所有 unified tokenizer，逼近 FLUX.1[dev] 專用 VAE 的 0.06/33.65/0.93 (Table 5, p. 8)。</li><li>在 LLM-judge 評測中，Tuna-2 於 image diversity 顯著優於 Tuna 與 Tuna-R（GPT-5.4 48.4%、Claude Opus 4.7 41.9%）(Table 3, p. 8)。</li><li>Attention map 可視化顯示 Tuna-2 在語言誤導與視覺干擾並存的「football match / dog cafe」反直覺案例下，仍能正確定位真實物件 (Figure 7, p. 11)。</li><li>端到端訓練 pipeline 簡化：encoder-free 設計省去 connector alignment 階段，stage 1 + stage 2 即可同時學會 understanding、generation、editing (§2.3, p. 5)。</li><li>隨資料規模擴大，encoder-based 在 generation 上的優勢逐漸收斂，SFT 後兩者 GenEval 表現幾乎相同，支持 encoder-free 在 scale 上的可行性 (Figure 6, p. 10)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(220 words)</p>
+<p>標題「Tuna-2: Pixel Embeddings Beat Vision Encoders for Multimodal Understanding and Generation」直接點出論文的核心立場：在 unified multimodal model 中，直接使用 pixel embeddings 可以勝過依賴 pretrained vision encoders 的設計。標題刻意以「Beat」一詞挑戰主流共識，將 pixel-space modelling 從過去被視為「可行但較弱」的選項，重新定位為新一代 UMM 的可行主軸。</p>
+<p>Abstract 的敘事邏輯分為三層。第一層先指出問題：現有 unified multimodal models 常常為 understanding 與 generation 採用不同的 visual representations（典型是 CLIP-like encoder 配 VAE），這種拆解導致兩個任務間的 misalignment，也阻擋了從 raw pixels 端到端最佳化的可能。第二層提出方案：作者引入 Tuna-2，一個 native UMM，直接從 pixel embeddings 進行 understanding 與 generation；架構上以簡單的 patch embedding layer 取代 modular vision encoder，完全移除 VAE 與 representation encoder。第三層則先給出實驗論點，避免讀者把這視為「為了極簡而犧牲品質」的設計：Tuna-2 在多個 multimodal benchmarks 上達到 state-of-the-art，pixel-space modelling 在高品質 image generation 上能與 latent-space approaches 完全競爭；同時，雖然 encoder-based variant 在 early pretraining 收斂較快，但 encoder-free 的 Tuna-2 在大規模訓練後的 multimodal understanding 表現更強，特別是在需要 fine-grained visual perception 的任務上。</p>
+<p>最後 Abstract 把這個結果上升為一個一般性主張：pretrained vision encoders 並非 multimodal modelling 的必要條件，end-to-end pixel-space learning 是一條面向 generation 與 perception 的可擴展路徑。這段宣告同時為 §2 的架構簡化設計與 §3 的對照實驗鋪好動機。</p>
+<h3>3.2 Introduction</h3>
+<p>(640 words)</p>
+<p>Introduction 的論證結構從領域脈絡逐步收斂到本文的研究問題與答案。一開始，作者把 visual understanding 與 generation 定位為 multimodal AI 的兩大核心能力，並指出近期工作的趨勢是把兩者整合進 native UMM。引用 Transfusion、BAGEL、Tuna 等代表性工作後，作者點出建構 UMM 的關鍵挑戰：如何將輸入影像編碼成同時對 understanding 與 generation 都有效的 visual representation。</p>
+<p>接著，文章鋪陳兩種既有設計光譜。早期 decoupled representations 以 CLIP 處理 understanding、以 VQ-VAE 等重建導向 encoder 處理 generation；近期則出現 unified visual representations，透過共享 vision encoder 對齊兩個任務。作者指出，無論是 decoupled 或 unified，仍然普遍依賴 pretrained vision encoders。這個觀察為下一段轉折鋪路。</p>
+<p>轉折來自兩條外部證據：在 multimodal understanding 方面，NEO 等 native VLM 已經移除 representation encoder，採用端到端 encoder-free 架構；在 visual generation 方面，PixelFlow、JiT 等 pixel-space diffusion model 顯示 VAE 也未必是 high-fidelity synthesis 的必要元件。把兩條線索合在一起，作者提出本文的研究問題：能否完全跨越 pretrained vision encoders，從 raw pixels 直接建構 native UMM？</p>
+<p>之後的段落直接給出肯定答案，並描述 Tuna-2 的設計演進路徑。第一步是 Tuna-R：移除 VAE、保留 representation encoder，以 pixel-space flow matching 配合 x-prediction 進行視覺生成；這個中間模型作為與 Tuna-2 的 controlled comparison 對照組。第二步是 Tuna-2：再進一步移除 representation encoder，僅以 patch embedding layer 與單一 transformer decoder 處理影像、影片與文字 token，完成 fully encoder-free 的 native UMM。</p>
+<p>由於 pixel space 比 latent space 維度高、冗餘多，作者預先處理一個可能的反駁：在高維 pixel space 中學 unified representation 更困難，模型容易學到 superficial shortcuts。為此，他們引入 masking-based visual feature learning，以同一個 masking 操作分別作為 generation 的更難 denoising 目標與 understanding 的 regularization。</p>
+<p>最後，Introduction 給出主要發現作為結論論點：在足夠的 visual pretraining 後，encoder-free 的 Tuna-2 在 generation 上與 encoder-based Tuna-R 競爭，在 understanding 上則持續勝出，尤其是 fine-grained perception benchmarks。作者由此推論：移除 pretrained vision encoders 可能反而有助於從 end-to-end pretraining 中學到更強的 fine-grained visual representations。</p>
+<p>最後條列三項貢獻：(1) 提出 encoder-free native UMM Tuna-2 並達到 SOTA；(2) 在 controlled 設定下對 Tuna-2 與 Tuna-R 做對照分析，論證 encoder-free 設計的優勢；(3) 提供一系列 pixel-space UMM 的 ablation 與 training dynamics 分析，作為未來 native UMM 設計的參考。這份貢獻清單直接對應 §2 的方法、§3.2-3.6 的主要實驗與分析章節。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(380 words)</p>
+<p>Related Work 在論文最後（§4）出現，分為兩個子節，依序對應本文的兩條主要技術路線：unified multimodal models 與 encoder-free architectures。它的角色不是建立 preliminaries，而是為「為何選擇移除 vision encoders」這個論點，提供文獻層次上的對照基礎。</p>
+<p>§4.1 先定位 unified multimodal models 的主流設計。作者指出，UMMs 通常結合 AR language model 與 diffusion / flow matching 來分別承擔 text 與 visual generation；這種混合架構雖然在 understanding 上表現良好，但因為視覺端常採用 decoupled encoders，導致 representation mismatch 與訓練效率問題。為此，UniTok、TokLip、UniLip、UniFlow、UAE、OpenVision 3 等工作嘗試訓練 unified vision tokenizer，同時服務語意理解與視覺重建。Native UMM 一脈（Show-o、Tuna、Ming-UniVision、Transfusion-RAE）則進一步把 unified representation 做進主幹模型。作者強調一個關鍵限制：這些 native UMM 仍主要依賴 VAE latents 建構統一表示，這對需要 fine-grained visual perception 的任務形成瓶頸——這正是 Tuna-2 想要打破的限制。</p>
+<p>§4.2 處理 encoder-free 路線。作者先回顧 LMM 的傳統 modular 架構：Flamingo 用 cross-attention、LLaVA 用 MLP connector，後續工作沿著這條路把模型、資料與任務範圍逐步放大。隨後出現 monolithic 的 encoder-free 取向：Fuyu、EVE、Chameleon、Mono-InternVL、NEO 等用簡單 MLP 或 patch embedding 將原始 pixel 切成 patch，與 language token 一同丟入單一 transformer。作者強調，本文的貢獻是把 representation encoder-based 與 monolithic 兩種設計同時整合進 pixel-space UMM，並在多 modal understanding 上達到高水準。</p>
+<p>最後一段把焦點移到 visual generation。主流方法仍倚賴 KL- 或 VQ-regularized VAE 在 latent space 中操作，但 PixelFlow、DiP、PixelDiT、JiT 等近期工作顯示 pixel-space flow matching 有機會追上甚至超越 latent diffusion。然而這些研究多侷限於 small-scale、class-conditioned ImageNet 設定。作者明確指出 Tuna-2 的差異化貢獻：把 pixel-space flow matching 拓展到 large-scale unified multimodal pretraining，並支援 free-form text-to-image generation 與 image editing。</p>
+<p>整體而言，§4 的敘事邏輯是「畫地圖、找縫隙、定位自身」：先描繪 UMM 與 encoder-free 兩個社群的最新進展，再指出兩者尚未交會之處，最後把 Tuna-2 放在這個交會點，作為連結 native UMM 與 pixel-space generation 的代表性嘗試。論文沒有獨立的 Preliminaries 一節；rectified flow 與 x-prediction 等背景是直接寫在 §2.1 的 method 描述中。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(660 words)</p>
+<p>§2 的整體敘事採用「逐步簡化、逐步證成」的策略，把 Tuna-2 的最終形態包裝成從現有 UMM 一路簡化得到的自然終點，而不是憑空出現的新架構。</p>
+<p>§2.1 從 Tuna 既有架構出發：vision encoder（含 VAE 與 representation encoder）+ LLM decoder + 兩個 modality-specific head（language modelling head 與 flow matching head）。作者把架構簡化拆成兩步走，每一步都對應一個明確的中間模型。第一步移除 VAE，保留 representation encoder，得到 Tuna-R。這個設計刻意呼應 LLaVA 系列的標準範式，作者把 Tuna-R 定位為 controlled comparison 的對照組，而不是最終答案。第二步進一步把 representation encoder 也移除，改用 simple patch embedding layer，把影像直接切 patch、丟給單一 transformer decoder，這就是 Tuna-2 的核心架構。作者強調這種 monolithic encoder-free 設計的好處在於擺脫 pretrained encoder 內建的 inductive bias（例如固定解析度與對 fine-grained 細節的有限取用），並把整個模型壓成單一統一 transformer。</p>
+<p>由於拋棄 VAE 後不能再沿用 latent diffusion 的設計，§2.1 接著鋪陳 pixel-space image generation 的具體做法：採用 JiT 提出的 x-prediction + v-loss 範式做 pixel-space flow matching。透過 rectified flow 的線性 schedule 構造 noisy sample $x_t = t x_1 + (1-t) x_0$，模型 $\pi_\theta$ 直接預測乾淨影像 $x_\theta$，再經由 $v_\theta = (x_\theta - x_t) / (1-t)$ 轉成 velocity，迴歸到 ground-truth velocity $v = x_1 - x_0$ 上。Inference 階段用 Euler solver 在 $v_\theta$ 指引下從噪聲走回乾淨影像。這段安排是要說服讀者：移除 VAE 並不會犧牲 generation 的可訓練性，因為 pixel-space flow matching 已有可靠的訓練目標可用。</p>
+<p>§2.2 處理一個 anticipated 反駁：在 high-dimensional pixel space 學 unified representation，比 compact latent space 困難得多，模型容易依賴 superficial shortcut。作者為此引入 masking-based visual feature learning。在訓練時依某個 masking ratio 隨機選一部分 image patch，用 learnable mask token 取代後再丟進 LLM decoder。同一個 masking 操作在兩種任務中扮演不同角色：對 generation 樣本，模型必須同時預測被遮罩與未被遮罩區域的乾淨影像，形成更難的 denoising 問題並讓 mask token 吸收 reconstruction 所需的上下文資訊；對 understanding 樣本，masking 則作為 regularization，迫使模型在部分視覺觀察下完成 multimodal reasoning。作者把這個策略類比到 MAE、SigLIP 2、MaskGIT、DeTok 等先例，定位為一個能同時收斂兩種任務的統一機制，並預告 §3.4 會以 ablation 證明其效用。</p>
+<p>§2.3 描述 training pipeline，呼應 encoder-free 設計帶來的訓練簡化。Tuna-2 採用兩階段、全程 end-to-end 的訓練：Stage 1 full model pretraining 透過 image captioning 與 text-to-image generation，建立 flow matching head 的良好初始化並讓 pixel-space 視覺輸入適應 unified modelling；Stage 2 SFT 以更小的 learning rate，混合 image editing、image instruction-following 與 high-quality image generation 資料，進一步強化任務泛化。Tuna-R 因為帶有 connector layer，需要在 Stage 1 之前再加一個短暫的 connector-alignment 階段，這個對比正好凸顯 Tuna-2 的「無 connector」優勢。</p>
+<p>整體而言，§2 的故事弧是：先以 Tuna-R 證明「拿掉 VAE 沒問題」，再用 Tuna-2 證明「連 representation encoder 都可以拿掉」；接著用 masking-based learning 補強 pixel-space 的訓練困難，最後用簡化的兩階段 pipeline 收尾。這樣的安排為 §3 的 ablation 與對照分析鋪好了所有實驗變因。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(900 words)</p>
+<p>§3 的實驗章節以「先建立 SOTA 級別、再用 ablation 與分析證成設計選擇」為主軸。整體分為六個子節：實驗設定、主要結果、訓練動態 ablation、masking ablation、Tuna-R 與 Tuna-2 的比較分析、attention map 視覺化分析。</p>
+<p>§3.1 先把實驗條件交代清楚：LLM decoder 採用 Qwen2.5-7B-Instruct；Stage 1 pretraining 在 64 個節點上跑 300k steps、AdamW、lr=1e-4、序列長度 16k tokens/GPU，資料是 550M in-house image-text pair（70% captioning、30% T2I），加上 20% 的 Nemotron 文字資料；Stage 2 SFT 跑 50k steps、lr=2e-5，混合 FineVision 13M 對話、OmniEdit 2M 編輯、與高品質生成資料。Tuna-R 共用同樣的 LLM decoder，並使用 SigLIP 2 So400M 作為 representation encoder，多了 3k step 的 connector alignment 階段。這個對照確保兩者在資料與訓練流程上的差異被控制到最小。</p>
+<p>§3.2 是主要結果，分四個面向。Image understanding 在九個 VQA benchmark 加三個 pixel-centric benchmark 上評估。Tuna-R 與 Tuna-2 全面超越原版 Tuna，並在 7B 級 native UMM 中拿下 SOTA；更關鍵的是 Tuna-2 在多數 understanding benchmark 上勝過 Tuna-R，尤其在 V*、CountBench、VisuLogic 等 fine-grained perception 任務上明顯領先 latent-space UMM，作者把這歸因於 pixel-space representation 對細節的保留以及 monolithic 架構在大規模聯合訓練中的優勢。</p>
+<p>Image generation 在 GenEval 與 DPG-Bench 評估。Tuna-R 與 Tuna-2 都達到 SOTA 等級，與 BAGEL、Mogao、Tuna 並駕齊驅。Tuna-R 在生成上略強於 Tuna-2，作者解釋這是 representation encoder 帶入的 semantic prior 帶來的好處；但 Tuna-2 仍能在沒有 VAE、純 pixel-space 設定下保持競爭力。為了補足 GenEval 等 benchmark 偏向 alignment 與 world knowledge 的盲點，作者再做 LLM-judge 評估（GPT-5.4 與 Claude Opus 4.7 作裁判），結果顯示 Tuna-2 在生成品質上與 Tuna-R 相近、優於 Tuna，並在 diversity 上明顯領先，這個結果支撐 encoder-free 設計能同時兼顧品質與多樣性的論點。</p>
+<p>Image editing 在 ImgEdit 上做。Tuna-2 大幅勝過 OmniGen、BAGEL、UniWorld、OmniGen2 等 unified baseline，但稍輸於 Tuna 與 Tuna-R，作者把這個差距歸因於 pretrained visual prior 在 fine-grained editing fidelity 上仍提供額外幫助。Image reconstruction 進一步檢驗 pixel-space representation 是否足以支援精細生成：在 ImageNet 驗證集上輕量微調後，Tuna-R 與 Tuna-2 的 rFID 與 PSNR 接近 FLUX.1 [dev] 的 VAE，明顯勝過 RAE 等 non-KL-regularized 對手。</p>
+<p>§3.3 的 ablation 探討 generation 與 understanding 資料比例對訓練動態的影響。透過在 8g2u、7g3u 等不同混合比下觀察 MSE 與 CE loss 曲線，作者發現 MSE 對資料比例更敏感、CE 變化幅度小，並把 7:3 訂為兩個目標間的最佳平衡，沿用於所有實驗。</p>
+<p>§3.4 直接驗證 §2.2 的 masking-based feature learning：在 Qwen2.5-1.5B backbone 上先 pretrain 50k steps，再分組以 50% 機率啟用 masking 繼續訓練 50k steps。結果顯示 masking 對 Tuna-R 與 Tuna-2 的 understanding 與 generation 指標都有提升，且 Tuna-2 受益更明顯；作者推論這是因為 SigLIP 2 已經有類似 masked prediction 的預訓練。最終策略是把 masking 應用於 pretraining 最後 40%。</p>
+<p>§3.5 是 Tuna-R 與 Tuna-2 的縱向對照。隨著訓練資料規模拉長，Tuna-R 在早期 understanding benchmark 上領先，因 representation encoder 帶入語意先驗；但 Tuna-2 後期反超，呼應 encoder-free monolithic 設計更能吃下 large-scale 訓練紅利的論點。在 GenEval 上 Tuna-R 全程略勝，但差距在 SFT 後幾乎消失，與 REPA、Tuna 對 representation prior 的觀察一致。</p>
+<p>§3.6 提供 attention map 視覺化作為質性證據。作者以 Tuna、Tuna-R、Tuna-2 與 LLaVA-OneVision-1.5、Qwen2.5-VL、Penguin-VL 等 baseline 對照，挑選包含 misleading linguistic context 與 visual distractor 的範例（shining window、purple object、dog cafe、football match）。Tuna-2 一致地把注意力放在語意對應的視覺區域，避免被文字 prior 或顯著但不相關的 distractor 誤導，從而支撐「encoder-free 設計學到更可靠的 cross-modal alignment」的整體主張。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(140 words)</p>
+<p>§5 結論段落非常精簡，把整篇論文的核心訊息濃縮成三層宣告。第一層重申研究目標：Tuna-2 是一個 family of native unified multimodal models，目的是直接在 pixel space 完成 multimodal understanding 與 visual generation，徹底擺脫 VAE encoder 與 latent diffusion。</p>
+<p>第二層概述方法與設計選擇：以 unified vision-language backbone 配合 pixel-space flow matching head，在單一框架中同時支援 image understanding、text-to-image generation 與 image editing；同時提供 encoder-based variant（Tuna-R）與 encoder-free monolithic variant（Tuna-2）兩個實例化版本，作為 controlled comparison 的兩端。</p>
+<p>第三層收斂到實驗結論：Tuna-2 在 fine-grained visual understanding benchmark 上勝過 Tuna 與 Show-o2 等 latent-space unified model，同時在 image generation 上與 SOTA unified models 旗鼓相當，據此論證 pixel-space unified multimodal modelling 的有效性與可擴展性，並指出這是未來 native UMM 的一條值得追求的方向。論文未在此節獨立列出 limitations 或 future work，相關討論散落於 §3.2 對 editing 落差的歸因與 §3.5 對 generation 早期劣勢的分析中。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(640 words)</p>
+<div class="card"><p>Introduction 的論證結構從領域脈絡逐步收斂到本文的研究問題與答案。一開始，作者把 visual understanding 與 generation 定位為 multimodal AI 的兩大核心能力，並指出近期工作的趨勢是把兩者整合進 native UMM。引用 Transfusion、BAGEL、Tuna 等代表性工作後，作者點出建構 UMM 的關鍵挑戰：如何將輸入影像編碼成同時對 understanding 與 generation 都有效的 visual representation。</p></div>
+<div class="card"><p>接著，文章鋪陳兩種既有設計光譜。早期 decoupled representations 以 CLIP 處理 understanding、以 VQ-VAE 等重建導向 encoder 處理 generation；近期則出現 unified visual representations，透過共享 vision encoder 對齊兩個任務。作者指出，無論是 decoupled 或 unified，仍然普遍依賴 pretrained vision encoders。這個觀察為下一段轉折鋪路。</p></div>
+<div class="card"><p>轉折來自兩條外部證據：在 multimodal understanding 方面，NEO 等 native VLM 已經移除 representation encoder，採用端到端 encoder-free 架構；在 visual generation 方面，PixelFlow、JiT 等 pixel-space diffusion model 顯示 VAE 也未必是 high-fidelity synthesis 的必要元件。把兩條線索合在一起，作者提出本文的研究問題：能否完全跨越 pretrained vision encoders，從 raw pixels 直接建構 native UMM？</p></div>
+<div class="card"><p>之後的段落直接給出肯定答案，並描述 Tuna-2 的設計演進路徑。第一步是 Tuna-R：移除 VAE、保留 representation encoder，以 pixel-space flow matching 配合 x-prediction 進行視覺生成；這個中間模型作為與 Tuna-2 的 controlled comparison 對照組。第二步是 Tuna-2：再進一步移除 representation encoder，僅以 patch embedding layer 與單一 transformer decoder 處理影像、影片與文字 token，完成 fully encoder-free 的 native UMM。</p></div>
+<div class="card"><p>由於 pixel space 比 latent space 維度高、冗餘多，作者預先處理一個可能的反駁：在高維 pixel space 中學 unified representation 更困難，模型容易學到 superficial shortcuts。為此，他們引入 masking-based visual feature learning，以同一個 masking 操作分別作為 generation 的更難 denoising 目標與 understanding 的 regularization。</p></div>
+<div class="card"><p>最後，Introduction 給出主要發現作為結論論點：在足夠的 visual pretraining 後，encoder-free 的 Tuna-2 在 generation 上與 encoder-based Tuna-R 競爭，在 understanding 上則持續勝出，尤其是 fine-grained perception benchmarks。作者由此推論：移除 pretrained vision encoders 可能反而有助於從 end-to-end pretraining 中學到更強的 fine-grained visual representations。</p></div>
+<div class="card"><p>最後條列三項貢獻：(1) 提出 encoder-free native UMM Tuna-2 並達到 SOTA；(2) 在 controlled 設定下對 Tuna-2 與 Tuna-R 做對照分析，論證 encoder-free 設計的優勢；(3) 提供一系列 pixel-space UMM 的 ablation 與 training dynamics 分析，作為未來 native UMM 設計的參考。這份貢獻清單直接對應 §2 的方法、§3.2-3.6 的主要實驗與分析章節。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(380 words)</p>
+<div class="card"><p>Related Work 在論文最後（§4）出現，分為兩個子節，依序對應本文的兩條主要技術路線：unified multimodal models 與 encoder-free architectures。它的角色不是建立 preliminaries，而是為「為何選擇移除 vision encoders」這個論點，提供文獻層次上的對照基礎。</p></div>
+<div class="card"><p>§4.1 先定位 unified multimodal models 的主流設計。作者指出，UMMs 通常結合 AR language model 與 diffusion / flow matching 來分別承擔 text 與 visual generation；這種混合架構雖然在 understanding 上表現良好，但因為視覺端常採用 decoupled encoders，導致 representation mismatch 與訓練效率問題。為此，UniTok、TokLip、UniLip、UniFlow、UAE、OpenVision 3 等工作嘗試訓練 unified vision tokenizer，同時服務語意理解與視覺重建。Native UMM 一脈（Show-o、Tuna、Ming-UniVision、Transfusion-RAE）則進一步把 unified representation 做進主幹模型。作者強調一個關鍵限制：這些 native UMM 仍主要依賴 VAE latents 建構統一表示，這對需要 fine-grained visual perception 的任務形成瓶頸——這正是 Tuna-2 想要打破的限制。</p></div>
+<div class="card"><p>§4.2 處理 encoder-free 路線。作者先回顧 LMM 的傳統 modular 架構：Flamingo 用 cross-attention、LLaVA 用 MLP connector，後續工作沿著這條路把模型、資料與任務範圍逐步放大。隨後出現 monolithic 的 encoder-free 取向：Fuyu、EVE、Chameleon、Mono-InternVL、NEO 等用簡單 MLP 或 patch embedding 將原始 pixel 切成 patch，與 language token 一同丟入單一 transformer。作者強調，本文的貢獻是把 representation encoder-based 與 monolithic 兩種設計同時整合進 pixel-space UMM，並在多 modal understanding 上達到高水準。</p></div>
+<div class="card"><p>最後一段把焦點移到 visual generation。主流方法仍倚賴 KL- 或 VQ-regularized VAE 在 latent space 中操作，但 PixelFlow、DiP、PixelDiT、JiT 等近期工作顯示 pixel-space flow matching 有機會追上甚至超越 latent diffusion。然而這些研究多侷限於 small-scale、class-conditioned ImageNet 設定。作者明確指出 Tuna-2 的差異化貢獻：把 pixel-space flow matching 拓展到 large-scale unified multimodal pretraining，並支援 free-form text-to-image generation 與 image editing。</p></div>
+<div class="card"><p>整體而言，§4 的敘事邏輯是「畫地圖、找縫隙、定位自身」：先描繪 UMM 與 encoder-free 兩個社群的最新進展，再指出兩者尚未交會之處，最後把 Tuna-2 放在這個交會點，作為連結 native UMM 與 pixel-space generation 的代表性嘗試。論文沒有獨立的 Preliminaries 一節；rectified flow 與 x-prediction 等背景是直接寫在 §2.1 的 method 描述中。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>Tuna-2 是一個原生統一多模態模型 (native unified multimodal model)，其方法論可拆解為三個漸進式的架構簡化步驟與一個關鍵的訓練穩定化機制。作者以 Tuna (Liu et al., 2025) 為基準起點，原始 Tuna 由 VAE encoder、representation encoder (SigLIP 2)、LLM decoder 與兩個任務特化的 head (language modelling head 與 flow matching head) 組成。第一步是移除 VAE 並讓影像生成從 latent space 改在 pixel space 進行，但仍保留 representation encoder，得到中間設計 Tuna-R (§2.1)。第二步是進一步移除 representation encoder，僅以一個 simple patch embedding layer 將原始像素切塊並送入 LLM decoder，由單一 transformer 同時處理 image 與 text token，此即 Tuna-2 的最終形態。</p>
+<p>在 pixel-space 影像生成上，Tuna-2 採用 JiT (Li and He, 2025) 的 x-prediction + v-loss 範式 (§2.1)。給定 source image $x_1$、sampled noise $x_0 \sim \mathcal{N}(0, I)$、timestamp $t \in [0,1]$，以 rectified flow 的 linear schedule 在像素空間構造 noisy sample $x_t = t x_1 + (1-t) x_0$。模型 $\pi_\theta$ 直接預測乾淨影像 $x_\theta = \pi_\theta(x_t, c, t)$，再經由解析變換 $v_\theta = (x_\theta - x_t)/(1-t)$ 轉成 velocity 並回歸 ground truth velocity $v = x_1 - x_0$；推論時以 Euler solver 由噪訊較高的 $x_t$ 迭代得到 $x_{t&#x27;} = x_t + (t&#x27; - t)v_\theta$。整個生成路徑與文字生成共享同一個 transformer backbone，因此 understanding 與 generation 可以一次端到端最佳化。</p>
+<p>由於 pixel space 的維度遠高於 VAE latent space，模型容易學到 superficial shortcut，作者引入 masking-based 視覺特徵學習機制 (§2.2)。訓練時依 masking ratio 隨機選取部分 image patch，將其替換為 learnable mask token，再送入 LLM decoder。對生成樣本，模型必須在 masked 與 unmasked 區域同時預測 clean patch，同時形成更困難的去噪任務並讓 mask token 吸收脈絡資訊；對理解樣本，masking 則作為 regularizer，迫使模型在不完整視覺輸入下完成跨模態推理。此機制不從 pretraining 起點啟用：先以 50k steps 標準預訓練建立基礎多模態知識，再以 50% 機率啟用 masking 繼續 50k steps 進行 ablation；正式訓練則於 pretraining 的最後 40% 啟用 (§3.4)。Ablation 顯示 Tuna-2 受益幅度大於 Tuna-R，作者推測 SigLIP 2 已使用類似 masked prediction 預訓練是主要原因。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input
+   ├→ Image (含 Image Prompt / source image): [B, 3, H, W]
+   │     (training res H = W = 512, Table 5)
+   │     │
+   │     │  (Generation 樣本: 由 x_1 與 x_0 ~ N(0, I) 構造 x_t = t·x_1 + (1-t)·x_0)
+   │     │
+   │     ▼
+   │   Patchify Layer (Tuna-2)            [取代 Tuna-R 的 Representation Encoder]
+   │     │  patch size p (paper does not specify)
+   │     ▼
+   │   Visual tokens: [B, N_p, d_llm]
+   │     where N_p = (H/p)·(W/p),  d_llm = 3584 (Qwen2.5-7B-Instruct)
+   │     │
+   │     │  (Optional) Masking-based Feature Learning
+   │     │  隨機選取 mask ratio 比例的 patch → 替換為 learnable mask token
+   │     │  (50% 機率啟用，於 pretraining 最後 40% 階段，§3.4)
+   │     ▼
+   │   Visual tokens (possibly masked): [B, N_p, d_llm]
+   │
+   └→ Text prompt: &quot;...&quot;
+         │
+         ▼
+        Text Tokenizer (Qwen2.5-7B-Instruct)
+         │
+         ▼
+        Text token embeddings: [B, T_text, d_llm]
+
+Concatenated multimodal sequence: [B, N_p + T_text, d_llm]
+                                   │
+                                   ▼
+                  ┌─────────────────────────────────────┐
+                  │   LLM Decoder (Qwen2.5-7B-Instruct) │
+                  │   Single unified transformer        │
+                  │   (joint vision + language)         │
+                  └─────────────────────────────────────┘
+                                   │
+                                   ▼
+                  Hidden states: [B, N_p + T_text, d_llm]
+                                   │
+                       ┌───────────┴────────────┐
+                       ▼                        ▼
+            Language Modelling Head      Flow Matching Head (pixel-space)
+            (text token positions)       (visual token positions)
+                       │                        │
+                       ▼                        ▼
+            Vocab logits: [B, T_text, |V|]   Predicted clean image x_θ: [B, 3, H, W]
+                       │                        │
+                       │                        │  Eq. (3): v_θ = (x_θ - x_t) / (1 - t)
+                       │                        ▼
+                       │                   Velocity v_θ: [B, 3, H, W]
+                       │                        │
+                       │     ┌──────────────────┴──────────────────┐
+                       │     │ Training: L_flow = E ‖v_θ − v‖²₂    │
+                       │     │ Inference: x_{t&#x27;} = x_t + (t&#x27;-t)v_θ │
+                       │     └─────────────────────────────────────┘
+                       │                        │
+                       ▼                        ▼
+            Next-token text response   Unpatchify Layer
+            (autoregressive)                    │
+                                                ▼
+                                       Image response: [B, 3, H, W]</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Patchify Layer"><h2 class="slide-title">Method — 5.3.1 Patchify Layer</h2><div class="card"><p><strong>Function:</strong> 將原始像素切塊並線性投影至 LLM hidden dim，取代 representation encoder 完成端到端 vision tokenization (§2.1)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: image $x$ (clean source image $x_1$ for understanding；noisy $x_t$ for generation training)</li><li>Shape: [B, 3, H, W]</li><li>Source: image captioning 樣本、text-to-image 生成樣本 ($x_t$ 由 Eq. 1 構造)、image editing 樣本 (Stage 2)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: visual tokens</li><li>Shape: [B, $N_p$, $d_{\text{llm}}$]</li><li>Consumer: Masked Feature Learning (optional) → LLM Decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>H×W 影像被切成 $p \times p$ 不重疊 patch，flatten 後線性投影到 $d_{\text{llm}}$；$N_p = (H/p) \cdot (W/p)$。論文 §2.1 僅描述為 &quot;simple patch embedding layers&quot;。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>無顯式公式 (純 linear projection，等同 ViT 風格 patch embedding 但無預訓練視覺 inductive bias)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>訓練解析度 $H = W = 512$ (Table 5 image reconstruction 設定)</li><li>Patch size $p$、投影矩陣維度: the paper does not specify</li><li>不使用任何 pretrained vision encoder，這是與 Tuna-R 的關鍵區別 (Tuna-R 在此位置改用 SigLIP 2 So400M + connector layer)</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.2 Text Tokenizer"><h2 class="slide-title">Method — 5.3.2 Text Tokenizer</h2><div class="card"><p><strong>Function:</strong> 將文字 prompt / response 編碼為 token id 並 embed 到 LLM 共享 hidden space。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: text prompt $c_{\text{text}}$</li><li>Shape: [B, $T_{\text{text}}$] (token id)</li><li>Source: 用戶 prompt、image caption ground truth、editing instruction、text-only Nemotron 資料 (Stage 1)、conversation (Stage 2 FineVision)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: text token embeddings</li><li>Shape: [B, $T_{\text{text}}$, $d_{\text{llm}}$]</li><li>Consumer: 與 visual tokens 串接後送入 LLM Decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>直接複用 Qwen2.5-7B-Instruct 自帶的 tokenizer 與 embedding table，未對 visual / text token 做特殊 prefix 處理 (§3.1)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>無。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Tokenizer: Qwen2.5-7B-Instruct</li><li>序列長度於每張 GPU 上 pad 至 16k tokens (§3.1)</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.3 LLM Decoder (Unified Transformer)"><h2 class="slide-title">Method — 5.3.3 LLM Decoder (Unified Transformer)</h2><div class="card"><p><strong>Function:</strong> 單一 transformer 同時處理 visual + text token，完成 multimodal understanding 與 generation 的共享 forward path (§2.1)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 串接後序列 $z$</li><li>Shape: [B, $N_p + T_{\text{text}}$, $d_{\text{llm}}$]</li><li>Source: Patchify Layer 產生的 visual tokens (含 optional mask token 替換) + Text Tokenizer 的 text embeddings</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: hidden states</li><li>Shape: [B, $N_p + T_{\text{text}}$, $d_{\text{llm}}$]</li><li>Consumer: text 位置 → Language Modelling Head；vision 位置 → Flow Matching Head</li></ul>
+<p><strong>Processing:</strong></p>
+<p>所有 token 走相同 transformer block，pixel patch token 與 text token 在同一 self-attention 中互動。Stage 1 同時進行 image captioning 與 text-to-image generation 的 joint pretraining，Stage 2 SFT 加入 image editing 與 image instruction-following。是否使用模態特化 attention mask 論文未細述。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>無 (沿用 Qwen2.5 標準 architecture)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Backbone: Qwen2.5-7B-Instruct，$d_{\text{llm}} = 3584$ (公開模型常數，非論文揭露)</li><li>Stage 1 pretraining: 300k steps、64 nodes、AdamW、lr $= 1 \times 10^{-4}$、序列 16k tokens/GPU (§3.1)</li><li>Stage 1 資料: 550M in-house image-text pairs + 20% text-only Nemotron (Bercovich et al., 2025) (§3.1)；§3.1 描述 image-text 內部分配為 70% image captioning / 30% text-to-image generation；§3.3 ablation 結論為 7g3u (7:3 generation:understanding) 並聲稱「adopt this data sampling ratio in all experiments」(§3.3 結尾)，與 §3.1 描述存在表面不一致，需以原文為準</li><li>Stage 2 SFT: 50k steps、AdamW、lr $= 2 \times 10^{-5}$ (§3.1)</li><li>Stage 2 資料: 13M FineVision conversational + ~2M OmniEdit editing 範例 (§3.1)</li><li>Tuna-R 額外 connector alignment stage: 3k steps、AdamW、lr $= 5 \times 10^{-4}$ (§3.1)；Tuna-2 因 encoder-free 不需要此階段 (§2.3)</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.4 Language Modelling Head"><h2 class="slide-title">Method — 5.3.4 Language Modelling Head</h2><div class="card"><p><strong>Function:</strong> 在 text token 位置上執行 next-token prediction，輸出文字 response (§2.1, §2.3)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: text 位置 hidden states</li><li>Shape: [B, $T_{\text{text}}$, $d_{\text{llm}}$]</li><li>Source: LLM Decoder</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: vocabulary logits</li><li>Shape: [B, $T_{\text{text}}$, $|V|$]</li><li>Consumer: training 階段計算 cross-entropy loss；inference 階段做 autoregressive sampling</li></ul>
+<p><strong>Processing:</strong></p>
+<p>標準 autoregressive language modelling head，沿用 Qwen2.5-7B-Instruct 的 LM head。Stage 1 對 image captioning 樣本生效，Stage 2 對 instruction-following / editing 對話的文字回應生效。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>論文未顯式列出，惟為標準 next-token cross-entropy。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未公布額外修改，沿用基底 LLM 設計。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Flow Matching Head + Unpatchify Layer (Pixel-space Generation)"><h2 class="slide-title">Method — 5.3.5 Flow Matching Head + Unpatchify Layer (Pixel-space Generation)</h2><div class="card"><p><strong>Function:</strong> 在 vision token 位置上執行 pixel-space rectified-flow 影像生成，採用 JiT 的 x-prediction + v-loss (§2.1)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: noisy image $x_t$、conditioning $c$、timestamp $t$</li><li>Shape: $x_t$: [B, 3, H, W]；$c$: text prompt (text-to-image) 或 text + reference image (image editing) 經各自 Patchify / Tokenizer 後的 token；$t$: [B]</li><li>Source: training 端由 ground truth $x_1$、$x_0 \sim \mathcal{N}(0, I)$、$t \sim [0, 1]$ 構造；inference 端由 Euler solver 迭代</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: predicted clean image $x_\theta$，再轉成 velocity $v_\theta$，最後經 Unpatchify Layer 還原</li><li>Shape: [B, 3, H, W]</li><li>Consumer: training 階段送入 v-loss；inference 階段送入 Euler step 進行下一輪去噪</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>構造 noisy sample (Eq. 1)。</li><li>模型直接預測乾淨影像 (Eq. 2)。</li><li>解析地將 $x_\theta$ 轉成 velocity (Eq. 3)，這是與 latent diffusion 不同之處：模型輸出 $x_\theta$ 而非 $\epsilon$ 或 $v$。</li><li>損失採 MSE on velocity (Eq. 4)。</li><li>推論時用 Euler 步進: $x_{t&#x27;} = x_t + (t&#x27; - t) v_\theta$，逐步從 $t &lt; t&#x27;$ 推到 $t&#x27; = 1$ 得到 clean output。</li><li>Unpatchify Layer 將 patch 序列 reshape 回 [B, 3, H, W] 影像。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$x_t = t x_1 + (1 - t) x_0, \quad t \in [0, 1] \tag{1}$</p>
+<p>$x_\theta = \pi_\theta(x_t, c, t) \tag{2}$</p>
+<p>$v_\theta = \frac{x_\theta - x_t}{1 - t} \tag{3}$</p>
+<p>$$ \mathcal{L}_{\text{flow}} = \mathbb{E}_{t, c, x_1, x_0} \, \| v_\theta - v \|_2^2, \quad v = x_1 - x_0 \tag{4} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Sampler: Euler solver (§2.1 末段)</li><li>採用 JiT (Li and He, 2025) 的 x-prediction + v-loss 範式，與 latent diffusion 路線顯著不同</li><li>推論解析度 / 取樣步數: the paper does not specify</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.6 Masking-based Visual Feature Learning"><h2 class="slide-title">Method — 5.3.6 Masking-based Visual Feature Learning</h2><div class="card"><p><strong>Function:</strong> 在 pixel space 訓練時對 visual token 套用 learnable mask token，迫使模型由部分觀測重建 / 推理，避免在高維 pixel 空間學到 shortcut (§2.2)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: visual token sequence + masking ratio</li><li>Shape: [B, $N_p$, $d_{\text{llm}}$]；masking ratio 為純量</li><li>Source: Patchify Layer 之後 (生成樣本作用於 noisy patch；理解樣本作用於 clean patch)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: masked visual sequence (被選中的 patch 替換為共享的 learnable mask token)</li><li>Shape: [B, $N_p$, $d_{\text{llm}}$]</li><li>Consumer: LLM Decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<ul><li>Generation 樣本: 模型在被 mask 與未被 mask 的位置都需預測 clean patch，形成 harder denoising 任務並讓 mask token 吸收 visible context。</li><li>Understanding 樣本: 模型在被 mask 視覺輸入下預測 ground-truth text response，等同 regularizer。</li><li>兩種樣本套用相同的 masking 操作 (§2.2 第二段)。</li><li>不從 pretraining 起點啟用: ablation 設定為先以 50k steps 標準預訓練建立基礎多模態知識，再以 50% 機率啟用 masking 繼續 50k steps (§3.4)。</li><li>正式訓練於 pretraining 最後 40% 階段啟用 (§3.4 結尾)。</li></ul>
+<p><strong>Key Formulas:</strong></p>
+<p>無顯式公式 (mask token 為 learnable parameter，融入既有的 $\mathcal{L}_{\text{flow}}$ 與 LM cross-entropy，不改變損失形式)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>啟用機率: 50% (§3.4 ablation 設定)；正式 pretraining 啟用時段: 最後 40% (§3.4)</li><li>Ablation 在 Qwen-2.5-Instruct-1.5B backbone 上完成 (§3.4)</li><li>Tuna-2 受益幅度大於 Tuna-R，作者假設 SigLIP 2 已用 masked prediction 預訓練是主因 (§3.4)</li><li>Masking ratio、mask token 維度: the paper does not specify</li><li>與既有方法的關聯: MAE (He et al., 2022)、SigLIP 2 (Tschannen et al., 2025) 用於 semantic learning；MaskGIT (Chang et al., 2022)、DeTok (Yang et al., 2025a) 用於 visual generation</li></ul></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>In-house image-text pairs</td><td>Image captioning + text-to-image generation</td><td>550M pairs (70% caption / 30% T2I)</td><td>Train (Stage 1 pretraining)</td></tr><tr><td>Nemotron (Bercovich et al., 2025)</td><td>Text-only language modelling</td><td>20% of total pretraining data</td><td>Train (Stage 1 pretraining)</td></tr><tr><td>FineVision (Wiedmann et al., 2025)</td><td>Image instruction-following</td><td>13M conversational examples</td><td>Train (Stage 2 SFT)</td></tr><tr><td>OmniEdit (Wei et al., 2024)</td><td>Image editing</td><td>~2M examples</td><td>Train (Stage 2 SFT)</td></tr><tr><td>GQA (Hudson and Manning, 2019)</td><td>VQA (general)</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>RealWorldQA (xAI)</td><td>VQA (real-world)</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>MMVet (Yu et al., 2023)</td><td>VQA (multi-capability)</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>MMMU (Yue et al., 2024)</td><td>Multi-discipline VQA</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>MMVP (Tong et al., 2024)</td><td>Visual perception VQA</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>SEED-Bench2+ (Li et al., 2024b)</td><td>Text-rich VQA</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>AI2D (Kembhavi et al., 2016)</td><td>Diagram QA</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>ChartQA (Masry et al., 2022)</td><td>Chart QA</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>OCRBench (Liu et al., 2024)</td><td>OCR</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>V* (Wu and Xie, 2024)</td><td>Fine-grained visual search</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>CountBench (Paiss et al., 2023)</td><td>Object counting</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>VisuLogic (Xu et al., 2025)</td><td>Visual logical reasoning</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>GenEval (Ghosh et al., 2023)</td><td>Text-to-image alignment</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>DPG-Bench (Hu et al., 2024)</td><td>Dense prompt T2I</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>ImgEdit (Ye et al., 2025)</td><td>Instruction-guided image editing</td><td>the paper does not specify</td><td>Test</td></tr><tr><td>ImageNet validation (Deng et al., 2009)</td><td>Image reconstruction</td><td>the paper does not specify</td><td>Val (light finetune + eval)</td></tr><tr><td>In-house prompt set for LLM-judge</td><td>T2I quality / diversity</td><td>1.5K prompts × 4 images</td><td>Test (GPT-5.4 / Claude Opus 4.7 judges)</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>GenEval Overall</td><td>Object-focused text-image alignment composite (1-Obj./2-Obj./Count/Colors/Position/Col. Attr.)</td><td>yes</td></tr><tr><td>DPG-Bench Overall</td><td>Dense prompt-following score (Global/Entity/Attribute/Relation/Other)</td><td>yes</td></tr><tr><td>Per-benchmark VQA accuracy</td><td>Accuracy on GQA / RealWorldQA / MMVet / MMMU / MMVP / SEED-Bench2+ / AI2D / ChartQA / OCRBench / V* / CountBench / VisuLogic</td><td>yes</td></tr><tr><td>ImgEdit per-task + Total</td><td>Editing scores across Add/Adjust/Extract/Replace/Remove/Background/Style/Hybrid/Action and total</td><td>yes</td></tr><tr><td>LLM-judge Quality / Diversity (GPT-5.4, Claude Opus 4.7)</td><td>% of prompts where the model is preferred among Tuna / Tuna-R / Tuna-2 on realism+detail and intra-prompt variation</td><td>no</td></tr><tr><td>rFID</td><td>Reconstruction FID on ImageNet val</td><td>no</td></tr><tr><td>PSNR</td><td>Peak signal-to-noise ratio for reconstruction</td><td>no</td></tr><tr><td>SSIM</td><td>Structural similarity for reconstruction</td><td>no</td></tr><tr><td>Training MSE (flow matching)</td><td>Pretraining loss for generation branch, used in data-ratio ablation</td><td>no</td></tr><tr><td>Training CE (language modelling)</td><td>Pretraining loss for understanding branch, used in data-ratio ablation</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p>LLM backbone is <code>Qwen2.5-7B-Instruct</code> (Qwen et al., 2024); the masking ablation uses a smaller <code>Qwen-2.5-Instruct-1.5B</code> backbone. Stage 1 trains the full model end-to-end for 300k steps on 64 nodes with AdamW (Loshchilov and Hutter, 2017) at learning rate $1\times10^{-4}$. Stage 2 SFT runs 50k steps with AdamW at learning rate $2\times10^{-5}$. All training stages pad input sequences to 16k tokens per GPU. The paper does not specify per-GPU batch size, GPUs per node, total wall-clock, or LR schedule shape.</p>
+<p>For Tuna-R, the representation encoder is <code>SigLIP 2 So400M</code> (Tschannen et al., 2025), and an extra connector-alignment stage trains only the connector for 3k steps with AdamW at learning rate $5\times10^{-4}$ before Stage 1.</p>
+<p>The data-mixture ablation sweeps generation:understanding sampling ratios (denoted $x\text{g}y\text{u}$) and adopts $7\text{g}3\text{u}$ as the default (§3.3). The masking-based feature-learning scheme is enabled with probability 50% on both modalities and applied during the final 40% of pretraining; in the controlled study, models are first pretrained 50k steps without masking, then the masking arm trains for another 50k steps (§3.4).</p>
+<p>Inference for generation uses the rectified-flow Euler solver, predicting $x_\theta$ and converting to velocity via $v_\theta = (x_\theta - x_t)/(1-t)$ (Eq. 3); $x_{t&#x27;} = x_t + (t&#x27;-t)\,v_\theta$ (§2.1). The paper does not specify the number of sampling steps, classifier-free guidance scale, image resolution at inference, or decoding settings for understanding.</p></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>Image understanding (selected columns from Table 1; 7B native UMMs unless noted):</p>
+<table><thead><tr><th>Method</th><th>MMMU</th><th>MMVP</th><th>OCRBench</th><th>V*</th><th>CountBench</th><th>VisuLogic</th><th>Notes</th></tr></thead><tbody><tr><td>Qwen2.5-VL (7B)</td><td>58.6</td><td>78.0</td><td>83.7</td><td>71.2</td><td>74.1</td><td>20.0</td><td>Understanding-only LMM</td></tr><tr><td>BAGEL (14B)</td><td>55.3</td><td>85.0</td><td>73.3</td><td>70.2</td><td>82.5</td><td>41.7</td><td>Larger native UMM</td></tr><tr><td>Show-o2 (7B)</td><td>48.9</td><td>76.7</td><td>32.4</td><td>44.5</td><td>63.5</td><td>26.9</td><td>Latent-space UMM</td></tr><tr><td>Janus-Pro (7B)</td><td>41.0</td><td>73.3</td><td>59.0</td><td>47.6</td><td>53.2</td><td>23.8</td><td>Native UMM</td></tr><tr><td>Tuna (7B)</td><td>49.8</td><td>70.7</td><td>74.3</td><td>52.4</td><td>73.5</td><td>22.4</td><td>Prior latent-space UMM</td></tr><tr><td>Tuna-R (7B)</td><td>51.1</td><td>74.7</td><td>78.3</td><td>57.6</td><td>77.8</td><td>26.2</td><td>Encoder-based pixel-space variant</td></tr><tr><td><strong>Tuna-2 (7B)</strong></td><td><strong>50.7</strong></td><td><strong>77.3</strong></td><td><strong>79.7</strong></td><td><strong>59.2</strong></td><td><strong>81.7</strong></td><td><strong>28.8</strong></td><td><strong>This paper</strong></td></tr></tbody></table>
+<p>Image generation on GenEval / DPG-Bench (Table 2; native UMMs):</p>
+<table><thead><tr><th>Method</th><th>GenEval Overall</th><th>DPG-Bench Overall</th><th>Notes</th></tr></thead><tbody><tr><td>BAGEL† (14B)</td><td>0.88</td><td>85.07</td><td>Larger native UMM, LLM rewriter</td></tr><tr><td>Mogao (7B)</td><td>0.89</td><td>84.33</td><td>Native UMM</td></tr><tr><td>Tuna (7B)</td><td>0.90</td><td>86.76</td><td>Prior best in family</td></tr><tr><td>Tuna-R (7B)</td><td>0.88</td><td>86.35</td><td>Encoder-based variant</td></tr><tr><td><strong>Tuna-2 (7B)</strong></td><td><strong>0.87</strong></td><td><strong>86.54</strong></td><td><strong>This paper, encoder-free</strong></td></tr></tbody></table>
+<p>LLM-judge T2I (Table 3, % preferred among Tuna / Tuna-R / Tuna-2):</p>
+<table><thead><tr><th>Method</th><th>GPT-5.4 Quality</th><th>GPT-5.4 Diversity</th><th>Claude 4.7 Quality</th><th>Claude 4.7 Diversity</th></tr></thead><tbody><tr><td>Tuna</td><td>22.3</td><td>20.6</td><td>28.1</td><td>28.2</td></tr><tr><td>Tuna-R</td><td>35.7</td><td>30.9</td><td>37.2</td><td>29.9</td></tr><tr><td><strong>Tuna-2</strong></td><td><strong>32.1</strong></td><td><strong>48.4</strong></td><td><strong>34.8</strong></td><td><strong>41.9</strong></td></tr></tbody></table>
+<p>Image editing on ImgEdit (Table 4, total score):</p>
+<table><thead><tr><th>Method</th><th>Total</th><th>Notes</th></tr></thead><tbody><tr><td>FLUX.1</td><td>4.00</td><td>Generation-only</td></tr><tr><td>Qwen-Image</td><td>4.27</td><td>Generation-only</td></tr><tr><td>GPT-Image</td><td>4.20</td><td>Closed unified model</td></tr><tr><td>BAGEL</td><td>3.20</td><td>Unified</td></tr><tr><td>OmniGen2</td><td>3.44</td><td>Unified</td></tr><tr><td>Tuna</td><td>4.31</td><td>Prior best in family</td></tr><tr><td>Tuna-R</td><td>4.18</td><td>Encoder-based variant</td></tr><tr><td><strong>Tuna-2</strong></td><td><strong>4.09</strong></td><td><strong>This paper</strong></td></tr></tbody></table>
+<p>Image reconstruction on ImageNet val (Table 5, unified tokenizers):</p>
+<table><thead><tr><th>Method</th><th>Res.</th><th>rFID $\downarrow$</th><th>PSNR $\uparrow$</th><th>SSIM $\uparrow$</th></tr></thead><tbody><tr><td>TokenFlow</td><td>384</td><td>0.63</td><td>22.77</td><td>0.73</td></tr><tr><td>RAE</td><td>256</td><td>0.61</td><td>19.20</td><td>0.44</td></tr><tr><td>PS-VAE</td><td>256</td><td>0.20</td><td>28.79</td><td>0.82</td></tr><tr><td>Tuna-R</td><td>512</td><td>0.12</td><td>32.22</td><td>0.93</td></tr><tr><td><strong>Tuna-2</strong></td><td><strong>512</strong></td><td><strong>0.15</strong></td><td><strong>32.80</strong></td><td><strong>0.93</strong></td></tr></tbody></table></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><ul><li><strong>Generation : understanding data ratio (Figure 5, §3.3).</strong> Sweeps multiple $x\text{g}y\text{u}$ mixtures and tracks MSE (flow matching) and CE (LM) curves on both Tuna-R and Tuna-2. Diagnostic: shows MSE is more sensitive to the mixture than CE and motivates the chosen $7\text{g}3\text{u}$ default. Limitation: end-task accuracy at each ratio is not reported, only training losses, so the &quot;best trade-off&quot; claim is anchored to loss curves rather than benchmark scores.</li><li><strong>Masking-based feature learning (Table 6, §3.4).</strong> Compares with/without masking on a 1.5B backbone for Tuna, Tuna-R, Tuna-2. Diagnostic on the proposed module: masking improves OCRBench, MMVP, CountBench, GenEval for both Tuna-R (e.g. OCRBench 58.3$\to$59.2; MMVP 56.7$\to$58.0) and Tuna-2 (OCRBench 55.4$\to$56.8; MMVP 52.3$\to$55.7; CountBench 53.4$\to$57.6), with a larger gain for Tuna-2. The design choice (50% probability, applied in the last 40% of pretraining, after a 50k-step warm start) is fixed; the paper does not ablate masking ratio, schedule, or whether masking helps generation alone vs. understanding alone.</li><li><strong>Encoder-based vs. encoder-free (Figure 6, §3.5).</strong> Plots OCRBench, MMVP, V*, GenEval vs. tokens consumed for Tuna-R vs. Tuna-2. Diagnostic of the central claim: Tuna-R leads early on understanding, Tuna-2 catches up and surpasses it at scale; on GenEval Tuna-R stays ahead but the gap shrinks and converges after SFT. This directly supports the paper&#x27;s &quot;encoder-free wins with scale on understanding, parity on generation&quot; thesis.</li><li><strong>Attention-map qualitative analysis (Figure 7, §3.6).</strong> Compares attention maps of Tuna, Tuna-R, Tuna-2, LLaVA-OV-1.5, Qwen2.5-VL, and Penguin-VL on basic perception, misleading-prior, and counterintuitive prompts. This is illustrative rather than quantitative and reads as a sanity check / showcase rather than a controlled diagnostic, since no metric, sample size, or evaluator agreement is reported.</li><li><strong>Image reconstruction probe (Table 5, §3.2).</strong> Lightweight finetuning of the unified model on reconstruction shows Tuna-2 attains rFID 0.15 / PSNR 32.80 at 512px, near <code>FLUX.1[dev]-VAE</code> (rFID 0.06). Diagnostic for whether pixel-space tokens preserve enough information to reconstruct, supporting the encoder-free claim — but this is post-hoc finetuning, not zero-shot reconstruction.</li></ul>
+<p>The data-mixture sweep partly reads as a sanity check because it reports only training losses; the masking and encoder-vs.-no-encoder ablations are genuinely diagnostic of the paper&#x27;s two main contributions.</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — Tables 1, 2, 4 compare against contemporaneous SoTA UMMs (BAGEL, Show-o2, Janus-Pro, Mogao, Tuna) and strong understanding/generation specialists (Qwen2.5-VL, FLUX.1, Qwen-Image, GPT-Image).</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — Evaluated on 12 understanding benchmarks (GQA, RealWorldQA, MMVet, MMMU, MMVP, SEED-Bench2+, AI2D, ChartQA, OCRBench, V*, CountBench, VisuLogic), GenEval, DPG-Bench, ImgEdit, and ImageNet reconstruction.</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — The masking-feature ablation (Table 6) and the Tuna-R vs. Tuna-2 scaling curves (Figure 6) directly probe the two proposed contributions.</li><li>[covered] Has a scaling study (size, length, or compute) — Figure 6 plots accuracy vs. tokens consumed for both architectural variants, showing crossover behaviour as data scales.</li><li>[missing] Has an efficiency / wall-clock comparison — No throughput, FLOPs, latency, memory, or training-time numbers are reported for Tuna-2 vs. Tuna-R or other UMMs; the paper does not specify wall-clock cost.</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — All tables report single-run point estimates; no error bars, seed averages, or confidence intervals are given, including for the GPT-5.4 / Claude-judge comparisons over 1.5K prompts.</li><li>[partial] Releases code / weights / data sufficient for reproducibility — A project page is listed (https://tuna-ai.org/tuna-2), but the 550M pretraining corpus is in-house, the training code/weight release is not described in the experiment section, and key hyperparameters (batch size, GPUs per node, sampling steps, CFG scale) are not specified.</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>在 generation benchmark 上 Tuna-R 一致略勝 Tuna-2，作者明確承認 representation encoder 的 semantic prior 對 generation 仍有幫助 (§3.2 image generation 段落, p. 7；§3.5, p. 10)。</li><li>Encoder-based 變體在 pretraining 早期收斂明顯較快，作者在 abstract 與 Figure 6 都直接承認此劣勢，僅以「足夠規模後反超」回應 (abstract, p. 1; §3.5, p. 10)。</li><li>在 ImgEdit 上 Tuna-2 (4.09) 落後 Tuna-R (4.18) 與 Tuna (4.31)，作者承認「pretrained visual priors may still provide benefits for fine-grained editing fidelity」(§3.2 image editing, p. 8；Table 4, p. 7)。</li><li>論文承認 high-dimensional pixel space 容易讓模型走 superficial shortcut，因此才需要 masking-based regularization 才能穩定訓練 (§2.2, p. 5)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>與 14B 的 BAGEL 比較被以灰底字體淡化，但 Tuna-2 在 MMVet (51.7 vs 67.2)、MMMU (50.7 vs 55.3)、MMVP (77.3 vs 85.0)、AI2D (79.6 vs 89.2)、V* (59.2 vs 70.2)、VisuLogic (28.8 vs 41.7) 全面落後，paper 的「state-of-the-art」結論其實只在 7B 內成立 (Table 1, p. 6)。</li><li>在 GenEval Overall 上 Tuna-2 (0.87) 反而<strong>低於其前身 Tuna (0.90)</strong>，論文僅以「competitive」帶過，但這直接反證「移除 encoder 提升統一表徵」對 generation 並不成立 (Table 2, p. 7)。</li><li>Table 3 的 LLM-judge 評測只比較 Tuna 家族三個模型彼此，而非與外部 SOTA（如 BAGEL、Mogao）比較，diversity 領先可能反映<strong>收斂不充分導致的高方差</strong>，而不是受控的多樣性增益 (Table 3, p. 8)。</li><li>Masking ablation (Table 6) 改用 Qwen-2.5-1.5B backbone 並只訓練 50k+50k steps，與正式 7B 訓練的 300k steps 存在數量級差距，masking 在 7B 規模的真實貢獻並未直接驗證 (§3.4, p. 10)。</li><li>「encoder-free」在語言端並不成立：模型仍以 pretrained Qwen2.5-7B-Instruct 為 backbone，視覺端的 inductive bias 被移除但語言端的 prior 保留，因此「end-to-end from raw pixels」的標題其實是 vision-only 半邊敘事 (§3.1, p. 6)。</li><li>訓練成本完全缺失：64 nodes × 300k steps × 16k token sequence 的實際 GPU-hour、與 encoder-based baseline 的 compute-matched 比較、以及 inference latency 均未報告，使「encoder-free 更可擴展」的主張缺少 cost-axis 證據 (§3.1, p. 6)。</li><li>Pretraining data 為 550M 「in-house image-text pairs」，無法被外部團隊複現，使 controlled comparison 結論的可信度受限於資料配方的不可見性 (§3.1, p. 6)。</li><li>對「fine-grained perception」的優勢解釋停留在 attention map 的精選定性案例 (Figure 7, p. 11)，缺少量化的 attention IoU 或 probing 實驗來支持「pixel-level information 真的被保留」的因果敘事。</li><li>與真正 pure pixel-space generation 模型（如 JiT, PixelFlow, DiP）的直接 head-to-head 缺席，使讀者無法分辨增益來自「unified pretraining」還是單純「pixel-space flow matching 本身已經夠好」(§4.2 文獻段, p. 12)。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1: Tuna-2 在多模態 understanding 與 generation benchmark 全面達 state-of-the-art。</strong></li></ul>
+<p>  <em>Partially supported.</em> 在 7B native UMM 群體內，Tuna-2 在 understanding 多項 pixel-centric benchmark 領先 (Table 1)；但在 GenEval 上 0.87 低於自家 Tuna 0.90 與 Mogao 0.89，與 14B 的 BAGEL 在 understanding 上仍有大幅差距 (Tables 1–2)。SOTA 主張只在「7B-scale native UMM、且僅看 understanding」時才完全成立。</p>
+<ul><li><strong>Claim 2: 在足夠 pretraining 後，encoder-free 在 generation 上與 encoder-based 競爭、在 understanding 上具優勢。</strong></li></ul>
+<p>  <em>Supported with caveat.</em> Figure 6 的 trajectory 確實顯示理解端反超、生成端逐步收斂；但 SFT 後 ImgEdit 仍是 Tuna-R &gt; Tuna-2 (4.18 vs 4.09, Table 4)，「生成端競爭」的結論在 editing 子任務並未真正成立。</p>
+<ul><li><strong>Claim 3: Pretrained vision encoder 對 multimodal modelling 並非必要。</strong></li></ul>
+<p>  <em>Overclaimed.</em> 證據只能支持「在 understanding 上不必要」；在 generation 上作者自己承認 representation encoder 提供有用的 semantic prior (§3.5)，而 Table 4 顯示 editing 仍受益於 encoder。論文的 abstract 標題遠強於實驗實際支持的範圍。</p>
+<ul><li><strong>Claim 4: Masking-based visual feature learning 提升 pixel-space 表徵的穩健性。</strong></li></ul>
+<p>  <em>Supported.</em> Table 6 在 OCRBench、MMVP、CountBench、GenEval 四個指標上一致提升，且 Tuna-2 受益大於 Tuna-R 的對比也合乎「SigLIP 2 已內建 masked prediction 故邊際效用較低」的解釋。但實驗在 1.5B backbone、100k steps 上完成，與 7B 主訓練 scale 不一致。</p>
+<ul><li><strong>Claim 5: Pixel-space generation 可擴展至 large-scale unified pretraining。</strong></li></ul>
+<p>  <em>Supported.</em> Image reconstruction (Table 5, rFID 0.15) 與 free-form text-to-image / editing 結果共同支持 pixel-space flow matching 不再受限於 ImageNet 級別實驗，這是相對於 JiT、PixelFlow 的 scale 上實質推進。</p>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Pixel-space 訓練對 compute 的依賴是內生的，而非可調參數。</strong> 論文核心發現是「encoder-based 早期領先、encoder-free 後期反超」(Figure 6)，這意味著 Tuna-2 的勝出建立在「足夠長的 pretraining」之上。當未來研究者算力有限或要快速迭代時，encoder-free 路線並不提供 favorable trade-off；同時論文沒有給出 cost-matched 的比較曲線，無法回答「假設只有一半 compute，Tuna-R 是否仍是更佳選擇」這個對實務最關鍵的問題。</p>
+<p><strong>Encoder-free 的「unification」其實只解決了一半的 representation mismatch。</strong> 論文的論點是預訓練 vision encoder 製造 understanding/generation 表徵錯配，但 Tuna-2 解法仍依賴 Qwen2.5-7B-Instruct 的 pretrained language prior。當 LLM backbone 自身對視覺 token 已有強烈分布偏好時，pixel embedding 經由 patch embedding 進入 LLM 後仍會被「強行對齊到 LLM 的 token 流形」上，因此 mismatch 並未從根源消除，只是從 vision-encoder 端轉移到了 LLM-tokenizer 端。</p>
+<p><strong>Generation 端的 semantic prior 缺口是結構性的。</strong> 作者承認 Tuna-R 在 GenEval 與 ImgEdit 上一致略勝，並引用 REPA 與 Tuna 的發現解釋之。這顯示 representation encoder 提供的 semantic prior 並非可被 raw pixel + masking 完全替代的工程缺陷，而是「在沒有對齊到語言/語意空間的初始條件下，flow matching head 的優化路徑會更曲折」的本質問題。論文的 masking 補丁在 understanding 上提升明顯，但在 generation 上增益僅 0.6 pt (47.6 → 48.2, Table 6)，顯示這條路無法靠同一機制補足。</p>
+<p><strong>Controlled comparison 的範圍過窄，無法支撐通用結論。</strong> Tuna-R 與 Tuna-2 共用同一 LLM backbone、同一資料配方、同一訓練步數，這在「比較兩種視覺端設計」是嚴謹的，但 7B 是 native UMM 的小型尺寸；當模型放大到 14B+（如 BAGEL）或資料增加一個數量級時，encoder 帶來的 inductive bias 是否仍會被 raw-pixel learning 吃掉，論文沒有任何 scaling-law 證據。「encoder-free is the future」的暗示因此屬於外推，而非實驗結論。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>JiT (Li and He, 2025), arXiv:2511.13720.</strong> Tuna-2 直接挪用其 $x$-prediction + $v$-loss 作為 pixel-space generation 的核心；想理解 Tuna-2 為何能在 pixel space 訓練得起來，必須先讀 JiT 的 noise schedule 與 prediction target 設計。</li><li><strong>NEO / Mono-InternVL (Diao et al., 2025; Luo et al., 2025).</strong> Encoder-free LMM 的代表，Tuna-2 的 patch-embedding-only 設計直接承襲；對照閱讀可釐清 Tuna-2 在「encoder-free understanding」上有多少屬於原創、多少屬於整合。</li><li><strong>Tuna (Liu et al., 2025), arXiv:2512.02014.</strong> 直接前身，論文許多結論（resolution、ratio、attention map）都建立在與 Tuna 的對照上；要驗證 Tuna-2 的增益是否來自 raw-pixel 還是來自 SFT 配方差異，必讀 Tuna 的 ablation。</li><li><strong>BAGEL (Deng et al., 2025), arXiv:2505.14683.</strong> 14B native UMM 標竿，論文用灰字輕描淡寫地比較；想評估 Tuna-2 在 scale-matched 條件下的真實實力，BAGEL 的訓練細節與 benchmark 是必要對照。</li><li><strong>REPA (Yu et al., 2024), arXiv:2410.06940.</strong> 解釋為何 representation encoder 對 generation 仍有幫助的關鍵文獻，論文在 §3.5 直接引用；理解 Tuna-2 在 generation 上輸給 Tuna-R 的「結構原因」需從 REPA 的 representation alignment 觀點切入。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 compute-matched（同 GPU-hour 而非同 step 數）的條件下，Tuna-2 何時、是否還能反超 Tuna-R？論文目前以 step 數為 x 軸，但 encoder-free 的單步成本未必相同。</li><li>[ ] 將 LLM backbone 從 Qwen2.5-7B 換成完全 random-init 的 transformer 後，「encoder-free」主張是否仍成立？這是區分「真正端到端」與「依賴語言 prior」的關鍵實驗。</li><li>[ ] Masking ratio 與 training step 的最佳排程在 7B 規模是否與 1.5B 規模一致？Table 6 在小模型上以 50% masking 後 50k steps 完成，無法外推。</li><li>[ ] 為何 Tuna-2 在 GenEval Overall 反而低於前身 Tuna？是 raw-pixel 的本質劣勢，還是 SFT 資料配方差異所致？</li><li>[ ] LLM-judge 評測中 Tuna-2 顯著高的 diversity，是來自更豐富的視覺先驗，還是來自尚未充分收斂導致的高 sampling variance？需要 FID + diversity score 雙軸評估。</li><li>[ ] Encoder-free 設計是否能擴展到 video（時間維 token 數量級暴增）？論文僅在靜態圖像上實驗，pixel-space flow matching 的計算成本可能在 video 上失控。</li><li>[ ] 若把 representation encoder 不是「移除」而是「以 EMA / lightweight distillation 的方式蒸餾進 LLM 第一層」，能否同時保留 encoder-based 的早期收斂優勢與 encoder-free 的後期理解優勢？</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>加入 representation alignment loss（REPA 風格）作為 pretraining 的輔助目標。</strong> 論文已自承 generation 端的差距源自 semantic prior 缺失；在 raw-pixel pipeline 中加入對 SigLIP 2 / DINOv2 feature 的 alignment loss，可在不重新引入 encoder 的情況下傳遞 semantic prior，且推論期不付任何成本。可行性高，與現有 pipeline 可加性整合。</li></ol>
+<ol><li><strong>報告 compute-matched scaling curve 而非 step-matched curve。</strong> 將 Figure 6 的 x 軸改為 GPU-hour 或 FLOPs，可直接回答「encoder-free 是否真的在 scale 上 favourable」這個論文核心主張。實作上只需重繪曲線，但對結論的可信度提升極大。</li></ol>
+<ol><li><strong>以 head-to-head 比較 pure pixel-space 生成模型（JiT、PixelFlow、DiP）隔離貢獻來源。</strong> 目前無法分辨增益來自 unified pretraining 還是 pixel-space flow matching 本身；加入 generation-only baseline 可釐清 unification 對 generation 的真實邊際效用。中等可行，需多訓一組 generation-only。</li></ol>
+<ol><li><strong>將 masking 設計升級為 curriculum（前期低 ratio、後期高 ratio）。</strong> 論文在 pretraining 最後 40% 才開始 masking，但 ratio 固定 50%；考慮到 Tuna-2 在高維 pixel space 易走 shortcut，動態 curriculum 可能進一步壓低 understanding 端 OCR / counting 的錯誤率。低成本高槓桿。</li></ol>
+<ol><li><strong>建立 cost-axis benchmark 並提供 7B / 13B / 30B scaling laws。</strong> 論文「encoder-free is scalable」目前是外推；在三個尺寸上重複 controlled comparison，可給出真正可被引用的 scaling law。可行性最低（compute 龐大），但對 native UMM 領域的長期影響最大。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(140 words)</p>
+<div class="card"><p>§5 結論段落非常精簡，把整篇論文的核心訊息濃縮成三層宣告。第一層重申研究目標：Tuna-2 是一個 family of native unified multimodal models，目的是直接在 pixel space 完成 multimodal understanding 與 visual generation，徹底擺脫 VAE encoder 與 latent diffusion。</p></div>
+<div class="card"><p>第二層概述方法與設計選擇：以 unified vision-language backbone 配合 pixel-space flow matching head，在單一框架中同時支援 image understanding、text-to-image generation 與 image editing；同時提供 encoder-based variant（Tuna-R）與 encoder-free monolithic variant（Tuna-2）兩個實例化版本，作為 controlled comparison 的兩端。</p></div>
+<div class="card"><p>第三層收斂到實驗結論：Tuna-2 在 fine-grained visual understanding benchmark 上勝過 Tuna 與 Show-o2 等 latent-space unified model，同時在 image generation 上與 SOTA unified models 旗鼓相當，據此論證 pixel-space unified multimodal modelling 的有效性與可擴展性，並指出這是未來 native UMM 的一條值得追求的方向。論文未在此節獨立列出 limitations 或 future work，相關討論散落於 §3.2 對 editing 落差的歸因與 §3.5 對 generation 早期劣勢的分析中。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

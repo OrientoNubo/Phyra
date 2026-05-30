@@ -1,0 +1,502 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Lyra 2.0 — Lyra 2.0: Explorable Generative 3D Worlds</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW --&gt;</p>
+<h1 id="lyra-2-0-lyra-2-0-explorable-generative-3d-worlds">Lyra 2.0 — Lyra 2.0: Explorable Generative 3D Worlds</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>Lyra 2.0</td></tr><tr><td>Paper full title</td><td>Lyra 2.0: Explorable Generative 3D Worlds</td></tr><tr><td>arXiv ID</td><td>2604.13036</td></tr><tr><td>Release date</td><td>2026-04-14</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2604.13036</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2604.13036</td></tr><tr><td>Code link</td><td>—</td></tr><tr><td>Project page</td><td>https://research.nvidia.com/labs/sil/lyra2/</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Tianchang Shen</td><td>NVIDIA</td><td>https://www.cs.toronto.edu/~shenti11/</td><td>co-first author (equal contribution)</td></tr><tr><td>Sherwin Bahmani</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Kai He</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Sangeetha Grama Srinivasan</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Tianshi Cao</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Jiawei Ren</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Ruilong Li</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Zian Wang</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Nicholas Sharp</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Zan Gojcic</td><td>NVIDIA</td><td>https://zgojcic.github.io/</td><td>author</td></tr><tr><td>Sanja Fidler</td><td>NVIDIA</td><td>—</td><td>senior author</td></tr><tr><td>Jiahui Huang</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Huan Ling</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Jun Gao</td><td>NVIDIA</td><td>—</td><td>author</td></tr><tr><td>Xuanchi Ren</td><td>NVIDIA</td><td>https://xuanchiren.com/</td><td>co-first author (equal contribution)</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>explorable 3D world generation, long-horizon video diffusion, camera-controlled video generation, 3D Gaussian Splatting reconstruction, spatial memory, geometry-aware retrieval, self-augmentation training, anti-forgetting / anti-drifting</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>Lyra [2]</td><td>predecessor</td><td>前作以 self-distillation 把 camera-controlled video 模型蒸餾為 feed-forward 3D 重建學生模型。</td></tr><tr><td>Wan 2.1 [107]</td><td>base model</td><td>本文採用其 DiT-based latent video diffusion 架構與 VAE 作為視訊生成主幹。</td></tr><tr><td>FramePack [135]</td><td>influence</td><td>以可變 patchification 對歷史影格做時間相關性壓縮，本文沿用此 anchor + temporal slots 設計。</td></tr><tr><td>MotionCtrl [114]</td><td>influence</td><td>早期將 camera pose 注入 video diffusion 的代表，啟發本文的 camera 條件設計。</td></tr><tr><td>WorldMem [118]</td><td>baseline</td><td>以 FOV overlap 為基礎的 retrieval-based memory，本文以 geometry-aware 路由替代之。</td></tr><tr><td>VMem [51]</td><td>baseline</td><td>以索引化的 3D surface element 做 geometry-aware retrieval，與本文的 per-frame 3D cache 思路相關。</td></tr><tr><td>GenWarp [88]</td><td>influence</td><td>提出 correspondence-based conditioning，但僅限於單張影像 diffusion；本文延伸至長視野 video。</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本論文提出 Lyra 2.0，一個由單張影像出發、可互動探索的大規模 3D 世界生成框架。作者結合 camera-controlled video diffusion 與 feed-forward 3D Gaussian Splatting 重建，採用 generative reconstruction 的範式：先讓 video model 沿使用者定義的相機軌跡合成密集視角，再以前饋網路將其升維為 3D 表徵。為了支援跨房間、跨街區、含回看 (lookback) 的長距離探索，本文聚焦於兩個核心難題：spatial forgetting 與 temporal drifting，並設計逐影格的 3D cache、geometry-aware retrieval 以及 self-augmentation training 機制。最終系統可從單張輸入影像生成長且 3D-consistent 的視訊，並重建為高品質的 3D Gaussians 與表面 mesh，可直接匯入互動檢視器或模擬引擎，服務 embodied AI 與沉浸式渲染等下游應用。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>computer vision</li><li>3D scene generation</li><li>video diffusion models</li><li>neural rendering / 3D reconstruction</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>DiT-based latent video diffusion (Wan 2.1 backbone)</strong>：作為視訊生成主幹，接收 camera trajectory、文字 prompt 與歷史 context，於 latent space 以 flow matching 進行去噪。</li><li><strong>Causal video VAE (Wan 2.1)</strong>：將 RGB 視訊以 8× 空間、4× 時間下採樣壓縮為 latent，供 DiT 生成並支援第一影格獨立編碼。</li><li><strong>FramePack 可變 patchification</strong>：以 temporal proximity 對歷史影格做變動 kernel 壓縮，於固定 token budget 內擴展 anchor + temporal slots 的有效時間視野。</li><li><strong>Plücker ray injection + depth-based warping camera 條件</strong>：以 6D ray 座標與 forward-warped 深度提供 dense 的 per-pixel 視角控制，補齊大幅視角變動下的控制訊號。</li><li><strong>Per-frame 3D cache + geometry-aware retrieval</strong>：本文新提出的 spatial memory，逐影格保存深度與下採樣 point cloud，並以投影可見性分數挑選歷史影格。</li><li><strong>Canonical coordinate warping for dense correspondence</strong>：將檢索到的歷史影格以 canonical 座標 forward warp 後，經 MLP 注入 DiT self-attention，提供幾何對應而不傳遞外觀瑕疵。</li><li><strong>Self-augmentation training</strong>：本文新提出的訓練策略，以 one-step denoised 歷史 latent 作條件，縮小 train-inference distribution gap 以對抗 drifting。</li><li><strong>Feed-forward 3DGS via Depth Anything v3 (DAv3)</strong>：以 fine-tuned DAv3 預測 per-pixel 3D Gaussian，並改造 DPT head 以 $k \times k$ 下採樣減少 Gaussian 數量。</li><li><strong>Hierarchical OpenVDB sparse-grid mesh extraction</strong>：從 3DGS 衍生有向 point cloud 後建立 SDF，於分層 sparse grid 上 marching cubes 抽取大規模表面 mesh。</li><li><strong>DMD-distilled student model</strong>：以 Distribution Matching Distillation 把 35-step teacher 蒸餾為 4-step、單次 forward 的學生模型，加速互動式推論約 13×。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者主張：要讓 video diffusion 撐起『可任意行走、會回看、跨大尺度』的 3D 世界，根本問題不是模型容量不夠，而是長視野自迴歸生成必然出現的兩種衰退——spatial forgetting 與 temporal drifting。第一，spatial forgetting：相機移動後早期觀測會被擠出有限的時間 context，重訪舊區域時模型只能憑空幻想；既有以累積式全域 3D 表徵作為條件的方法又會把生成瑕疵不斷回灌，產生 error amplification；純粹靠 self-attention 在 context 內推 long-range correspondence，則在大視角變動時容易失效。第二，temporal drifting：autoregressive 合成的微小誤差會逐步累積成顏色漂移與幾何扭曲，且因新觀測區域不斷出現，與早期 frames 的視覺 overlap 越來越少，使長 context anchoring 失靈。基於此因果鏈，作者主張一個邏輯上必要的解法：把『幾何追蹤』與『像素合成』徹底解耦——以 per-frame 3D cache 僅作為 information routing（檢索最相關歷史影格、建立稠密對應），而把外觀合成留給 video model 的 generative prior，避免硬性渲染瑕疵被傳遞；同時用 self-augmentation training 讓模型在訓練時就見過自己的 one-step denoised 輸出，縮小 train-inference distribution gap，學會主動修正而非延續 drift。最後再以 fine-tuned 的 feed-forward 3DGS 模型容忍微小多視角不一致，將生成結果穩定升維為乾淨的 3D 場景。整套設計的合理性正來自於『先指認兩種衰退的成因，再針對每個成因給出對應且最小耦合的補強』。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(310 words)</p>
+<p>標題 &quot;Lyra 2.0: Explorable Generative 3D Worlds&quot; 直接點明三個關鍵字：Lyra 2.0（承接前作 Lyra [2]）、explorable（強調可互動長距離探索）、generative 3D worlds（最終產物是 3D 場景而非僅是影片）。Abstract 的論述路徑分為四步：問題定義、根本困難、解法骨架、應用價值。</p>
+<p>第一步把 generative reconstruction 範式定錨：video diffusion 模型生成 camera-controlled 影片後，透過 feed-forward reconstruction lift 成 3D 資產，以兼顧 visual fidelity 與即時 rendering/simulation。第二步指出當把這條路徑擴展到 large、complex environments（如室內走廊或長街道）時遇到兩種衰退：spatial forgetting（先前看過的區域因超出 temporal context 而需要重新 hallucinate）與 temporal drifting（autoregressive 過程中小誤差累積，造成色偏與結構扭曲）。這兩個術語是後續方法章節的命名骨架（§4.2 anti-forgetting、§4.3 anti-drifting），所以 Abstract 在此就把詞彙固定下來。</p>
+<p>第三步給出兩項核心技術主張，皆以「what／how」對偶呈現：(a) 為了解決 spatial forgetting，作者維持 per-frame 3D geometry 但僅用於 information routing（檢索相關 history frame 並建立 dense correspondence），實際 appearance 合成仍交給 generative prior，避免 corrupted 3D intermediary 反噬影片品質；(b) 為了解決 temporal drifting，作者以 self-augmented histories 訓練模型，刻意暴露其在 inference 時會遇到的 degraded 自身輸出，讓模型學會 correct 而非 propagate 漂移。第四步說明：這些 longer、3D-consistent 的影片用來 fine-tune feed-forward reconstruction 模型，最終可靠地恢復高品質 3D 場景。</p>
+<p>整段 Abstract 的修辭策略是「以兩個失敗模式組織貢獻」，每個失敗模式都對應一項機制，並在最後將機制收斂到 explicit 3D 輸出。這替後文 §1 介紹 generative reconstruction 範式、§2 比較 memory 機制、§4 拆解兩個機制鋪好結構性伏筆。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(680 words)</p>
+<p>Introduction 採用「範式 → 痛點 → 既有路線檢討 → 我方對偶解法 → 系統整合」的五段式論證。</p>
+<p>開篇先把 video diffusion 模型的 visual fidelity 與 local 3D consistency 視為可以利用的「prior」，並引入 generative reconstruction [2] 的概念：以 single image 加 prescribed camera trajectory 作輸入，影片模型合成 dense novel views 作為 virtual capture，再交由 feed-forward reconstruction 產出 explicit geometry 與 appearance。這把研究目標從「短片生成」拉高到「以生成代替實拍的可擴展 3D 內容生產」。</p>
+<p>第二段把問題尺度推到 unbounded exploration，並把 Abstract 中提到的兩個衰退模式展開：spatial forgetting 是 finite temporal context 導致 revisit 時 hallucinate，破壞 global layout；temporal drifting 是 autoregressive 累積的小誤差，因為 camera 不斷帶入 unseen region，與早期 history 的 visual overlap 越來越小，幾何與紋理約束都失效。</p>
+<p>第三段檢視兩條既有路線並指出各自缺陷：cumulative 3D representation 路線（[2, 81, 139, 141]）會因 generative artifacts 污染 3D，再回授成 flawed conditioning，是緊耦合的 error amplification；history frames + camera pose embedding 路線 [26]雖避開 corrupted 3D intermediary，但完全靠 self-attention 推 long-range correspondence，在大視角變化下失效。第四段提出作者的對偶設計：用 explicit 3D proxy 只做 information routing（檢索 history、建立 spatial correspondence），實際 pixel synthesis 留給 diffusion 的 learned prior。如此既有 dense spatial grounding，又不會把 hard rendering artifact 寫入像素。</p>
+<p>第五段轉到 temporal drifting。作者先反駁 long-context anchoring 路線 [135]：因 camera motion 把 early frames 移出 FOV，這種 anchoring 對 newly observed 區域的 drift 沒效果。接著提出 self-augmentation training scheme：以一定機率將 ground-truth history 替換為模型自身 one-step denoise 的輸出，使訓練暴露於 inference 時實際的 error distribution，配合高 overlap history 的 retrieval，計算開銷最小卻直接縮小 train-test 差距。</p>
+<p>第六段把兩個機制整合成完整系統，並導入第三個元件—feed-forward 3DGS pipeline [58]：因為 diffusion 影片仍有 minor multi-view inconsistency，會讓傳統 reconstruction 出現 floater 與 noisy artifact，作者選擇 fine-tune feed-forward 3DGS 模型，利用其 multi-view prior 容忍小幅不一致，把 domain gap 補起來。</p>
+<p>最後一段把整套系統包裝成 Lyra 2.0：從 single image 出發，使用者可定義 arbitrary long-horizon trajectory，progressively 擴張環境，最終產出可在 embodied AI 與 immersive rendering 使用的 3D Gaussians 與 surface mesh。Fig. 1 提供 lookback 與 ~90 m 街道延伸的 demonstration，作為章節結尾的可視化承諾。</p>
+<p>整節為 §2（同時拆 memory-aware 與 camera-conditioned 兩條 related work）、§4（two mechanisms 結構）、§5（long-video 與 3D scene 兩個層級的評估）一次設好錨點。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(1430 words)</p>
+<p>§2 與 §3 合起來承擔「定位 + 技術前提」的雙重任務。Related Work 切成三個 cluster，各自對映 Introduction 點到的失敗模式或技術依賴。</p>
+<p>Camera-Conditioned Video Generation 段先依 conditioning 形式做時間軸排序：MotionCtrl [114] 的 per-frame pose 向量化，到 Plücker 座標 [3, 4, 26, 120] 的 dense ray-based encoding，再到 Genie 3 [5] 引領的 action-conditioning 路線 [28, 50, 70, 100, 138]，最後是 [48, 81, 117, 129, 130, 139] 等用 explicit 3D guidance（global point cloud rendering、depth-warped image）強化幾何忠實度的方法。GenWarp [88] 作為 correspondence-based conditioning 的代表被提到，並指出其僅限 single-image diffusion。整段以一句結論收尾：這些方法雖能生成 viewpoint-controlled 影片，但 revisit 時 3D consistency 不持久，這正是 §4 要解決的問題。</p>
+<p>Memory-Aware Long Video Generation 段把記憶機制分成三家：(i) retrieval-based memory [24, 51, 118, 128]，例如 Context-as-Memory [128] 與 WorldMem [118] 用 FOV overlap 檢索、VMem [51] 用 indexed 3D surface element；(ii) explicit 3D representation 累積 [48, 62, 116, 139, 141]，把場景結構做成 unified memory；(iii) 改造生成器內部架構 [15, 32, 33, 74, 84, 137]，維持 persistent latent state 或 KV cache。同時把 FramePack [135] 視為 orthogonal 方向，以 variable patchification 壓縮 history。作者最後表態：與 global 3D memory 不同，他們維持 per-frame geometry 並只用於 information routing，appearance 仍交給 generative prior，再加 self-augmentation 解 drifting。這段把 §4.2 的設計動機從文獻層面合法化。</p>
+<p>3D Scene Generation 段聚焦 generative reconstruction 系譜：feed-forward Gaussian 路線 [9, 58, 69, 80, 95, 134]、Bolt3D [98] 的 pointmap autoencoder、Wonderland [54] 的 camera-controlled 影片 + 專用 feed-forward Gaussian 預測網路、前作 Lyra [2] 的 self-distillation、FlashWorld [52] 的 distilled video diffusion、WorldExplorer [85] 的 panoramic 起步、Video-to-World [31] 的 non-rigid alignment、Free-Range Gaussians [89] 的 flow matching on Gaussian parameters。作者指出這些都受 view coverage 限制，而 Lyra 2.0 走 long video → large-scale Gaussian/mesh 的路線。</p>
+<p>§3 Preliminaries 為 §4 預先安裝三組記號與工具。</p>
+<p>DiT-Based Latent Video Diffusion 段定義 video tensor $\mathbf{x} \in \mathbb{R}^{F \times 3 \times H \times W}$、causal VAE $\mathcal{E}, \mathcal{D}$，並引用 Wan 2.1 [107] 的下採樣率（spatial 8×、temporal 4×、$C=16$）。flow matching 訓練目標寫為</p>
+<p>$$\mathcal{L} = \mathbb{E}_{\mathbf{z}_0, t, \epsilon}\left[\|v_\theta(\mathbf{z}_t, t, \mathbf{c}) - (\epsilon - \mathbf{z}_0)\|^2\right],$$</p>
+<p>並交代長影片以 fixed-length segment autoregressive 拼接。這替 §4 的 self-augmentation 公式 (4)–(5) 提供 schedule。</p>
+<p>Camera-Conditioned Video Generation 段列出 extrinsic $\mathbf{T}_i = [\mathbf{R}_i \mid \mathbf{t}_i]$、intrinsic $\mathbf{K}_i$、depth $D_i$。作者特別給出兩個策略的比較：depth-based warping [81] 已能在 Wan 2.1 上達成 long trajectory 的 camera control，但 viewpoint 變化過大時會失去訊號；Plücker ray injection [26] 以 $\mathbf{r}_i(u, v) = (\mathbf{d}, \mathbf{o} \times \mathbf{d}) \in \mathbb{R}^6$ 做補充。這個段落直接決定 §4 與附錄 A.1 的 conditioning module 結構。</p>
+<p>Context Compression via FramePack 段詳述 FramePack 的 variable patchification：愈近用小 kernel 細粒度 token、愈遠用大 kernel 壓縮。作者把典型 layout 寫成 $\mathrm{f}_1\mathrm{k}_1$ anchor + $\mathrm{f}_{16}\mathrm{k}_4 \mathrm{f}_2\mathrm{k}_2 \mathrm{f}_1\mathrm{k}_1$ temporal slots + $\mathrm{g}_{20}$ generation。anchor frame（即初始影像 $I_0$）永遠以全解析度進入 context，作為 endpoint anchor，這個慣例會在 §4.2 擴充為 spatial slots 的版面。</p>
+<p>整體而言，§2 把競爭場域劃成「camera control / memory / 3D scene」三軸，§3 把方法所需的所有符號與既存模組鋪成可直接代入的構件，使 §4 的論述能集中在新的兩個機制與 dense correspondence 設計，不必中斷去解釋 baseline 工程細節。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(330 words)</p>
+<p>§4 的敘事策略是「先給 retrieve–generate–update 主迴圈，再以兩個對應 §2 中提及的失敗模式分節展開，最後接 3D lift」，使讀者在進入細節前先掌握資料流。</p>
+<p>§4.1 Overview 把任務形式化：給定 single input image $I_0$ 與 camera trajectory $\{(\mathbf{T}_i, \mathbf{K}_i)\}_{i=0}^{T-1}$，輸出 long camera-controlled video，並可 lift 為 explorable 3D 場景。Fig. 2 對應的 pipeline 寫成三步驟迴圈：(i) retrieve 與目標 viewpoint 在 3D 內容上最相關的 history frames；(ii) 在 temporal history 與 retrieved spatial context 雙條件下生成下一段影片；(iii) 用新生成的幀 update memory。Memory 隨 iteration 成長，使模型能維持「任意長」軌跡與 revisit consistency。</p>
+<p>接下來作者把核心議題一分為二、與 §1 的衰退分類完全對齊：anti-forgetting（§4.2）建立 spatial memory，用 per-frame 3D geometry 並把它與影片模型的 context bridge，以保證 revisit 時的 spatial consistency；anti-drifting（§4.3）以 adaptive 壓縮 history 加 self-augmentation，抑制長序列下的品質退化。最後 §4.4 透過 feed-forward 3D reconstruction 把 long video lift 成 explicit 3D，§4.5 額外用 DMD distillation 加速 inference。</p>
+<p>從敘事角度看，§4.1 做了三件事：(1) 把 system 的 user-facing 介面（input image + 可選 text prompt + 互動式 camera trajectory）綁進方法描述，呼應 §5.5 的 GUI 與 Isaac Sim 應用；(2) 將 memory 設計成「會成長的 cache」，預告 §4.2 的 per-frame 點雲與 visibility-based retrieval；(3) 強調 anti-forgetting 與 anti-drifting 是 orthogonal 但在同一個 DiT context 內共存，預告 §4.2 末尾的三組 conditioning（retrieved spatial slots、warped correspondence maps、FramePack temporal slots）會被 §4.3 的 self-augmentation 共同訓練。</p>
+<p>最後一段以「memory grows with each iteration step」收束，把 §4 的 narrative 從單步 DiT forward 拉回 multi-step autoregressive process，自然銜接 §4.4 的 lift 與 §5 的 long-horizon 評估。整體 overview 維持在「資料流 + 兩大機制名稱 + 3D 後處理」的高層次，不深入單一 module 的內部運作，以避免與後文具體公式重複。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(770 words)</p>
+<p>§5 採用「先訓練設置、再雙層級評估、再 ablation、最後應用」的五段結構，刻意把 long video generation 與 3D scene generation 分為兩個獨立 evaluation tier，以強調生成品質與 lifting 品質都是聲稱的貢獻。</p>
+<p>§5.1 Training Details 先固定資料來源：DL3DV [60]，10K 真實場景片段，camera pose 由 ViPE [35] 估計、depth 由 Depth Anything V3 [58] 預測、caption 由 Qwen3-VL-8B-Instruct [103] 產生。Paired data 採兩種 conditioning–target 構造：30% I2V mode 從單一 frame 生成 $L=80$ 連續幀；70% autoregressive chunk-based training，從序列中隨機抽 segment $s$，前 $[0, sL+1)$ 為 history，後 $L$ 幀為 ground truth。這種混合確保模型既能處理 cold start，也能在 history 充滿生成品質的情境下練習。</p>
+<p>§5.2 Evaluation on Long Video Generation 設定 baselines 與 metrics。對照組覆蓋三類 memory 設計：FramePack-only（Yume-1.5 [70]）、global 3D representation（GEN3C [81]、SPMem [117]）、retrieval-based（CaM [128]、VMem [51]）以及 concurrent action-conditioned 工作 HY-WorldPlay [37]。Metrics 同樣分層：傳統 SSIM、LPIPS、FID 處理 per-frame，WorldScore [18] 子項（Subjective Quality、Style Consistency、Camera Controllability）處理 long-horizon 行為，再加 SLAM-based reprojection error 作 3D 一致性檢核。Tab. 1 顯示 Lyra 2.0 在兩個資料集上幾乎全部最佳，作者並逐一拆解 baseline 的折衷：GEN3C 用 rigid 幾何條件，camera control 雖好但生成品質下降；CaM／SPMem multi-view memory 品質強但 camera control 弱；VMem 長序列直接崩；Yume-1.5、HY-WorldPlay 缺 explicit camera trajectory，無法跟上指定 viewpoint。Fig. 3 在 ~frame 800 處的視覺比較加強了量化結果。Distilled DMD 版本以 4 步推論換回相當品質，僅 camera controllability 略降。</p>
+<p>§5.3 Evaluation on 3D Scene Generation 把每個 long-video baseline 都接 Depth Anything V3 [58] 形成 3D pipeline，並引入兩個關鍵指標：LPIPS-G（render vs. GT，整體 reconstruction 品質）與 LPIPS-P（render vs. 生成影片，純粹衡量生成影片本身的 3D consistency）。這個分離很重要：LPIPS-P 直接驗證「我們的影片本身就更 3D-consistent」這個聲稱，與 anti-forgetting 的 information routing 假說呼應。Tab. 2 顯示 Ours + DAv3 已勝過所有 baseline，Ours Full（再 fine-tune DAv3 於自家生成資料）進一步全面超越，證明 fine-tuning 能彌合生成資料與 reconstruction 模型之間的 domain gap。和 Lyra [2]、FantasyWorld [14] 的 qualitative 比較（Fig. 4–5）則改用「scene scale」做差異化：對方因短影片限制只能小場景，Lyra 2.0 因互動式擴張能輸出顯著更大規模、更複雜的環境。</p>
+<p>§5.4 Ablation Study 在 Tanks and Temples 上隔離四個關鍵設計：以 Global Point Cloud 取代 per-frame 3D cache 會把 Camera Controllability 從 63.87 砸到 49.86 並降低 Style Consistency；用 Explicit Correspondence Fusion 取代 learned MLP aggregation，camera control 降到 57.29，證實 learned aggregation 對 noisy depth 更穩；移除 FramePack 後 Style Consistency 從 85.07 跌到 80.61、Reprojection Error 從 0.069 升到 0.079；移除 self-augmentation 雖然 per-frame Subjective Quality 反升至 47.88，但 Style Consistency 暴跌至 77.98、Camera Controllability 降至 53.92，證實它的價值在 long-range 累積誤差控制，而非單幀美感。Fig. 6 用視覺方式呈現每個變體的失敗模式（pose 不準、明顯 drifting）。</p>
+<p>§5.5 Applications 把上述評估延伸到實用價值：(a) Interactive GUI 讓使用者在累積點雲上規劃軌跡，支援 revisit 與探索 unobserved 區域；(b) In-the-Wild Scene Generation（Fig. 1、Fig. 8）展示室內外、單影像到大規模 3D 的泛化；(c) NVIDIA Isaac Sim 整合，把 mesh 與 3DGS 匯入物理引擎，做 robot navigation 與 interaction 的 demo。整段把實驗章節從 metrics 收束到 embodied AI 與 immersive rendering 的下游價值，呼應 Abstract 與 Introduction 對 simulation-ready 資產的承諾。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(160 words)</p>
+<p>§6 Discussion 在篇幅上極為精煉，採「成果定位 + 限制 + 改進方向」三拍式收尾。第一拍重申 Lyra 2.0 是 generative reconstruction framework，可生成 large-scale、explorable 3D 環境，並把其貢獻定錨在三件事：(1) 用 dedicated anti-forgetting 與 anti-drifting 機制處理 camera-controlled video generation 的 long-horizon consistency 問題；(2) 改進 reconstruction 模型對 small generative error 的 robustness；(3) 產出可直接部署於 interactive exploration、virtual reality、simulation 的 3D 場景。這三點剛好對應 §4.2／§4.3／§4.4 的設計切割，使結論與方法章節的章節編號形成 1:1 對映。</p>
+<p>第二拍交代兩項限制：(a) 目前框架只處理 static environments，沒有 explicit modeling dynamic scenes；(b) 影片模型繼承訓練資料特性，DL3DV 在不同 view 之間有 exposure 變化，模型會把這些 photometric inconsistency 一起 reproduce，下游 feed-forward 3DGS reconstruction 因此可能出現 artifact。第三拍給出對應的兩條 future work：dynamic scene 生成是後續方向；photometric 不穩可透過網路內處理（如 [16]）或改用 photometrically consistent 的合成資料集（例如 game engine 風格的 [128]）來緩解。整段不額外宣稱倫理風險或社會影響，焦點維持在技術延伸與資料層面的修補。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>把 long-horizon video diffusion 的衰退因素清楚拆成 spatial forgetting 與 temporal drifting 兩個獨立故障模式，並對每個模式給出最小耦合的對策（§1, p. 2）。</li><li>提出 per-frame 3D cache 取代累積式 global point cloud，避開「生成瑕疵 → 幾何污染 → 條件污染」的 error amplification 迴路（§4.2, p. 6）。</li><li>Geometry-aware retrieval 以 visibility score 為訊號、在 inference 時用 greedy max-coverage 選 $N_s = 5$ 張歷史影格，避免冗餘 viewpoint 並覆蓋目標像素（§4.2, p. 7）。</li><li>採用 canonical coordinate warping 而非 RGB warping 作為 DiT 對應線索，避免 disocclusion holes 與 stretching artifacts 被 video model 當作 crutch 反覆重現（§4.2, p. 7）。</li><li>Self-augmentation training 以 $p_{\text{aug}} = 0.7$、$t \sim \mathcal{U}(0, 0.5)$ 對 history latent 做 one-step denoising，僅多一次 DiT forward 就模擬出 inference-time 的 error distribution（§4.3, p. 8；A.2, p. 17）。</li><li>在 DL3DV 與 Tanks-and-Temples 的多數欄位取得最佳，Tanks-and-Temples 上 Subjective Quality 達 43.35、Style Consistency 達 85.07，皆優於 SPMem、CaM、VMem、GEN3C（Tab. 1, p. 9）。</li><li>3D scene generation 全面領先：Ours Full 於 Tanks-and-Temples 取得 LPIPS-G 0.629 / FID 72.47 / Subjective Quality 18.80（Tab. 2, p. 11）。</li><li>Ablation 顯示三個設計各自必要：移除 self-augmentation 後 Style Consistency 由 85.07 降至 77.98；移除 FramePack 後 Reprojection Error 由 0.069 升至 0.079；改用 global point cloud 後 Camera Controllability 由 63.87 跌至 49.86（Tab. 3, p. 13）。</li><li>DMD 蒸餾把 35 步降為 4 步並去除 CFG，per-step 由 194 秒縮短到 15 秒（約 13× 加速），LPIPS / FID 與 teacher 相當（Tab. 1, p. 9；A.3, p. 17）。</li><li>End-to-end 路徑完整：可輸出 3DGS、sparse-grid mesh，並示範匯入 NVIDIA Isaac Sim 做 robot simulation（Fig. 7, p. 14）。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>系統僅支援 static environments，未顯式建模 dynamic scenes，作者列為未來工作（§6, p. 14）。</li><li>DL3DV 訓練資料的 exposure variations 會被 video model 重現，導致 feed-forward 3DGS 重建出現 photometric artifacts；作者建議引入 photometrically consistent synthetic data 或 [16] 的 photometric stabilization（§6, p. 14）。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>Reprojection Error 上 Ours（DL3DV 0.076 / T&amp;T 0.069）仍輸給 GEN3C（0.068 / 0.054）與 CaM（0.069 / 0.056），這個最直接的多視角幾何一致性指標被論文以「nearly all metrics」的措辭模糊帶過，與「3D-consistent video」的核心宣稱有張力（Tab. 1, p. 9）。</li><li>移除 self-augmentation 後 per-frame Subjective Quality 反而由 43.35 升到 47.88（Tab. 3, p. 13），透露 anti-drift 訓練是以單張影格品質換 long-range consistency，這個 trade-off 未被討論，也未檢驗其在 short trajectories 的副作用。</li><li>Ours Full 與 Ours + DAv3 的差距明顯（T&amp;T LPIPS-G 0.629 vs 0.648、Subj. Qual. 18.80 vs 14.42, Tab. 2, p. 11），意味重建端的勝出相當部分來自把 DAv3 fine-tune 在自家 3,000 條生成 video 上（A.4, p. 17），等於對自身分布的 overfit；baseline 並未獲得同等待遇。</li><li>Self-augmentation 用 $t \sim \mathcal{U}(0, 0.5)$ 的 one-step denoising 近似 inference 的 35 步累積誤差（Eq. 4–5），但兩者的 error distribution 是否對齊毫無實證，論文也未提供 $p_{\text{aug}}$ 或 timestep range 的敏感度 sweep。</li><li>DMD 蒸餾在 T&amp;T 的 Camera Controllability 由 63.87 跌至 58.12、Style Consistency 由 85.07 降至 78.91（Tab. 1, p. 9），作者輕描淡寫為 &quot;moderately&quot;，但近 5–7 個百分點對 &quot;explorable, lookback-friendly&quot; 的賣點並非 moderate。</li><li>訓練只跑 7,000 iterations、batch size 64（A.2, p. 17），對 14B DiT 上新增的 spatial slots、canonical coordinate MLP 與 self-augmentation 而言極短，是否真正收斂或只是輕微 perturb base behavior 沒有 loss curve 或 scaling study 佐證。</li><li>SSIM / LPIPS / FID 為逐影格與 ground truth 比較，但在大幅 viewpoint change 與 revisit 情境下，generative scene 與 GT 並無一一對應；論文未說明軌跡與 frame correspondence 的對齊細節，使這些指標對 long-horizon 評估的可信度受限（§5.2, p. 9–10）。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>真正具新意的是兩個設計選擇：把 geometric tracking 與 pixel synthesis 解耦（per-frame cache + canonical coordinate warping），以及把 Self-Forcing [36] 的 causal-only 限制以 one-step denoising 廉價繞過。anti-forgetting 的整體框架則更接近一個工程組合（FramePack + Plücker + visibility retrieval + canonical coords），個別模組多半已在 prior work 出現。最關鍵未解的問題是：「視覺一致」與「幾何一致」是否真的同義 — Reprojection Error 上輸給 GEN3C 的事實，加上 dynamic scenes 與 photometric drift 兩個 known failure modes，意味著 large-scale explorable world 的 3D 真實感仍受 video prior 而非顯式幾何主導。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>Lyra 2.0 採用 generative reconstruction 的範式：給定單張輸入影像 $I_0$ 與使用者定義的相機軌跡 $\{(T_i, K_i)\}_{i=0}^{T-1}$，目標是產生一段長且 3D-consistent 的視訊，並可前饋升維為 explicit 3D 場景。系統以 autoregressive retrieve–generate–update 迴圈運作：每一步使用者透過 interactive 3D explorer 指定目標相機軌跡與可選 text prompt，模型 (i) 從 spatial memory 中根據幾何相關性檢索 history frames，(ii) 條件於 retrieved spatial context 與 compressed temporal history 生成下一段 20 影格視訊，(iii) 估計新影格 depth 並將 per-frame 幾何寫回 3D cache。整個 pipeline 建構於 Wan 2.1 的 DiT-based latent video diffusion 之上，採用 flow matching 訓練；camera control 同時注入 depth-based warping 與 Plücker ray injection 兩種訊號。</p>
+<p>針對 long-horizon 自迴歸生成的 spatial forgetting，作者主張將 geometric tracking 與 pixel synthesis 解耦：3D cache 僅儲存 per-frame 的 depth、camera pose 與 downsampled point cloud，<strong>不</strong>融合為單一 global point cloud，以避免長期 depth 估計誤差累積與 error amplification。每一步利用 visibility score 從 cache 中 greedy 選出 $N_s = 5$ 個對目標視角覆蓋率最大的 history frames，並透過 canonical coordinate warping 建立 dense 3D correspondence；warped canonical coordinates 經 positional encoding 與 MLP 後在每個 DiT block 的 self-attention 加入 token features，提供 per-pixel 幾何提示但不提供 RGB 內容，將 appearance 合成完全交給 generative prior。</p>
+<p>針對 temporal drifting，FramePack 以 variable patchification 將 history 壓縮成 anchor + temporal slots 的固定 token budget，使模型在 fixed context 內仍能 anchor 至原始影像。在此基礎上，作者引入 self-augmentation training：訓練時以機率 $p_{\text{aug}}$ 將 ground-truth history latent 用 one-step denoising 取代為模型自身的 imperfect 預測，使 train-time 條件分布逼近 inference-time，使模型主動修正而非延續 drift。生成的長視訊最後透過 fine-tuned 的 Depth Anything v3 (DAv3) feed-forward 3DGS pipeline 升維為 3D Gaussians 與 surface mesh，DAv3 的 Gaussian DPT head 經過修改以 $k \times k$ 下採樣輸出，將 Gaussian 數量降至 $1/k^2$ 以利 real-time rendering，並在自家生成資料上 fine-tune 以容忍 minor multi-view 不一致。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input: I_0 [B, 3, H, W], trajectory {(T_i, K_i)}_{i=0..T-1}, text c
+   │
+   ├→ Depth Anything v3
+   │     I_i [B, 3, H, W]  →  D_i [B, H, W]
+   │
+   ├→ 3D Cache 𝒞 (per-frame, never globally fused)
+   │     full-res:    D_i [B, H, W], T_i [B, 3, 4], K_i [B, 3, 3]
+   │     downsample:  P_i [B, H/d, W/d, 3]   (subsample factor d)
+   │
+At autoregressive step with target (T*, K*):
+   │
+   ├→ Geometry-Aware Retrieval
+   │     project P_i to target image plane → φ(i) [B, 1] visibility score
+   │     greedy coverage selection
+   │     →  retrieved indices {s_j}_{j=0..N_s-1},  N_s = 5
+   │     →  retrieved frames {I_{s_j}} [B, N_s, 3, H, W]
+   │
+   ├→ Canonical Coordinate Warping (Eq. 3)
+   │     C_j [B, 3, H, W]   channels = (u, v, 2j/(N_s-1))
+   │     Ĉ_j = FwdWarp(C_j, D_{s_j}, T_{s_j}, T*, K_{s_j}, K*)
+   │     concat warped depth as 4th channel
+   │     →  [Ĉ_j ; D̂_j] [B, N_s, 4, H, W]
+   │     pos-encode + MLP
+   │     →  correspondence embedding e_j [B, N_s, L_tok, d_hidden]
+   │
+   ├→ Wan 2.1 VAE Encoding (8× spatial, 4× temporal)
+   │     spatial slot frames (image-encoded, no temporal compression):
+   │           I_{s_j} [B, 3, H, W]   →  z^sp_j [B, C, h, w],  C=16, h=H/8, w=W/8
+   │     temporal history segment:
+   │           x_hist [B, F_h, 3, H, W]   →  z^hist [B, F&#x27;_h, C, h, w]
+   │     target chunk (clean, training only):
+   │           x_cur [B, 20, 3, H, W]     →  z^cur_0 [B, 5, C, h, w]
+   │
+   ├→ FramePack Token Layout (Eq. 2 + spatial extension)
+   │     anchor              f1k1                       (I_0, full-res)
+   │     spatial slots       f4k2 + f1k1                (N_s = 5 retrieved)
+   │     temporal slots      f16k4 + f2k2 + f1k1        (compressed history)
+   │     generate            g20                         (target 20 frames)
+   │     concat all          →  token sequence [B, L_total, d_hidden]
+   │
+   ├→ Self-Augmentation (training, prob p_aug)
+   │     sample t ~ U(0, 0.5),  ε ~ N(0, I)
+   │     z^hist_t = (1-t) z^hist_0 + t ε                                (Eq. 4)
+   │     z̃^hist_0 = z^hist_t - t · v_θ(z^hist_t, t, c)                  (Eq. 5)
+   │     replace z^hist_0 ← z̃^hist_0 in DiT context
+   │
+   ├→ DiT Self-Attention (Wan 2.1 backbone, flow matching)
+   │     joint attention over [anchor; spatial slots; temporal slots; gen]
+   │     add correspondence embedding e_j at every block
+   │     →  v_θ(z_t, t, c) [B, 5, C, h, w]
+   │
+   ├→ Wan 2.1 VAE Decoding
+   │     →  generated chunk x̂_cur [B, 20, 3, H, W]
+   │
+   ├→ Cache Update
+   │     estimate depth on x̂_cur → append (D, T, K, P) to 𝒞
+   │
+   └→ Feed-Forward 3DGS (DAv3, fine-tuned, k× downsample DPT head)
+         video [B, F, 3, H, W]  →  per-pixel Gaussians [B, F·H·W/k², A]
+         → render novel views [B, 3, H, W]
+         → hierarchical sparse OpenVDB grid → SDF → marching cubes → mesh</code></pre>
+<p>註：$L_{\text{tok}}$、$d_{\text{hidden}}$、$F_h$、$F&#x27;_h$、$d$、$k$、$A$（Gaussian 屬性維度）與 $L_{\text{total}}$ 在論文中未給出具體數值，下方對應模組以 <code>?</code> 標註。</p>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-3d-cache-construction">5.3.1 3D Cache Construction</h4>
+<p><strong>Function:</strong> 漸進式維護 per-frame 幾何資訊作為 information routing 的索引，避免將累積誤差融合進 global 表徵。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(I_i, T_i, K_i)</code></li><li>Shape: 影像 <code>[B, 3, H, W]</code>、extrinsic <code>[B, 3, 4]</code>、intrinsic <code>[B, 3, 3]</code></li><li>Source: 上一輪 generate 解碼出的 RGB 影格與使用者軌跡</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>𝒞 ∪ {(D_i, T_i, K_i, P_i)}</code></li><li>Shape: 全解析度 depth <code>[B, H, W]</code>、downsampled point cloud <code>P_i [B, H/d, W/d, 3]</code></li><li>Consumer: Geometry-Aware Retrieval 與 Canonical Coordinate Warping</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每一張新生成的影格 $I_i$，先以 DAv3 估計 per-pixel depth $D_i$，保留全解析度版本供 correspondence 計算；同時以 factor $d$ 下採樣後 unproject 至世界座標，得到 $P_i$ 供 retrieval 使用。Cache 以 list 形式 append-only 增長，<strong>每個 frame 的幾何獨立儲存</strong>，論文明確指出永不融合為單一 global point cloud，因為長視野 depth 估計品質會逐步下降，融合會把 cross-view misalignment 累積為被污染的重建。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>不適用，純為資料結構維護操作。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>DAv3 同時被 fine-tune 為下游 3DGS 的 backbone（§5.3.6）。下採樣因子 $d$ 論文未明示具體值。</p>
+<h4 id="5-3-2-geometry-aware-retrieval">5.3.2 Geometry-Aware Retrieval</h4>
+<p><strong>Function:</strong> 從 cache 中選出對目標視角覆蓋率最大的 $N_s$ 個 history frames，提供 spatial slots。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(𝒞, T<em>, K</em>)</code></li><li>Shape: 整個 cache 與目標相機 <code>[B, 3, 4]</code> / <code>[B, 3, 3]</code></li><li>Source: 3D cache + 使用者軌跡的下一個 keyframe</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>{I_{s_j}}_{j=0..N_s-1}</code></li><li>Shape: <code>[B, N_s, 3, H, W]</code>，$N_s = 5$</li><li>Consumer: VAE encoder（spatial slots）與 Canonical Coordinate Warping</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個 cached frame $i$，將 $P_i$ 投影到目標 image plane，對 target plane 上每個 pixel 取所有 frame 中最小投影 depth 處理 occlusion；當某點 depth 與最小 depth 之差小於閾值 $\delta$ 即視為 visible，frame $i$ 的 visibility score $\varphi(i)$ 為其 visible point 數。訓練時以 $\varphi(i)$ 為比例隨機抽樣以增強 robustness；推論時 greedy 選擇：每次挑選能覆蓋最多 not-yet-covered target pixels 的 frame，直到湊滿 $N_s$，避免重複選取相近視角，最大化集體空間覆蓋。即使相機在數百影格後回望舊區域，仍可透過 3D overlap 自然召回相關觀測。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \varphi(i) = \big|\{ p \in P_i : |\pi_{T^<em>, K^</em>}(p)_z - \min_{i&#x27;} \pi_{T^<em>, K^</em>}(P_{i&#x27;})_z| &lt; \delta \}\big| $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>閾值 $\delta$ 數值未明示。retrieval cost 為 $O(|\mathcal{C}|)$ 線性掃描，因為 cache 不需 KNN 索引。</p>
+<h4 id="5-3-3-canonical-coordinate-warping">5.3.3 Canonical Coordinate Warping</h4>
+<p><strong>Function:</strong> 將 retrieved frame 的 normalized 位置編碼 forward-warp 至目標視角，作為 dense 3D correspondence 注入 DiT，但<strong>不</strong>注入 RGB 內容。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(C_j, D_{s_j}, T_{s_j}, K_{s_j}, T<em>, K</em>)</code></li><li>Shape: canonical coord map <code>C_j [B, 3, H, W]</code>、source depth/pose、target pose</li><li>Source: §5.3.2 retrieved indices 與 §5.3.1 cache 中對應 full-res depth</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>[Ĉ_j ; D̂_j]</code></li><li>Shape: <code>[B, N_s, 4, H, W]</code> 後經 pos-encode + MLP 為 <code>[B, N_s, L_tok, d_hidden]</code>，$L_{\text{tok}}, d_{\text{hidden}}$ 為 ?</li><li>Consumer: DiT 每一個 transformer block 的 self-attention layer</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對第 $j$ 個 retrieved frame 配置 canonical coordinate map $C_j \in [-1, 1]^{3 \times H \times W}$，三個通道為 $(u, v, 2j/(N_s-1))$，其中 $(u, v)$ 為 normalized 空間位置、第三通道編碼 retrieval 中的 slot index。使用 source frame 的 full-res depth $D_{s_j}$ 與相機參數，將 $C_j$ forward-warp 至目標視角，並把 warped depth 作為第四通道 concat。當實際 retrieved 數量少於 $N_s$ 時，缺失 slot 以 padding 標記，使模型可區分真實 correspondence 與空 slot。最後以 positional encoding + 學習得 MLP 聚合，輸出每 token 對應的 embedding，<strong>加</strong>到每個 DiT block 之 self-attention layer 的 token features 上。論文特別說明選擇 warp canonical coordinates 而非 RGB 的關鍵理由：warped RGB 必含 disocclusion holes、stretching artifacts 與 depth-boundary bleeding，若以此為條件，video model 會傾向重現這些 artifacts，warped image 將成為「拐杖」反而 bypass generative prior；canonical coordinates 攜帶相同的幾何 correspondence 但不含 appearance，將外觀合成完全留給 video model。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\hat{C}_j = \mathrm{FwdWarp}(C_j,\; D_{s_j},\; T_{s_j},\; T^<em>,\; K_{s_j},\; K^</em>)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>MLP 結構（層數、寬度）與 positional encoding 形式論文未明示。embedding 是 added 至 attention layer token features，而非 cross-attention。</p>
+<h4 id="5-3-4-dit-with-framepack-token-layout">5.3.4 DiT with FramePack Token Layout</h4>
+<p><strong>Function:</strong> 在固定 token budget 下聯合處理 anchor、spatial slots、temporal slots 與 generation tokens，預測 flow matching velocity。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(z_t, t, c, {e_j})</code></li><li>Shape: latent tokens 序列 <code>[B, L_total, d_hidden]</code>、time <code>[B]</code>、conditioning（text + Plücker rays + depth-warp）、correspondence embedding <code>[B, N_s, L_tok, d_hidden]</code></li><li>Source: VAE encoded slots、§5.3.3 correspondence、optional text prompt</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>v_θ(z_t, t, c)</code></li><li>Shape: <code>[B, F&#x27;_g, C, h, w]</code>，$F&#x27;_g = 5$、$C = 16$、$h = H/8$、$w = W/8$</li><li>Consumer: flow matching loss（訓練）或 ODE solver 採樣（推論）</li></ul>
+<p><strong>Processing:</strong></p>
+<p>VAE 為 causal，可獨立將每張 spatial slot frame 編碼為 image latent <code>[B, C, h, w]</code>，與 temporal slots 共享相同 variable-kernel 空間壓縮策略。完整 context 排列為（Eq. 2 的擴展版本）：</p>
+<p>$$ \underbrace{f_1 k_1}_{\text{anchor}}\;\; \underbrace{f_4 k_2 \,\, f_1 k_1}_{\text{spatial slots}}\;\; \underbrace{f_{16} k_4 \,\, f_2 k_2 \,\, f_1 k_1}_{\text{temporal slots}}\;\; \underbrace{g_{20}}_{\text{generate}} $$</p>
+<p>其中 $f_n k_m$ 表示 $n$ 張影格以 spatial subsampling factor $m$ patchify。所有 token 由完整 DiT self-attention 聯合處理；correspondence embedding $e_j$ 在每個 block 加到 self-attention layer 的 token features。模型在 latent 空間以 flow matching 訓練，velocity loss 為：</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \mathcal{L} = \mathbb{E}_{z_0, t, \epsilon}\Big[\big\|v_\theta(z_t, t, c) - (\epsilon - z_0)\big\|^2\Big] $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>底層 backbone 為 Wan 2.1 (14B 參數規模 baseline 級別)。Camera control 同時用 depth-based warping 與 Plücker ray injection（6D ray coordinates 經 MLP 投影至 hidden dim 後加到 token features）。Inference 時 35 denoising steps 為 default。</p>
+<h4 id="5-3-5-self-augmentation-training">5.3.5 Self-Augmentation Training</h4>
+<p><strong>Function:</strong> 縮小 train-test distribution gap，讓模型學會從 imperfect history 中復原乾淨輸出，主動修正 autoregressive drift。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(z^hist_0, z^cur_0)</code></li><li>Shape: 兩者皆為 <code>[B, F&#x27;_h, C, h, w]</code> / <code>[B, 5, C, h, w]</code></li><li>Source: clean ground-truth 經 VAE 編碼（causal VAE 的 history cache 依賴）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>z̃^hist_0</code>（用作 DiT context 替換）</li><li>Shape: <code>[B, F&#x27;_h, C, h, w]</code></li><li>Consumer: §5.3.4 DiT，作為 history conditioning</li></ul>
+<p><strong>Processing:</strong></p>
+<p>考慮一個 autoregressive 訓練 step，clean history 與 current chunk 分別編碼為 $z^{\text{hist}}_0 = \mathcal{E}(x^{\text{hist}})$ 與 $z^{\text{cur}}_0 = \mathcal{E}(x^{\text{cur}} \mid x^{\text{hist}})$（causal VAE cache）。以機率 $p_{\text{aug}}$ 採樣 $t \sim \mathcal{U}(0, 0.5)$，依 flow matching schedule 對 history latent 加噪（Eq. 4），再讓 video model 做 one-step denoising 取得近似重建（Eq. 5），把 $z^{\text{hist}}_0$ 替換為 $\tilde{z}^{\text{hist}}_0$ 餵入 DiT。<strong>target latent $z^{\text{cur}}_0$ 始終以 clean history 編碼</strong>，flow matching loss 監督 DiT 在 corrupted conditioning 下仍 denoise 至乾淨 $z^{\text{cur}}_0$，迫使模型學會從 imperfect history context 中恢復高品質輸出，在 autoregressive inference 時主動抵消 drifting artifacts。相較於 Self-Forcing 對雙向 attention 模型代價過高（每段需完整雙向 attention + 35 步 denoising），此 lightweight 策略只多一次 DiT forward pass。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ z^{\text{hist}}_t = (1-t)\, z^{\text{hist}}_0 + t\, \epsilon, \quad \epsilon \sim \mathcal{N}(0, I) $$</p>
+<p>$$ \tilde{z}^{\text{hist}}_0 = z^{\text{hist}}_t - t \cdot v_\theta(z^{\text{hist}}_t, t, c) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>機率 $p_{\text{aug}}$ 具體值論文未列出。$t$ 採樣上界限制為 0.5 而非 1.0，避免 corrupted history 偏離真實 inference distribution 太遠。整體額外開銷僅 1 次 DiT forward。在 DMD 蒸餾（§4.5，4 step inference）時 self-augmentation 策略保留，使 student 同樣 robust。</p>
+<h4 id="5-3-6-feed-forward-3dgs-reconstruction">5.3.6 Feed-Forward 3DGS Reconstruction</h4>
+<p><strong>Function:</strong> 將生成視訊升維為 explicit 3D Gaussians 與 surface mesh，容忍 video diffusion 的 minor multi-view 不一致。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 生成視訊 <code>x̂_cur</code></li><li>Shape: <code>[B, F, 3, H, W]</code></li><li>Source: §5.3.4 DiT 解碼後</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 3D Gaussians 與 mesh</li><li>Shape: per-pixel Gaussian attributes <code>[B, F·H·W/k², A]</code>，$A$ 為每 Gaussian 屬性維度（位置、scale、rotation、opacity、SH 等）為 ?；mesh 為 sparse VDB grid 上之 marching cubes 結果</li><li>Consumer: 互動 viewer / simulation engine</li></ul>
+<p><strong>Processing:</strong></p>
+<p>採用 Depth Anything v3 (DAv3) 作為 feed-forward 3D foundation model 預測 per-pixel 3DGS 屬性。針對兩個限制做修改：(1) 原 DAv3 每 pixel 一個 Gaussian，在高解析度下 Gaussian 數量過多；作者將其 Gaussian DPT head 修改為輸出 $k \times k$ 下採樣的 feature map，使 Gaussian 數量降至 $1/k^2$，更適合 real-time rendering 與資料串流。(2) 原 DAv3 未針對 generative data 最佳化，故在自家生成資料上 fine-tune（如 Lyra 1.0 做法），利用其 multi-view prior 容忍 minor 幾何不一致，避免 floaters。Surface mesh 抽取採用 hierarchical sparse VDB grid (OpenVDB)：在生成視角附近配置細 grid cell、遠景配置粗 cell；將 3DGS 重建之 median depth 在每個視角光柵化為 depth map，以 depth 之梯度估 normal，組成 oriented point cloud 後在 sparse grid 上構建 SDF；最後以 marching cubes 抽取表面，跨層次 stitch 與 decimate 後輸出 mesh。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>不適用，主要為架構修改與資料流。SDF 與 marching cubes 採標準作法。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>下採樣因子 $k$ 與每 Gaussian 屬性維度 $A$ 論文未明示具體數值。Fine-tune 在 DL3DV 視訊（自家 model 生成）上進行，提升 robustness。最終 evaluation 中 <em>Ours Full</em> 指 Lyra 2.0 + fine-tuned DAv3，consistently 優於 <em>Ours + DAv3</em> 的 vanilla DAv3 變體。</p>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>DL3DV [60]</td><td>訓練資料 + in-domain 評測（long video / 3D scene generation）</td><td>10K 長片段真實場景；每段 sample 1,000 frames；額外自動產生 3,000 段 1 分鐘影片用於 DAv3 fine-tune</td><td>train（video model）+ test（DL3DV-Evaluation 子集）</td></tr><tr><td>Tanks and Temples [46]</td><td>Out-of-domain 評測（long video / 3D scene generation 與 ablation）</td><td>標準大規模場景重建 benchmark</td><td>test only</td></tr></tbody></table>
+<p>備註：訓練前處理使用 ViPE [35] 估相機 pose、Depth Anything V3 [58] 估深度、Qwen3-VL-8B-Instruct [103] 產生影片 caption，但這三者是 tool 而非資料集本身。</p>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>SSIM ↑</td><td>生成影格與 ground-truth 之結構相似度</td><td>no</td></tr><tr><td>LPIPS ↓</td><td>生成影格與 GT 的 perceptual distance</td><td>no</td></tr><tr><td>FID ↓</td><td>生成影格 vs. 真實影格的分布距離</td><td>no</td></tr><tr><td>Subjective Quality ↑（WorldScore [18]）</td><td>人類感知品質分數</td><td>yes</td></tr><tr><td>Style Consistency ↑（WorldScore）</td><td>第一張與最後一張 frame 的視覺漂移程度，直接衡量 anti-drifting</td><td>yes</td></tr><tr><td>Camera Controllability ↑（WorldScore）</td><td>生成影片是否準確跟隨指定相機軌跡</td><td>yes</td></tr><tr><td>Reprojection Error ↓</td><td>用 SLAM [35] 重新估深度後計算 reprojection error，衡量 3D 一致性</td><td>yes</td></tr><tr><td>LPIPS-G ↓（3D scene 評測）</td><td>從重建 3DGS 渲染的 novel view 與 GT frame 的 LPIPS，衡量整體重建品質</td><td>yes</td></tr><tr><td>LPIPS-P ↓（3D scene 評測）</td><td>從重建 3DGS 渲染的 novel view 與「生成的 video frame」之間的 LPIPS，量化 video 本身的 3D 一致性</td><td>yes</td></tr></tbody></table>
+<p>論文的核心主張是長軌跡 3D 一致性 + anti-drifting，因此 Style Consistency、Camera Controllability、Reprojection Error、以及 3D 評測中的 LPIPS-G / LPIPS-P 是 main claim 直接依賴的 headline metrics；Subjective Quality 則作為人類感知層面的 headline。SSIM/LPIPS/FID 為標準 sanity 指標。</p>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li><strong>Hardware</strong>：64 顆 NVIDIA GB200 GPU（Appendix A.2）。</li><li><strong>Backbone</strong>：Wan 2.1-14B DiT [107]，VAE 8× 空間、4× 時間下採樣，latent channel $C=16$（Appendix A.1）。</li><li><strong>Resolution</strong>：832×480（Appendix A.1）。</li><li><strong>Batch size / iterations</strong>：global batch size 64，訓練 7,000 iterations（Appendix A.2）。</li><li><strong>Optimizer / LR</strong>：AdamW [68]、learning rate $3 \times 10^{-5}$、weight decay 0.1、bf16 mixed precision（Appendix A.2）。</li><li><strong>Flow matching schedule</strong>：訓練時 timestep 取 logit-normal（mean 0, std 1）、uniform time weighting；推論用 FlowUniPC [140] 35 步（Appendix A.2）。</li><li><strong>Self-augmentation</strong>：擾動機率 $p_{\text{aug}}=0.7$，$t \sim \mathcal{U}(0, 0.5)$（§4.3、Appendix A.2）。</li><li><strong>Spatial memory</strong>：每步 retrieve $N_s=5$ 張 history frame，3D cache 點雲下採樣 factor $d=8$，可見性遮擋閾值 $\delta=0.1$（normalized depth）（Appendix A.2）。</li><li><strong>Paired data 取樣</strong>：30% I2V 模式（從單張 frame 生 80 frames），70% autoregressive chunk 模式，segment 長度 $L=80$（§5.1）。</li><li><strong>Inference</strong>：text prompt 採 CFG scale 5.0；單個 autoregressive step（80 frames）在單顆 GB200 上 full model（35 步 + CFG）約 194 秒；DMD 蒸餾版（4 步、無 CFG）約 15 秒，spatial memory retrieval 兩種設定皆 &lt; 1 秒（Appendix A.3）。</li><li><strong>3D reconstruction</strong>：Gaussian DPT head 下採樣 factor $k=2$（每 pixel Gaussian 數縮 4×）；DAv3 在自動生成的 3,000 段一分鐘影片上 fine-tune 10,000 iterations，learning rate $5 \times 10^{-5}$、batch size 8（Appendix A.4）。</li><li><strong>Seeds / variance</strong>：the paper does not specify。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>Long video generation（Table 1，Tanks-and-Temples，OOD）：</p>
+<table><thead><tr><th>Method</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>FID ↓</th><th>Subj. Qual. ↑</th><th>Style Consist. ↑</th><th>Camera Ctrl. ↑</th><th>Reproj. Err. ↓</th><th>Notes</th></tr></thead><tbody><tr><td>GEN3C [81]</td><td>0.350</td><td>0.589</td><td>79.07</td><td>21.75</td><td>75.54</td><td><strong>70.91</strong></td><td><strong>0.054</strong></td><td>depth-warp 條件嚴格，Camera Ctrl 最佳但生成品質低</td></tr><tr><td>Yume-1.5 [70]</td><td>0.348</td><td>0.702</td><td>89.69</td><td>28.68</td><td>78.63</td><td>–</td><td>0.083</td><td>純 FramePack 時序記憶</td></tr><tr><td>CaM [128]</td><td>0.367</td><td>0.605</td><td>59.20</td><td>34.22</td><td>82.83</td><td>31.86</td><td>0.056</td><td>多視角 history，Camera Ctrl 弱</td></tr><tr><td>VMem [51]</td><td>0.338</td><td>0.767</td><td>136.48</td><td>16.21</td><td>70.54</td><td>0.00</td><td>0.263</td><td>長軌跡明顯崩壞</td></tr><tr><td>SPMem [117]</td><td>0.383</td><td>0.571</td><td>60.11</td><td>34.41</td><td>79.68</td><td>45.07</td><td>0.059</td><td>全域點雲累積誤差導致 drifting</td></tr><tr><td>HY-WorldPlay [37]</td><td>0.380</td><td>0.796</td><td>163.54</td><td>3.24</td><td>48.22</td><td>–</td><td>0.084</td><td>discrete action，無顯式相機軌跡</td></tr><tr><td><strong>Ours (35-step)</strong></td><td><strong>0.384</strong></td><td><strong>0.552</strong></td><td><strong>51.33</strong></td><td><strong>43.35</strong></td><td><strong>85.07</strong></td><td>63.87</td><td>0.069</td><td>在 7 項指標中 5 項最佳；Camera Ctrl/Reproj. 略遜於 GEN3C</td></tr><tr><td>Ours DMD (4-step)</td><td>0.362</td><td>0.545</td><td><strong>49.71</strong></td><td>43.02</td><td>78.91</td><td>58.12</td><td>0.077</td><td>蒸餾版，per-frame 品質持平、Camera Ctrl 略降</td></tr></tbody></table>
+<p>3D scene generation（Table 2，Tanks-and-Temples）：</p>
+<table><thead><tr><th>Method</th><th>LPIPS-P ↓</th><th>LPIPS-G ↓</th><th>FID ↓</th><th>Subj. Qual. ↑</th></tr></thead><tbody><tr><td>GEN3C + DAv3</td><td>0.511</td><td>0.694</td><td>125.19</td><td>5.38</td></tr><tr><td>Yume-1.5 + DAv3</td><td>0.575</td><td>0.794</td><td>113.25</td><td>0.79</td></tr><tr><td>CaM + DAv3</td><td>0.423</td><td>0.693</td><td>94.02</td><td>9.79</td></tr><tr><td>VMem + DAv3</td><td>0.597</td><td>0.832</td><td>211.72</td><td>3.76</td></tr><tr><td>SPMem + DAv3</td><td>0.412</td><td>0.666</td><td>94.11</td><td>9.95</td></tr><tr><td>Ours + DAv3</td><td>0.409</td><td>0.648</td><td>79.36</td><td>14.42</td></tr><tr><td><strong>Ours Full (DAv3 fine-tuned)</strong></td><td><strong>0.372</strong></td><td><strong>0.629</strong></td><td><strong>72.47</strong></td><td><strong>18.80</strong></td></tr></tbody></table>
+<p>DL3DV（in-domain）的相對排序與上述一致，Ours 在 long-video 與 3D-scene 兩張表的所有非 GEN3C 指標皆為第一；GEN3C 僅在 Camera Ctrl 與 Reprojection Error 上勝出，但代價是生成品質顯著下降。Ours Full 一致優於 Ours + DAv3，驗證在生成資料上 fine-tune 重建模型的價值。</p>
+<p>與 short-video 路線（Lyra [2]、FantasyWorld [14]）僅有 Fig. 5 的定性比較，論文宣稱本方法產生的場景在尺度與複雜度上明顯更大。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<p>在 Tanks-and-Temples 上做（Table 3，與 Ours = 0.384/0.552/51.33/43.35/85.07/63.87/0.069 相比；指標順序：SSIM/LPIPS/FID/Subj.Qual./Style/Camera/Reproj.）：</p>
+<ul><li><strong>w/ Global Point Cloud</strong>（把 per-frame 3D cache + correspondence 換成單一全域點雲渲染條件）：Camera Ctrl 從 63.87 → 49.86，Style Consist. 85.07 → 82.42。直接驗證「per-frame 幾何只做 routing、不融合成全域點雲」這個核心設計：累積深度誤差會污染條件訊號。<strong>屬於 diagnostic ablation</strong>。</li><li><strong>w/ Explicit Corr. Fusion</strong>（將 learned MLP aggregation 換成基於深度推理的硬幾何融合）：Camera Ctrl 63.87 → 57.29。直接針對 §4.2 中「為何要用 learned aggregation 而非 hard fusion」的設計提問，<strong>diagnostic</strong>。</li><li><strong>w/o FramePack</strong>（移除 temporal slot 壓縮）：Style Consist. 85.07 → 80.61，Reproj. Err. 0.069 → 0.079。對應 §3 / §4.3 的 anti-drifting 路徑，<strong>diagnostic</strong>。</li><li><strong>w/o Self-Augmentation</strong>（移除 §4.3 自我增廣訓練）：Style Consist. 85.07 → 77.98、Camera Ctrl 63.87 → 53.92，但 per-frame Subj. Qual. 反而 43.35 → 47.88。這是論文最具洞察性的 ablation——直接揭露 train/test discrepancy 的存在：拿掉它會讓單張畫面更乾淨但長軌跡崩潰，<strong>強 diagnostic</strong>。</li></ul>
+<p>額外 design 分析：Appendix Fig. 9 對 spatial slot 數量 $N_s$ 做 coverage 曲線並選定 $N_s=5$；雖屬 hyperparameter sweep 但帶有 design-choice 性質。</p>
+<p>整體看，四個主 ablation 都對應到方法 §4.2、§4.3 的具體機制，沒有出現「拿掉 VAE / 拿掉 prompt」這類 sanity-check 風格的設計；可視為良好的 diagnostic 集合。<strong>唯一缺漏</strong>：沒有單獨拆分 Plücker ray injection vs. depth-warped conditioning 的貢獻（§3 與 Appendix A.1 把兩者並列為兩個互補模組），也沒有單獨拆分 canonical coordinate warping 與 retrieved RGB slots 的貢獻（雖然 §4.2 解釋為何只 warp coordinates 而非 RGB，但無對照數值）。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline — 與 GEN3C、SPMem、CaM、VMem、Yume-1.5、HY-WorldPlay 等近期 / 並行（concurrent）camera-controlled long-video 方法直接比較（Table 1, §5.2）。</li><li>[partial] Has cross-task / cross-dataset evaluation — 涵蓋 long-video generation 與 3D-scene generation 兩個 task，並在 DL3DV（in-domain）與 Tanks-and-Temples（OOD）兩個資料集上評測；但兩個資料集都是 real-world 室外/場景視訊類別，沒有跨到合成、indoor-only、driving 等顯著不同 domain。</li><li>[covered] Has ablations that diagnose the new components — Table 3 四項 ablation 直接針對 per-frame cache、learned correspondence aggregation、FramePack、self-augmentation 四個方法貢獻，皆為 diagnostic 而非 sanity check。</li><li>[partial] Has a scaling study — Appendix Fig. 9 對 spatial slot 數量 $N_s$ 做 coverage / 效率曲線，可視為 capacity scaling；但沒有對 backbone 大小、訓練步數、軌跡長度做完整 scaling laws 分析。</li><li>[partial] Has an efficiency / wall-clock comparison — Appendix A.3 報告 full model 每 step 194s、DMD 版 15s（單顆 GB200），且 Table 1 同時列出 35-step 與 4-step 版本品質權衡；但沒有與 baseline（GEN3C、CaM、SPMem 等）逐一 wall-clock 對比。</li><li>[missing] Reports variance / standard deviation / multiple seeds — Tables 1–3 全為單一數字，未見 seed mean±std 或信賴區間；the paper does not specify seed protocol。</li><li>[missing] Releases code / weights / data sufficient for reproducibility — 論文僅提供 project page URL（封面 <code>research.nvidia.com/labs/sil/lyra2/</code>），正文未承諾釋出 code、weights 或 fine-tune 資料；CaM 與 SPMem 因「not open-sourced」需 Wan2.1-14B 自行重實作，反映此領域 reproducibility 普遍偏弱。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1：per-frame 3D cache + geometry-aware retrieval 解 spatial forgetting。</strong> 部分支持。Tab. 3（p. 13）顯示改成 global point cloud 會把 Camera Ctrl. 從 63.87 拉低到 49.86、Style Consist. 從 85.07 拉低到 82.42，確實有效；但「revisit consistency」這個 spatial forgetting 最直接的衡量並未獨立報告（沒有 lookback-only 或 long-gap revisit 的子指標），論文以聚合指標代之。</li><li><strong>Claim 2：self-augmentation 解 temporal drifting。</strong> 部分支持。Tab. 3 顯示移除後 Style Consist. 從 85.07 跌到 77.98、Reproj. Err. 從 0.069 升到 0.066（其實此項變好，反映 one-step error 對純幾何不必然壞）。但 per-frame Subj. Qual. 反而變好（47.88 vs 43.35），意味 anti-drift 是以單影格品質換 long-range stability，這層 trade-off 未被論文承認。</li><li><strong>Claim 3：feed-forward 3DGS 容忍生成瑕疵。</strong> 支持，但有自我循環。Tab. 2（p. 11）Ours Full &gt; Ours + DAv3 是穩定的，但提升相當部分來自把 DAv3 fine-tune 在自家生成 3,000 條 video 上（A.4, p. 17），等於 reconstruction 端的領域自適應，並非 reconstruction 模型本身的普適進步。</li><li><strong>Claim 4：long-horizon 3D-consistent generation 與跨房間 / 跨街區 lookback 探索。</strong> 部分支持。Fig. 1、Fig. 8 的定性結果具說服力，Tab. 1 / Tab. 2 的 Style Consist. 與 Subj. Qual. 也優於 baseline；但最直接的多視角幾何一致性 Reproj. Err. 仍輸給 GEN3C（Tab. 1, p. 9），意味「3D-consistent」目前是視覺風格 / FoV-overlap consistency，而非嚴格幾何 consistency。</li><li><strong>Claim 5：端到端可匯出 3DGS 與 mesh，做 embodied AI 模擬。</strong> 支持，作為系統論文成立。Fig. 7（p. 14）展示 NVIDIA Isaac Sim 整合，但「可用於 robot simulation」的下游品質（碰撞、可導航性）並未量化，僅有定性截圖。</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Per-frame cache 的 noisy proxy 仍會隨視野擴張退化。</strong> 論文以「不 fuse 成 global point cloud」迴避累積誤差，但每張歷史影格的 depth 本身來自 generated frame 上的 DAv3 估計（§4.2, p. 6），生成品質下降會直接污染該影格的 retrieval / correspondence 精度。當探索路徑遠離 anchor、新區域 depth 估計品質下降時，retrieval 的 visibility score 與 canonical coord warping 都會同步退化 — 論文沒有一個機制能阻斷這條退化鏈，只是把它從 cross-frame 換成 per-frame。</p>
+<p><strong>Decoupling 假設 generative prior 能仲裁多視角衝突，但無顯式仲裁機制。</strong> Spatial slots 把 $N_s = 5$ 張歷史影格塞進 attention，依賴 self-attention 隱式選擇可信來源（§4.2, p. 7）。當 retrieved frames 在 overlap 區域顯示衝突外觀（很常見，特別是 lookback 跨數百幀後），DiT 並無顯式 vote 或 confidence 訊號 — 它只能由 canonical coord 對得最齊的那張主導。這是個結構性的依賴 prior 行為的「希望它合理」設計。</p>
+<p><strong>Self-augmentation 是 one-step 近似，inference 卻是 multi-step 迭代。</strong> Eq. 4–5（p. 8）以 $t \sim \mathcal{U}(0, 0.5)$ 取一次 denoise 來模擬 history 雜訊，但實際 autoregressive inference 中歷史 latent 是 35 step 完整 denoising 後再餵給下一段 — 兩者的誤差統計差異有多大從未檢驗。Self-Forcing [36] 之所以選擇完整 rollout，正是要對齊這個 distribution；本方法把成本壓到單次 forward 後，仍假設「single-step 與 multi-step 失真的方向一致」，這在大幅 viewpoint change 時不見得成立。</p>
+<p><strong>Reconstruction 與 generator 在自家資料上聯動 fine-tune，造成系統內一致但封閉。</strong> A.4（p. 17）顯示 DAv3 在 3,000 條本系統生成的 video 上 fine-tune 10,000 iter — 這把 reconstruction 端 specialise 成只擅長處理本 generator 的瑕疵分布。直接後果：(a) 用其他 video diffusion 模型替換時無法直接 plug-in；(b) Tab. 2 的 baselines 都用 vanilla DAv3 與 Ours + DAv3 平比，但 Ours Full 的勝出有相當比例來自重建端的領域自適應而非生成端真正更好。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[36] Self-Forcing</strong>（Huang et al., 2025）— 本文 anti-drift 的直接概念前身，理解兩者在 causal vs bi-directional、multi-step vs one-step 上的差異，是判斷 self-augmentation 是否實質前進的關鍵。</li><li><strong>[107] Wan 2.1</strong>（Wan et al., 2025）— Lyra 2.0 的 base DiT 與 VAE 都源自此模型，整套系統的 ceiling 由這個 prior 決定，建議讀其 architecture 與 training data 細節。</li><li><strong>[135] FramePack</strong>（Zhang, 2025）— 論文沿用其 variable patchification 的 anchor + temporal slots 設計，連 anti-drift 的 anchor 論述也來自它，是理解 §3 與 §4.3 起點的必讀。</li><li><strong>[58] Depth Anything v3</strong>（Lin et al., 2025）— 同時擔任 depth estimator（影響 cache 品質）與 3DGS reconstruction backbone，整個 pipeline 兩端都靠它，其失敗模式直接決定 Lyra 2.0 的失敗模式。</li><li><strong>[51] VMem</strong>（Li et al., 2025）— 唯一的 surfel-indexed geometry-aware retrieval baseline，但 Tab. 1 表現極差（Camera Ctrl. 在 T&amp;T 為 0.00），值得讀原文判斷是 method 缺陷還是 reproduction 落差。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 dynamic scenes（行人、車輛、樹葉）下，per-frame 3D cache 因隱含 static-world 假設而失效時，retrieval 的 visibility score 還具備幾何意義嗎？退化模式是 graceful 還是 catastrophic？</li><li>[ ] $p_{\text{aug}} = 0.7$ 與 $t \sim \mathcal{U}(0, 0.5)$ 的選擇是依據 grid search 還是 heuristic？對 long-horizon Style Consistency 與 short-clip per-frame quality 的敏感度曲線為何？</li><li>[ ] Reprojection Error 上輸給 GEN3C 是否說明「視覺一致」與「幾何一致」在本方法中已分離？是否有 multi-view stereo / SfM-only 指標可以直接驗證？</li><li>[ ] Ours Full vs Ours + DAv3 的差距，有多少來自 reconstruction 端對自家分布 overfit、又有多少來自 generation 端真的更 3D-consistent？拿其他 video 生成器配 fine-tuned DAv3 能驗證這個拆分。</li><li>[ ] Self-augmentation 與完整 Self-Forcing rollout 在 same compute budget 下的對比為何？bi-directional 模型用 multi-step rollout 是否值得它的計算成本？</li><li>[ ] 系統可 scale 到多大？論文宣稱 ~90 米，但 trajectory length 與 cache size 的記憶體 / 檢索成本曲線、以及 90 米後的退化模式都未報告。</li><li>[ ] 訓練只跑 7,000 iter 是 compute budget 限制還是 loss plateau 觀察？再加 5–10× iteration 是否能把 Reproj. Err. 拉到與 GEN3C 同一水準？</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>加入嚴格幾何指標並對 GEN3C 做誠實對照</strong>（最高可行性）。重跑既有 baseline，把 Reprojection Error、ATE / RPE、multi-view consistency loss 等 geometry-only 指標納入主表，明確標示在哪些幾何指標上仍輸給 explicit-warping 法。理由：當前主表用 SSIM / LPIPS / FID 等 appearance-biased 指標主導，掩蓋了 explicit geometric supervision 的優勢，誠實對照能讓貢獻定位更精確。</li><li><strong>Self-augmentation 的 timestep / probability sensitivity sweep</strong>（高可行性）。對 $p_{\text{aug}} \in \{0.3, 0.5, 0.7, 0.9\}$ 與 $t$ 的不同 range 做小規模消融。理由：one-step 近似 inference 分布是核心方法假設，若沒有敏感度分析支持，因果論證僅停留在「我們發現 0.7 work」。</li><li><strong>把 visibility score 升級為 multi-objective retrieval</strong>（中可行性）。目前 greedy max-coverage 在重疊區域可能選到冗餘 viewpoint；改成 coverage entropy + depth confidence + view-angle diversity 的 weighted objective，可在不增 $N_s$ 的情況下提升 retrieval 多樣性。理由：Tab. 3 顯示 retrieval 的工程細節對 Camera Ctrl. 影響甚大（global cloud 一招就讓 Ctrl. 跌 14 點），代表此處仍有空間。</li><li><strong>Dynamic scenes 上的 small-scale pilot</strong>（中可行性）。把 cache 中的 depth 改為 per-timestamp、加入簡單 motion mask（透過 optical flow 或 generated mask），在 1–2 個 dynamic 子集上呈現退化模式。理由：作者把 dynamic 列為 future work 意味系統對此完全未測；至少給出 baseline 退化曲線，能讓後續工作有起點，也避免「靜態世界生成」的 framing 被誤解為「世界生成」。</li><li><strong>Generator 與 reconstructor 的 joint training</strong>（最大 impact、最高 cost）。把 DAv3 的 fine-tuning 與 video model 訓練放進同一個 loop，讓 generator 直接收到 reconstruction loss 的回饋。理由：目前的兩階段流程（先訓 generator、再 fine-tune DAv3 在 generator 輸出上）是個 implicit overfit 路徑；joint training 可以強迫 generator 產出對 reconstruction 真正友善的 video，而不是只在 LPIPS-P 上看似友善。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

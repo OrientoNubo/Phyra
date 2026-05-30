@@ -1,0 +1,472 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>N3D-VLM — N3D-VLM: Native 3D Grounding Enables Accurate Spatial Reasoning in Vision-Language Models</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-08 | lang: zh-TW --&gt;</p>
+<h1 id="n3d-vlm-n3d-vlm-native-3d-grounding-enables-accurate-spatial-reasoning-in-vision-language-models">N3D-VLM — N3D-VLM: Native 3D Grounding Enables Accurate Spatial Reasoning in Vision-Language Models</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>N3D-VLM</td></tr><tr><td>Paper full title</td><td>N3D-VLM: Native 3D Grounding Enables Accurate Spatial Reasoning in Vision-Language Models</td></tr><tr><td>arXiv ID</td><td>2512.16561</td></tr><tr><td>Release date</td><td>2025-12-18</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2512.16561</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2512.16561v1</td></tr><tr><td>Code link</td><td>—</td></tr><tr><td>Project page</td><td>https://n3d-vlm.github.io</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Yuxin Wang</td><td>HKUST; Tencent AI Lab (intern)</td><td>https://w-ted.github.io/</td><td>first author</td></tr><tr><td>Lei Ke</td><td>Tencent AI Lab</td><td>—</td><td>co-author</td></tr><tr><td>Boqiang Zhang</td><td>Tencent AI Lab</td><td>—</td><td>co-author</td></tr><tr><td>Tianyuan Qu</td><td>Tencent AI Lab; CUHK</td><td>—</td><td>co-author</td></tr><tr><td>Hanxun Yu</td><td>Tencent AI Lab; ZJU</td><td>—</td><td>co-author</td></tr><tr><td>Zhenpeng Huang</td><td>Tencent AI Lab; NJU</td><td>—</td><td>co-author</td></tr><tr><td>Meng Yu</td><td>Tencent AI Lab</td><td>—</td><td>co-author</td></tr><tr><td>Dan Xu</td><td>HKUST</td><td>https://www.danxurgb.net/</td><td>corresponding author</td></tr><tr><td>Dong Yu</td><td>Tencent AI Lab</td><td>—</td><td>senior author</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>vision-language model, 3D grounding, spatial reasoning, monocular depth, chain-of-thought, RGB-D, 3D bounding box, data lifting</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>Qwen2.5-VL [2]</td><td>base model</td><td>Base VLM that N3D-VLM fine-tunes for native 3D grounding and spatial reasoning.</td></tr><tr><td>SpatialRGPT / SpatialRGPT-Bench [8]</td><td>baseline</td><td>Region-level 2D spatial reasoning baseline; its bench is extended into N3D-Bench.</td></tr><tr><td>SpatialVLM [6]</td><td>predecessor</td><td>Single-RGB spatial QA without explicit 3D grounding; motivates native 3D approach.</td></tr><tr><td>SpatialLM [22]</td><td>baseline</td><td>Point-cloud 3D grounding limited to indoor categories; compared on grounding tasks.</td></tr><tr><td>SpatialReasoner [21]</td><td>baseline</td><td>Estimates object position/orientation but lacks size and broad generalization.</td></tr><tr><td>Omni3D [4] / DetAny3D [37]</td><td>predecessor</td><td>Prior single-image 3D detection datasets (~234K/~450K), surpassed by 2.78M lifted set.</td></tr><tr><td>Depth/intrinsics estimator [32]</td><td>influence</td><td>Used to lift 2D boxes into metric 3D and align inference-time depth/coordinate frame.</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本論文聚焦於賦予視覺語言模型 (VLM) 真正的 3D 空間理解能力。作者觀察到現有 VLM 多以 2D 影像為中心,缺乏對深度與物體在 3D 空間中位置/尺寸的內在感知,因而難以回答涉及距離、方位、相對大小等空間推理問題。本研究主張將 3D 空間理解拆解為「3D 物體定位 (grounding)」與「基於定位結果的 3D 空間推理」兩階段,並構建一個統一的 RGB-D 模型 N3D-VLM,以結構化語言直接輸出 3D bounding box (含 u, v, z 與 sx, sy, sz),再以鏈式思考 (CoT) 進行可解釋的幾何運算。為解決 3D 訓練資料稀缺問題,作者透過單目深度估計把大規模 2D 偵測標註提升到 3D,構建 2.78M 樣本資料集與 N3D-Bench 評測集,涵蓋多物體、視角轉換與 CoT 推理。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>computer vision</li><li>vision-language models</li><li>3D scene understanding</li><li>spatial reasoning</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>Qwen2.5-VL</strong>:本研究的基底 VLM,N3D-VLM 在其上進行兩階段微調以加入 native 3D grounding 與 CoT 空間推理能力。</li><li><strong>N3D-VLM (本文提出)</strong>:統一的 RGB-D vision-language 框架,接受 image 與 monocular depth 輸入,直接輸出 metric-scale 3D bounding box 並進行顯式空間推理。</li><li><strong>3D-aware Visual Encoder with Depth-aware Sinusoidal Positional Encoding (本文提出)</strong>:把預測深度 back-project 為 point cloud 後,以 sinusoidal positional encoding 將座標 $(x, y, z)$ 注入 image features,確保 3D 幾何資訊在 token 層級可用。</li><li><strong>Structured-language 3D Bounding Box Representation (本文提出)</strong>:以 <code>bbox(id, class, u, v, z, sx, sy, sz)</code> 的結構化語言格式表示 3D 物體框,使 LLM 能以序列方式輸出可解碼的幾何結果。</li><li><strong>CoT-based Spatial Reasoning Templates (本文提出)</strong>:在 grounded 3D box 之上以模板化幾何步驟 (向量、夾角、時鐘方位) 生成顯式推理鏈,搭配 LLM 重述以提升自然度。</li><li><strong>Monocular Depth &amp; Camera Intrinsics Estimator [32]</strong>:作為資料生成與推論時共享的深度/相機座標來源,確保訓練與推論在同一 metric 座標框架。</li><li><strong>External 2D Segmentation &amp; Tagging Models (SAM-style [24], RAM [38])</strong>:用於 2D-to-3D lifting pipeline,提供物體 mask 與開放詞彙標籤,協助從 COCO/Objects365/OpenImages 構建 2.78M 規模的 3D 標註庫。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者主張現有 VLM 之所以無法穩健地進行 3D 空間推理,根本原因在於模型「沒有原生的 3D 物體感知」: 既有方法要不依賴外部偵測/分割模組提供框,要不假設場景已具備 3D 標註,要不僅以端到端黑箱從 2D 像素直接輸出答案。這類做法導致 (1) 推理過程無法解釋、(2) 在物體類別與場景多樣性上難以泛化、(3) 一旦缺少外部模組或先驗 3D 資訊便完全失效。基於此診斷,作者主張正確解法必須讓 VLM 自身就具備「以文字描述為條件、直接輸出 metric-scale 3D bounding box」的能力,並讓所有空間推理顯式建立在這些 3D 框之上。為使這個目標可實現,他們進一步指出兩個必要條件:其一,3D 訓練資料必須在類別與場景上達到 2D 偵測等級的規模與多樣性,因此採用單目深度模型把 COCO/Objects365/OpenImages 等 2D 標註批次 lift 到 3D,規模達既有單張影像 3D 偵測資料集的六倍以上;其二,推理階段必須與資料生成階段共享同一個深度/相機座標系,因此模型在輸入端引入 depth-aware sinusoidal positional encoding,將 back-project 後的點雲座標注入影像特徵,確保預測的 3D 框落在一致的 metric 座標框架。最後,以 CoT 模板生成顯式幾何步驟 (向量、夾角、時鐘方位等),把空間推理從不可解釋的端到端輸出,轉為以 3D 框為基礎的可驗證計算,從而在邏輯上完整封閉「原生 3D 感知 → 顯式 3D 推理」這條鏈路。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(245 words)</p>
+<p>標題「N3D-VLM: Native 3D Grounding Enables Accurate Spatial Reasoning in Vision-Language Models」直接點明全文兩個耦合命題：(1) 把 3D grounding「原生」放進 VLM 內部；(2) 這個能力能解鎖 accurate spatial reasoning。標題刻意把 native 3D grounding 設為原因、把 spatial reasoning 設為結果，預告全文的因果敘事——並非把 grounding 當輔助任務，而是把它當作 reasoning 的前置基礎。</p>
+<p>Abstract 接著把這個因果敘事展開成四段論述。第一句先建立問題：當前 multimodal model 雖能基於 2D image 回答問題，但缺乏 intrinsic 3D object perception，導致無法理解 spatial relationship 與 depth cue。第二句宣告解法：N3D-VLM 是一個 unified framework，把 native 3D object perception 與 3D-aware visual reasoning 整合在同一模型中。第三句點出與 conventional end-to-end 模型的關鍵差異——後者直接從 RGB/RGB-D 輸出答案，而 N3D-VLM 先用 textual description 在 3D 空間中 localize objects、再 explicitly reason，因此提供 interpretable 與 structured 的空間理解。</p>
+<p>第四段則指出 enabling factor 是資料：作者建立 scalable data construction pipeline，用 depth estimation 把大規模 2D annotation lift 到 3D，產生比目前最大 single-image 3D detection dataset 多六倍的訓練資料，同時生成 CoT-oriented spatial QA。最後一句以 SOTA 作為承諾：在 3D grounding 與 3D spatial reasoning 兩類任務上同時超越既有方法。Abstract 因此為後續章節鋪設了三條主線——unified architecture、data lifting pipeline、雙任務 SOTA——讀者進入 §1 時已知道每一節各自要驗證哪一條主線。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(720 words)</p>
+<p>Introduction 採取「問題—文獻不足—觀念重構—解法—資料挑戰—貢獻」的六段式結構，把 abstract 的承諾展開為論證鏈。第一段從 VLM 的 2D 多模態能力切入，指出 real-world application 需要更深的 3D 結構與 spatial relationship 理解，而 effective 3D spatial reasoning 必須以 object-level 3D perception 為前提；缺少它，模型就無法 infer spatial configuration 或推理物理環境。這一段把「邁向真正多模態智慧」綁定到「具備 robust 3D 能力」上，建立任務動機。</p>
+<p>第二段審視既有 specialized VLM 的三條路線：依賴 external perception model 取得 2D/3D box 或 mask、假設 3D box 或 spatial layout 已知、或讓 VLM 直接在 point cloud 中定位。作者指出三者共同弱點——侷限於有限類別的受限場景、依賴外部模組或預設空間資訊、且不支援 explicit spatial reasoning，因此難以泛化或整合進 unified VLM。</p>
+<p>第三段是全文的觀念樞紐：作者主張 3D spatial understanding 應分解為 3D object localization 與 subsequent 3D spatial reasoning 兩個 core ability，並把 explicit 3D object perception 設為 reasoning 的 critical foundation。這個分解直接解釋了後文為何採用 grounding-then-reasoning 的兩階段設計，也解釋為何 grounded 3D bounding box 能同時提升 accuracy 與 interpretability。</p>
+<p>第四段把分解落實到 N3D-VLM 設計：一個整合 3D detection、grounding 與 CoT reasoning 的 unified VLM，能直接 localize 物件、捕捉 depth cue，並在 grounding 結果上進行 inter-object distance 計算或 relative size 比較。作者特別與 SpatialLadder、SpatialReasoner 等 recent work 切割——後者只用 3D coordinate 或 2D grounding data 輔助理解，而 N3D-VLM 預測 comprehensive 3D bounding box，使 reasoning 更 generalizable 與 interpretable。</p>
+<p>第五段轉向 enabling factor：3D 訓練資料稀缺。indoor 與 autonomous driving 的既有資料集 diversity、scale、category 都不足；相對地 2D detection 資料集場景與類別豐富。這一段為 §3.1 的 data lifting pipeline 鋪路。</p>
+<p>第六段承諾解法：用 depth 與 camera estimation model lift 2D annotation 到 3D，並建構 spatial QA dataset 監督 CoT reasoning；同時為了確保 3D 輸出的 real-world scale 與 camera geometry 一致，data construction 與訓練使用同一 depth model，並導入 depth-aware positional encoding 注入 explicit depth cue。</p>
+<p>第七段以三條 contribution 收束：unified RGB-D 模型具備 native 3D detection/grounding、data construction pipeline 把 2D 標註 lift 至 3D、以及 N3D-Bench 涵蓋 single/multi-object 與 explicit reasoning process 的 benchmark。Introduction 因此完整鋪好後續章節閱讀路徑：§2 對應第二段的文獻定位、§3.1 對應第五至六段的資料解法、§3.2 對應第四段的架構解法、§3.3 對應第七條 benchmark 貢獻、§4 則驗證所有 claim。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(580 words)</p>
+<p>Related Work 分成 §2.1「VLM for 3D Spatial Understanding」與 §2.2「VLM for 3D Object Localization」兩節，刻意對應 §1 第三段的「localization + reasoning」二分。這個切分讓讀者立刻看出 N3D-VLM 想同時補上的兩個缺口：既有 spatial reasoning 工作缺 explicit 3D grounding，既有 3D grounding 工作缺 reasoning。</p>
+<p>§2.1 把現有 spatial understanding 工作分為兩條技術路徑。第一條使用 point cloud、video、RGB/RGB-D 等 3D 或近 3D modality：GPT4Scene 從 point cloud 生成 object-marked image 加上 BEV 進行 3D captioning 與 QA、Think-in-Space 支援 multiple-choice route planning 與 relative distance reasoning。作者批評它們依賴額外的 3D 資訊或 object-level annotation，且通常侷限於 indoor environment。第二條從純 2D input 推理 spatial relation：SpatialVLM 處理 left/right/front/behind 等 single-image QA、SpatialRGPT 進一步支援 region-level reasoning。但這條路徑要不是 black-box end-to-end，要不就需要 external module 做 region localization，缺乏 explicit 3D 空間理解。這兩條批評共同指向同一個結論：不管是否使用 3D modality，現有方法都沒有把 3D grounding 顯式整合進 reasoning chain。</p>
+<p>§2.2 處理 3D visual grounding 文獻。VLM-Grounder 透過 2D segmentation、multi-view matching 與 ensemble projection 在 video frame 上 localize 3D 物件；SeeGround 在已知 object position 的 view 下進行 3D grounding。這些方法依賴 external segmentation tool 或預先給定的 object-level information。SpatialLM 從 point cloud 預測 3D bounding box，但限於 indoor scene 的小類別集合且不支援 grounding 之外的 reasoning。SpatialReasoner 加入 object position 與 orientation 估計，但場景受限、不捕捉 object size、泛化能力差。</p>
+<p>兩節文獻評析最後共同收束到 N3D-VLM 的差異化定位：模型 generalize 到多樣場景、輸出包含完整尺寸與位置的 full 3D bounding box，並同時支援 3D detection、3D grounding 與 downstream spatial reasoning。</p>
+<p>值得注意的是，作者把 §3 The Proposed Framework 的開頭也納為 preliminaries 角色——它先用 (I, D) 形式化輸入、再說明 depth map D 可由 monocular depth estimation model 取得，並把 framework 拆成 data construction (Fig. 2) 與 model design with training/evaluation (Fig. 3) 兩大組件。這段定位文字其實是 Related Work 與 Method 之間的橋：它接住 §2 對「需要 unified、generalizable、grounding-driven reasoning」的批評，同時為 §3.1 的 data pipeline 與 §3.2 的 model architecture 設好討論順序——先解決 data scarcity，再談如何把 3D 線索注入 VLM。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(1500 words)</p>
+<p>§3 整體採取「資料先行、架構次之、benchmark 收尾」的三段敘事。這個排序不是隨意的——它對應 §1 第五至六段的觀察「3D capability 的瓶頸首先是資料」，因此在解釋 model architecture 之前，先說服讀者作者已建立可支撐訓練的 3D 標註基礎。</p>
+<p>§3.1 是整章佔篇幅最大的子節，分三步走。第一步「3D Detection Annotation Repository」說明 lifting pipeline：對 2D 標註的 image 取得 SAM2-style segmentation mask 與 monocular depth、把 depth back-project 成 camera-space point cloud、再結合 category 與 mask 推得 3D bounding box，並用 rule-based filter 移除 outlier 與不合理大小的 box。作者特別量化貢獻——2.78M 樣本，比 Omni3D 約 234K 與 DetAny3D 約 450K 大六倍以上——並列出三個來源 COCO、OpenImages、Objects365；對 OpenImages box 數較少的問題用 RAM 重新偵測補齊。第二步「Generation of 3D Localization Data」介紹 structured language 表示：每個 box 編碼為 <code>bbox(id, class, u, v, z, sx, sy, sz)</code>，其中 $(u, v)$ 是 3D 中心在 image plane 的投影、$z$ 為 depth、$s_x, s_y, s_z$ 為三軸尺寸；給定 camera intrinsics，$(u, v, z)$ 與 $(x, y, z)$ 可雙向轉換。Detection QA 直接由標註生成；grounding QA 採三策略——選取 category-unique 物件、處理多 instance 同類別物件（如 &quot;Locate all the boys&quot;）、以及對難以用 category 描述者改用 referring expression 或在 image 上渲染 2D box。第三步「Generation of 3D Spatial Reasoning Data」說明如何在 3D detection repository 上隨機取樣物件、套用 predefined template、產生包含確定性數值計算的 reasoning chain，再以 LLM rephrase 提升自然度。問題類型 follow SpatialRGPT 涵蓋相對 scale、spatial relation、absolute distance、clock direction、object dimension，並擴展到三個或更多物件的 multi-object reasoning。Fig. 2 中 boy/stroller 的 clock-direction 範例展示完整 reasoning chain：取出兩物件 3D 中心、計算 xz-plane 向量、求出與 positive x-axis 的夾角、再轉成 clock position。</p>
+<p>§3.2 闡述 model architecture，分兩個重點。「3D-aware Visual Encoding」先解釋為何採用 [32] 的 depth estimation model——它同時預測 depth map 與 camera intrinsics，保證所有預測 3D box 落在 metric scale 與一致的 coordinate system。隨後給出 fusion pipeline：先把每個像素 back-project 為 camera coordinate $P_{ij} = D_{ij} \cdot \text{intr}^{-1} \cdot [u_j, v_i, 1]^T$，得到 dense point cloud $P \in \mathbb{R}^{H \times W \times 3}$，再 downsample 到 $\hat{P} \in \mathbb{R}^{h \times w \times 3}$ 對齊 image feature $F_{img}$ 的空間解析度。對每個 3D 座標 $(x, y, z)$，沿三軸分別套用 sinusoidal positional encoding，再求和得到 $e_{coord} = \sum_{k \in \{x, y, z\}} \text{PE}(k)$，最後加到 image feature 上 $\tilde{F}_{img} = F_{img} + e_{coord}$。融合後 feature map 連同 prompt token 進入 LLM 進行 autoregressive prediction。「Training Strategy and Inference Pipeline」說明以 Qwen2.5-VL 為 base 進行兩階段訓練：第一階段訓 3D object localization、第二階段以 spatial reasoning 與部分 localization data 混合訓練 grounding-based reasoning，encoder 與 LLM 全參數 learnable。Inference 提供兩種模式——直接問空間問題讓模型自動分解為 grounding + reasoning，或先 explicit request grounding 再 follow-up 問題。</p>
+<p>§3.3 補上 N3D-Bench 作為評估配套。作者批評現有 benchmark 場景與類別範圍狹窄，因此手動 curate 1,200 open-ended 與 800 numerical 含 CoT reasoning 的問題。Tab. 1 對比 SpatialRGPT-Bench：問題量從 1,406 提升到 2,000、object category 從 88 擴到 264（三倍）、物件數從 $\{1, 2\}$ 擴到 $\{1, 2, 3, &gt;3\}$、新增 view change 與 explicit CoT reasoning 兩個維度。這節同時為 §4 的 N3D-Bench 結果做鋪墊，並讓讀者知道作者的評估難度設計超越既有 benchmark。整體來看，§3 透過 data → architecture → benchmark 的順序，把 §1 第三段的 localization+reasoning 二分論述完整落地，每個子節各自回應一個 §1 中提出的挑戰。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(1100 words)</p>
+<p>§4 採取「setup → main results → ablation → causal mechanism」的標準 experiments 敘事，但在排序上刻意把 4.4 「3D Grounding Helps Spatial Reasoning」放在最後，作為對全篇核心 claim 的因果驗證。</p>
+<p>§4.1 Experimental Setup 同時說明資料、metric 與三個 benchmark 的角色分工。訓練資料來自 §3.1 的 OpenImages、Objects365、COCO 三個來源衍生的 3D localization 與 spatial reasoning 集合。評估則設計三個 benchmark 對應不同維度：N3D-Bench 是作者自建的 multi-object、CoT、view-change benchmark；SpatialRGPT-Bench 涵蓋 1,404 open-ended 與 numerical 題、確認與既有評測一致；CV-Bench-3D 提供 1,200 multiple-choice 題、檢驗 multiple-choice format 下的泛化。3D grounding 用 RefCOCO 系列加上額外 Objects365 test set。Metric 上，spatial reasoning 對 open-ended 用 GPT-4o LLM-as-a-judge、numerical 用 ±25% tolerance string matching；grounding 同時報 projected IoU/center offset（將 3D box 投影到 image plane）與 3D IoU/3D offset（depth-aligned 後計算），3D metric 因 alignment noise 限定在 sampled subset。為了 fair comparison，除 SpatialRGPT 外所有方法在 SpatialRGPT-Bench 都以 image 上的 box 提供 object reference。</p>
+<p>§4.2 Main Results 同時包含 spatial QA 與 grounding 兩類成果。在 spatial QA（Tab. 2）上，N3D-VLM-7B 在所有 benchmark 都拿下最高 accuracy。作者用兩個對比強化敘事：相對 base model Qwen2.5-VL-7B 提升明顯，特別在 numerical 題上，顯示 grounding-based reasoning 突破標準 QA 的數值理解上限；相對更新的 Qwen3-VL，雖然後者在 spatial reasoning 上勝過 Qwen2.5-VL，但 numerical 仍卡在 36.3% 與 40.7%，而 N3D-VLM 跑到 92.1% 與 78.0%。即使是 numerical 較強的 SpatialRGPT，在 N3D-Bench 上也只有 50.4%、仍遠落後 92.1%。在 3D object grounding（Tab. 3、Tab. 4、Fig. 4）上，N3D-VLM-7B 在 RefCOCO/+/g 與 Objects365 的 projected IoU/offset 全面領先 Qwen3-VL-8B 與 Qwen3-VL-30B-A3B；3D IoU 從 Qwen3-VL-30B 的 0.27 提升到 0.48、3D offset 從 1.86 降到 0.36。Fig. 4 的 qualitative 比較橫跨 indoor 與 outdoor 多樣場景，補強 grounding 泛化性的 claim。</p>
+<p>§4.3 Ablation Study on Model Design 在 Objects365 5,565 image、341 class 的 validation set 上跑 3D detection F1@0.25。Tab. 5 列五個變體：(0) SpatialLM 原架構在 diverse point cloud 上崩盤（F1 2.2），暴露 point-cloud-encoder 路線的泛化問題；(1) 拿掉 depth input 的 3B 模型 F1 9.4；(2) 採 camera-space xy 預測 F1 10.8；(3) 採 image-space uv 預測 F1 12.8；(4) 把訓練量從 340K 擴到 1.7M 後 F1 跳到 22.9。三組對比分別驗證三個 design choice：(1)→(3) 顯示 depth input 帶來 +3.4 F1、(2)→(3) 顯示 image-space uv 優於 camera-space xy（作者解釋這是因為 base model 的 2D perception pretraining 與 image space 自然對齊）、(3)→(4) 顯示資料規模化貢獻最大、提升 +10.1 F1，回扣 §3.1 data pipeline 的價值。</p>
+<p>§4.4 是全章敘事高潮：兩個實驗證明 native 3D grounding 顯式提升 spatial reasoning。第一個實驗把 N3D-VLM 的 grounding 結果餵給 Qwen3-VL，open-ended 從 66.3 升到 71.3（+7.5%）、numerical 從 36.3 升到 54.6（+50.4%），證明 grounding 對 reasoning 確實有正向因果效應；但 71.3 與 54.6 仍低於 N3D-VLM-7B 的 89.7 與 92.1，顯示作者模型不只受惠於 grounding，本身的 reasoning 能力也經過訓練。第二個實驗保留同一架構但 end-to-end 訓 QA，得到 80.6 與 62.4，仍低於 89.7 與 92.1，證明把 grounding 與 reasoning explicit 分開比 implicit 端對端更有效。兩實驗合起來把 §1 「localization + reasoning」二分論述從架構主張推進到 causal evidence。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(105 words)</p>
+<p>§5 Conclusion 篇幅極短、語氣節制，但完整收束全文三條敘事主線。第一句重申 unified framework 立場：N3D-VLM 在單一模型內銜接 3D object perception 與 spatial reasoning，回扣 §1 第三段提出的 localization + reasoning 二分主張。第二句強調此整合的兩個正向後果——native 3D grounding 提供 accurate localization、explicit 3D-aware reasoning 提供 interpretable spatial understanding——把 §4.2 的 SOTA 與 §4.4 的因果證據濃縮成一句宣告。第三句把功勞歸給 enabling factor：scalable data construction pipeline 把 2D 標註投影到 3D，並支援建構 explicit reasoning dataset，使模型展現 reasonable generalization 與 structured reasoning foundation。最後一句以 extensive experiments 作為 closing 證據，再次強調 3D grounding 與 3D spatial reasoning 雙任務 SOTA。</p>
+<p>值得指出的是，paper main text 的結論並未設置獨立的 Limitations 或 Future Work 段落——這對 main paper 是常見作法。但作者把侷限性的討論搬到 supplementary material 的 §A.3 Failure Cases：第一個失敗案例顯示模型把水面 duck reflection 誤識為實體，顯示模型對 specular reflection 的理解仍不足；第二個案例中模型雖在密集 jellyfish 場景成功偵測 30 隻、但仍漏掉若干個體，顯示在 dense object scene 下 3D grounding 仍有空間。這兩個 failure case 提供未來方向：specular/transparent surface 處理、以及 high-density 場景的 grounding recall。整體而言，conclusion 重述貢獻、附錄補上 honest 的 limitation 揭露，雖未顯式寫 future work，但兩個 failure mode 已自然指向後續研究路徑。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>N3D-VLM-7B reaches $92.1\%$ on N3D-Bench numerical questions versus $36.3\%$ for Qwen3-VL-8B and $50.4\%$ for SpatialRGPT, a 41.7-point gap on the headline metric (Table 2, p.7).</li><li>The lifted 3D detection corpus contains 2.78M samples, roughly $12\times$ Omni3D ($\sim$234K) and $6\times$ DetAny3D ($\sim$450K), and is the central data contribution (§3.1, p.4).</li><li>Projected IoU on RefCOCO climbs to $0.59$ versus $0.37$ for Qwen3-VL-8B and $0.38$ for Qwen3-VL-30B-A3B; on Objects365 the gap is $0.61$ vs $0.28$ (Table 3, p.7).</li><li>After depth alignment, 3D IoU on RefCOCO/+/g reaches $0.48$ versus $0.27$ for Qwen3-VL-30B-A3B, with 3D center offset dropping from $1.86$ m to $0.36$ m (Table 4, p.7).</li><li>Feeding N3D-VLM grounding outputs to a frozen Qwen3-VL lifts its N3D-Bench numerical accuracy from $36.3$ to $54.6$ ($+50.4\%$), giving direct evidence that explicit 3D boxes help downstream reasoning (Table 6, p.8).</li><li>An end-to-end QA-only ablation of the same architecture only reaches $62.4$ numerical accuracy versus $92.1$ for the staged grounding-then-reasoning model, validating the decomposition (Table 6, p.8).</li><li>Two design choices are isolated cleanly: adding depth input lifts $F_1@0.25$ from $9.4$ to $12.8$, and predicting pixel-space $(u, v)$ centers beats camera-space $(x, y)$ ($10.8 \to 12.8$) (Table 5, p.7).</li><li>Scaling lifted training data from $340$K to $1.7$M nearly doubles $F_1@0.25$ ($12.8 \to 22.9$), supporting the data-scale claim of the lifting pipeline (Table 5, p.7).</li><li>N3D-Bench triples the object-category coverage of SpatialRGPT-Bench ($264$ vs $88$) and is the first bench to combine multi-object reasoning, viewpoint shift, and explicit CoT in a single suite (Table 1, p.6).</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>Specular reflections are mistaken for real objects: a duck&#x27;s reflection on water is grounded as a real duck (Fig. 9, §A.3, p.11).</li><li>Dense-scene recall is incomplete: in the jellyfish example the model detects 30 but still misses several visible instances (Fig. 9, §A.3, p.11).</li><li>3D IoU and 3D center offset are reported only on a &quot;sampled subset&quot; after aligning predictions to ground-truth depth, explicitly to &quot;mitigate the alignment noise&quot; (§4.1 Metrics, p.6).</li><li>SpatialReasoner [21] is omitted from 3D grounding tables because, even when prompted, its outputs &quot;were inconsistent and often failed to follow a coherent 3D coordinate format&quot; (§A.1, p.11), so the strongest &quot;explicit 3D reasoning&quot; prior is not directly compared on grounding.</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>Training pseudo-labels, inference depth, and the depth alignment used at evaluation all come from the same model, MoGE-2 [32]; any systematic bias in MoGE-2&#x27;s metric scale is therefore present in the labels, in the input, and in the evaluation oracle simultaneously, so the experiments cannot separate &quot;the model learned 3D&quot; from &quot;the model learned MoGE-2&#x27;s depth&quot;.</li><li>The numerical-accuracy metric is a $\pm 25\%$ tolerance match (§4.1, p.6) — for a $2$ m distance any prediction in $[1.5, 2.5]$ m counts as correct — and no tighter threshold or absolute-error number is reported, so the $92.1\%$ headline rests on a permissive band.</li><li>CoT answers are generated from fixed geometric templates plus an LLM rephrase (§3.1, p.5); the model is trained to imitate the deterministic formula path, so generalization to question forms outside SpatialRGPT-style templates is untested.</li><li>N3D-Bench is constructed by the authors using the same lifting pipeline as training (§3.3, p.6); category coverage is broader than SpatialRGPT-Bench but the question-generation distribution and the depth backbone are shared with training, so the $90+\%$ numbers are partly self-evaluated.</li><li>3D extents $(s_x, s_y, s_z)$ are derived from the visible back-projected point cloud (§3.1, p.3–4), which systematically truncates occluded sides of objects; no ablation against truly 3D-annotated data quantifies this pseudo-label ceiling.</li><li>SpatialLadder is 3B, while N3D-VLM-7B is the headline number; a fully like-for-like 7B comparison only covers Qwen2.5-VL-7B, Qwen3-VL-8B, SpatialReasoner-7B, and SpatialRGPT-VILA-1.5-8B, which is a narrower peer set than Table 2 suggests.</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>The genuinely new contribution is the <em>staged decomposition</em> — a single VLM that emits structured 3D bounding boxes and then runs explicit geometric CoT over them — combined with the engineering insight that monocular depth lifting can scale 3D supervision $6\times$ beyond DetAny3D. The architectural pieces (depth-aware sinusoidal PE, pixel-space $(u,v,z)$ output) are individually unsurprising, but the ablations defending them are tight. What remains unresolved is whether the headline gains reflect a 3D world model or a tight co-adaptation to MoGE-2&#x27;s depth field and to template-matched benchmarks the authors built themselves; the paper does not run the experiments that would separate these.</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>N3D-VLM 將「3D 空間理解」拆解為兩個可分離的子任務:<strong>3D 物體定位 (grounding)</strong> 與 <strong>基於 3D 框的空間推理 (CoT reasoning)</strong>,並將兩者整合在單一 vision-language model 中。模型以 RGB-D 為輸入 (RGB 影像 $I$ 加上由單目深度估計模型 [32] 預測的 metric-scale depth map $D$ 與相機內參 $\text{intr}$),並以結構化語言的形式直接輸出 3D bounding box,box 的表示為 <code>bbox(id, class, u, v, z, sx, sy, sz)</code>,其中 $(u, v)$ 為 3D 中心在影像平面上的 2D 投影、$z$ 為深度、$(s_x, s_y, s_z)$ 為三軸尺寸。給定相機內參,$(u, v, z)$ 與相機座標系下的 $(x, y, z)$ 可透過 deterministic projection 互轉,因此這個表示同時保留了 metric scale 與與既有 2D 預訓練資料的 image-space 對齊。</p>
+<p>模型架構的核心是 <strong>3D-aware visual encoding</strong>:將每個像素以 $P_{ij} = D_{ij}\cdot \text{intr}^{-1}\cdot [u_j, v_i, 1]^\top$ back-project 為 3D 點,得到稠密點雲 $P \in \mathbb{R}^{H\times W\times 3}$,再降採樣成 $\hat{P}\in \mathbb{R}^{h\times w\times 3}$ 以對齊 vision encoder 輸出的 image feature $F_{\text{img}}\in \mathbb{R}^{h\times w\times c}$。三軸座標各自做 sinusoidal positional encoding 後相加得到 $e_{\text{coord}}$,並以 $\tilde{F}_{\text{img}} = F_{\text{img}} + e_{\text{coord}}$ 注入幾何訊號。融合後的特徵與 prompt tokens 一起送入以 Qwen2.5-VL [2] 為骨幹的 LLM,以 autoregressive 方式產生 grounding 結果或 CoT 推理。</p>
+<p>訓練採兩階段:第一階段以大規模 lifted 3D 偵測 / 定位資料 (2.78M,源自 COCO、Objects365、OpenImages,經 SAM2 [24] 取 mask、MoGe-2 [32] 取 depth、再以 rule-based filter 移除離群與不合理框) 訓練 3D 物體定位;第二階段以 3D spatial reasoning QA 與部分定位資料的混合資料訓練顯式的幾何推理。Encoder 與 LLM 在兩階段中皆為可訓練。在 inference 時,模型支援兩種模式:一是端到端從空間問題自動分解為「先 grounding 再推理」,二是使用者顯式請求 grounding 結果後再追問空間問題;兩者皆以 grounded 3D box 為推理基礎,確保推理可解釋且 metric-scale 一致。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input
+  RGB image           I        ∈ [B, 3, H, W]
+  Depth map           D        ∈ [B, H, W]            (from MoGe-2 [32])
+  Camera intrinsics   intr     ∈ [B, 3, 3]            (from MoGe-2 [32])
+
+I ─▶ Vision Encoder (ViT, Qwen2.5-VL backbone)
+       └── F_img                ∈ [B, h, w, c]        (h, w, c = ?, inherited from Qwen2.5-VL)
+
+(D, intr, pixel grid)
+   ─▶ Per-pixel back-projection                       (Eq. 1)
+       P_ij = D_ij · intr^{-1} · [u_j, v_i, 1]^T
+       └── P                    ∈ [B, H, W, 3]
+   ─▶ Spatial downsampling to feature resolution
+       └── P̂                    ∈ [B, h, w, 3]
+   ─▶ Per-axis sinusoidal PE   (axes α ∈ {x, y, z})   (Eq. 2)
+       PE(α, 2i)   = sin(α / 10000^{2i/c})
+       PE(α, 2i+1) = cos(α / 10000^{2i/c})
+       └── PE(x), PE(y), PE(z)  each ∈ [B, h, w, c]
+   ─▶ Per-axis sum             (Eq. 3)
+       e_coord = Σ_{k∈{x,y,z}} PE(k)
+       └── e_coord              ∈ [B, h, w, c]
+
+Feature fusion (Eq. 4): additive injection of geometric cues
+   F̃_img = F_img + e_coord     ∈ [B, h, w, c]
+
+   ─▶ Flatten to token sequence
+       └── F̃_img                ∈ [B, h·w, c]
+   ─▶ Concatenate with prompt tokens of length L_p
+       └── input tokens         ∈ [B, h·w + L_p, c]
+   ─▶ LLM decoder (Qwen2.5-VL [2], autoregressive)
+       └── output tokens (decoded as structured language)
+
+Output
+  3D Localization mode  : &quot;bbox(id, class, u, v, z, sx, sy, sz), ...&quot;   (see Fig. 3c)
+  Spatial Reasoning mode: &quot;&lt;think&gt; ... &lt;/think&gt; answer&quot;                  (CoT over 3D boxes)</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-depth-intrinsics-estimator-moge-2-32">5.3.1 Depth &amp; Intrinsics Estimator (MoGe-2 [32])</h4>
+<p><strong>Function:</strong> 從單張 RGB 預測 metric-scale depth map 與 camera intrinsics,使後續 back-projection 與資料生成階段、推理階段共享同一個 metric 座標系。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I$</li><li>Shape: $[B, 3, H, W]$</li><li>Source: 使用者輸入的 RGB 影像</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $D$, $\text{intr}$</li><li>Shape: $[B, H, W]$、$[B, 3, 3]$</li><li>Consumer: §5.3.2 back-projection</li></ul>
+<p><strong>Processing:</strong></p>
+<p>直接呼叫 MoGe-2 [32] 的預訓練模型;同一個深度模型也用於 §3.1 的 2D-to-3D lifting 資料生成,藉此確保訓練資料與推理時的 depth/intrinsics 來源一致。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未說明本模型是否在第二階段被微調,僅指出以 MoGe-2 [32] 為深度與內參來源,並將其輸出作為下游模組的固定幾何先驗。</p>
+<h4 id="5-3-2-pixel-to-camera-back-projection">5.3.2 Pixel-to-Camera Back-projection</h4>
+<p><strong>Function:</strong> 將每個像素以對應深度與相機內參 back-project 為相機座標系下的 3D 點,生成稠密點雲。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $D$, $\text{intr}$, 像素座標 $(u_j, v_i)$</li><li>Shape: $[B, H, W]$、$[B, 3, 3]$、像素網格 $[H, W]$</li><li>Source: §5.3.1</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $P$</li><li>Shape: $[B, H, W, 3]$</li><li>Consumer: §5.3.3 downsampling</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個像素 $(u_j, v_i)$ 套用 Eq. (1) 進行 back-projection,得到該像素在相機座標系下的 3D 位置。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ P_{ij} = D_{ij}\cdot \text{intr}^{-1}\cdot \begin{bmatrix} u_j \\ v_i \\ 1 \end{bmatrix} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文僅描述座標公式;未說明是否以 batched 矩陣運算或 broadcasting 實作,亦未說明對無效深度像素 (例如 $D_{ij}\le 0$) 的處理是否在此步驟發生 (注:資料生成階段使用 rule-based filter 移除無效深度,推理階段是否同樣處理論文未明示)。</p>
+<h4 id="5-3-3-spatial-downsampling">5.3.3 Spatial Downsampling</h4>
+<p><strong>Function:</strong> 將像素層級的點雲 $P$ 降採樣到與 vision encoder 輸出特徵圖相同的空間解析度,以便逐位置與影像特徵相加。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $P$</li><li>Shape: $[B, H, W, 3]$</li><li>Source: §5.3.2</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat{P}$</li><li>Shape: $[B, h, w, 3]$</li><li>Consumer: §5.3.4 sinusoidal PE</li></ul>
+<p><strong>Processing:</strong></p>
+<p>將 $P$ 從 $[H, W]$ 降採樣到 $[h, w]$,使其與 §5.3.5 輸出的 $F_{\text{img}}\in \mathbb{R}^{h\times w\times c}$ 對齊。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未指明降採樣方法 (例如 average pooling、stride sampling、或固定 patch grid 取中心點),亦未指明 $h$、$w$ 的具體數值;這些應與 Qwen2.5-VL [2] vision encoder 的 patch token grid 對齊。</p>
+<h4 id="5-3-4-sinusoidal-coordinate-embedding">5.3.4 Sinusoidal Coordinate Embedding</h4>
+<p><strong>Function:</strong> 將每個 3D 座標 $(x, y, z)$ 編碼為高維向量,使影像特徵在空間上具有 metric 幾何感知。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\hat{P}$</li><li>Shape: $[B, h, w, 3]$</li><li>Source: §5.3.3</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $e_{\text{coord}}$</li><li>Shape: $[B, h, w, c]$</li><li>Consumer: §5.3.6 feature fusion</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對 $\hat{P}$ 中每個位置的三個座標軸 $\alpha\in\{x, y, z\}$ 各自計算 sinusoidal positional encoding (Eq. 2,維度 $c$),再對三個軸的編碼逐元素相加 (Eq. 3) 得到 $e_{\text{coord}}$。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \text{PE}(\alpha, 2i) = \sin\!\left(\frac{\alpha}{10000^{2i/c}}\right),\quad \text{PE}(\alpha, 2i+1) = \cos\!\left(\frac{\alpha}{10000^{2i/c}}\right),\ \ i = 0, 1, \dots, \tfrac{c}{2}-1 $$</p>
+<p>$e_{\text{coord}} = \sum_{k\in\{x,\,y,\,z\}} \text{PE}(k)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文使用標準 Transformer 風格的 sinusoidal 公式、頻率底數為 10000;未說明是否對 $(x, y, z)$ 在編碼前做歸一化或座標縮放,因此實際的 metric 數值範圍會直接決定不同頻率的相位旋轉,具體尺度處理由原始 metric depth 與下游訓練資料分布隱式決定。</p>
+<h4 id="5-3-5-vision-encoder">5.3.5 Vision Encoder</h4>
+<p><strong>Function:</strong> 從 RGB 影像產生 patch-level 的視覺特徵,是 Qwen2.5-VL [2] 視覺骨幹的一部分。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I$</li><li>Shape: $[B, 3, H, W]$</li><li>Source: 使用者輸入的 RGB 影像</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_{\text{img}}$</li><li>Shape: $[B, h, w, c]$</li><li>Consumer: §5.3.6 feature fusion</li></ul>
+<p><strong>Processing:</strong></p>
+<p>直接使用 Qwen2.5-VL [2] 的 ViT-style vision encoder 產生 patch token 特徵,並 reshape 回 $[h, w]$ 空間網格。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>具體 patch size、$h$、$w$、$c$ 之數值論文未明示,皆由 Qwen2.5-VL [2] 的設定決定;在第一與第二階段訓練中,encoder 全部參數皆為可訓練 (<code>learnable</code>)。</p>
+<h4 id="5-3-6-3d-aware-feature-fusion">5.3.6 3D-Aware Feature Fusion</h4>
+<p><strong>Function:</strong> 將深度感知的座標嵌入加到影像特徵上,讓每個 visual token 同時帶有「外觀」與「3D 位置」資訊。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $F_{\text{img}}$、$e_{\text{coord}}$</li><li>Shape: $[B, h, w, c]$、$[B, h, w, c]$</li><li>Source: §5.3.5、§5.3.4</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\tilde{F}_{\text{img}}$</li><li>Shape: $[B, h, w, c]$</li><li>Consumer: §5.3.7 LLM decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>逐位置、逐通道相加 (Eq. 4),不引入額外可訓練參數。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\tilde{F}_{\text{img}} = F_{\text{img}} + e_{\text{coord}}$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>採用最簡單的 additive injection,而非 concatenation 或 cross-attention;這也使得 ablation (Table 5 中變體 (1) 移除 depth 輸入) 可以直接以「不加 $e_{\text{coord}}$」實現,結果顯示加入 depth 提升 F1@0.25 從 9.4 至 12.8。</p>
+<h4 id="5-3-7-llm-decoder-qwen2-5-vl-backbone">5.3.7 LLM Decoder (Qwen2.5-VL Backbone)</h4>
+<p><strong>Function:</strong> 以 autoregressive 方式產生結構化語言,輸出可以是 3D bbox 序列 (定位模式) 或 <code>&lt;think&gt;...&lt;/think&gt;</code> 形式的 CoT 推理 (空間推理模式)。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 攤平後的 $\tilde{F}_{\text{img}}$ 與 prompt tokens</li><li>Shape: $[B, h\cdot w, c]$ 串接 $[B, L_p, c]$,合計 $[B, h\cdot w + L_p, c]$</li><li>Source: §5.3.6;text tokenizer 處理使用者問題</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 解碼後的 token 序列</li><li>Shape: $[B, L_{\text{out}}]$ (token id 序列)</li><li>Consumer: 終端輸出 (定位結果或推理答案)</li></ul>
+<p><strong>Processing:</strong></p>
+<ul><li>第一階段:在 2.78M lifted 3D 偵測 / 定位資料上訓練 3D 物體定位,輸出 <code>bbox(id, class, u, v, z, sx, sy, sz)</code> 序列。</li><li>第二階段:以 3D spatial reasoning QA 與部分定位資料混合訓練,輸出包含顯式幾何步驟的 CoT,例如以 $\arctan2$ 計算 clock 方位、以歐式距離比較相對距離等。</li><li>推理階段支援兩種模式:模型自動分解 (先 ground 再推理) 或使用者顯式分步請求。</li></ul>
+<p><strong>Key Formulas:</strong></p>
+<p>CoT 推理示例 (來自 §3.1):給定兩物體中心 $\mathbf{a},\mathbf{b}\in\mathbb{R}^3$,在 $xz$ 平面上計算向量、夾角與 clock 位置:</p>
+<p>$$ \theta = \operatorname{atan2}(b_z - a_z,\ b_x - a_x),\quad \text{clock} = 12 - \left\lfloor \frac{\theta_{\text{deg}}}{30} \right\rfloor $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>LLM 採 Qwen2.5-VL [2] 為基底,encoder 與 LLM 全部參數皆於兩階段中持續訓練 (<code>fully learnable</code>);具體層數、注意力頭數、隱藏維度 $c$、序列長度上限等皆繼承 Qwen2.5-VL,論文未另行指定。對於 RefCOCO/+/g 與 Objects365 上的評測,3D 框透過已知 intrinsics 投影為 2D 框並以 IoU 與 center offset 衡量,3D IoU/offset 則在 depth-aligned 子集上報告以減少對齊噪聲 (詳見 §4.1)。</p>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>COCO [17]</td><td>2D 偵測標註來源（lifted 至 3D）</td><td>the paper does not specify per-source 樣本數</td><td>train</td></tr><tr><td>OpenImages [13]</td><td>2D 偵測標註來源（以 RAM [38] 重新偵測後 lifted 至 3D）</td><td>the paper does not specify per-source 樣本數</td><td>train</td></tr><tr><td>Objects365 [27]</td><td>2D 偵測標註來源（lifted 至 3D）；3D detection 驗證集</td><td>訓練語料合計 2.78M samples（COCO+OpenImages+Objects365）；驗證集 5,565 images / 341 classes</td><td>train + val（ablation 評測）</td></tr><tr><td>Objects365 (test split)</td><td>3D grounding 評測</td><td>the paper does not specify</td><td>test</td></tr><tr><td>RefCOCO / RefCOCO+ / RefCOCOg [12]</td><td>3D grounding 評測（projected IoU、projected offset、3D IoU、3D offset）</td><td>the paper does not specify</td><td>test</td></tr><tr><td>N3D-Bench（本文提出）</td><td>3D spatial reasoning 評測</td><td>2,000 questions（1,200 open-ended + 800 numerical），264 object categories</td><td>test</td></tr><tr><td>SpatialRGPT-Bench [8]</td><td>3D spatial reasoning 評測</td><td>1,404 open-ended + numerical questions，88 object categories</td><td>test</td></tr><tr><td>CV-Bench-3D [30]</td><td>3D spatial reasoning 評測（multiple-choice）</td><td>1,200 questions</td><td>test</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Open-ended accuracy</td><td>以 GPT-4o [11] 作 LLM-as-a-judge 評估開放式答案是否正確</td><td>yes</td></tr><tr><td>Numerical accuracy</td><td>以 string matching 抽取預測數值，並採 $\pm 25\%$ 容忍度（沿用 [8]）</td><td>yes</td></tr><tr><td>Multiple-choice accuracy</td><td>CV-Bench-3D 多選題正確率</td><td>no</td></tr><tr><td>Projected IoU</td><td>將預測 3D bbox 投影至影像平面後，與 ground-truth 2D bbox 的 IoU</td><td>yes</td></tr><tr><td>Projected center offset</td><td>投影後 3D bbox 中心與 GT 2D bbox 中心的位移（越小越好）</td><td>no</td></tr><tr><td>3D IoU</td><td>將預測 box 對齊至 GT 深度後計算的 3D IoU（在子集上回報以降低對齊雜訊）</td><td>yes</td></tr><tr><td>3D center offset</td><td>對齊後的 3D 中心位移（越小越好）</td><td>no</td></tr><tr><td>F1@0.25 / P@0.25 / R@0.25</td><td>3D detection ablation 在 $\text{IoU}=0.25$ 閾值下的 F1、Precision、Recall</td><td>no（僅 ablation 使用）</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li>Backbone：模型基於 Qwen2.5-VL [2]，提供 3B 與 7B 兩個變體（N3D-VLM-3B / N3D-VLM-7B）。</li><li>訓練階段：兩階段訓練。Stage 1 僅以 §3.1 產生的 3D object localization 資料訓練；Stage 2 以 3D spatial reasoning 資料與部分 localization 資料的混合進行 grounding-based reasoning 訓練。兩階段中 vision encoder 與 language model 的所有參數皆可學習。</li><li>深度與相機內參：訓練與推論皆使用 MoGe-2 [32] 估計 depth map 與 camera intrinsics，以保證所有預測 3D bbox 處於 metric scale 並對齊同一座標系。</li><li>3D 表示：每個 3D bbox 以 structured language 編碼為 <code>bbox(id, class, u, v, z, sx, sy, sz)</code>，其中 $(u, v)$ 為 3D 中心於影像平面的 2D 投影、$z$ 為深度，$(s_x, s_y, s_z)$ 為三軸尺寸；在已知相機內參下 $(u, v, z)$ 與 $(x, y, z)$ 可雙向轉換。</li><li>位置編碼：對下採樣後的點雲 $\hat{P} \in \mathbb{R}^{h \times w \times 3}$ 之每個座標軸 $\alpha \in \{x, y, z\}$ 套用 sinusoidal positional encoding，並把三軸編碼相加後加到影像特徵 $F_{\text{img}}$ 上得到融合特徵 $\tilde{F}_{\text{img}}$。</li><li>推論模式：(1) 使用者直接提出 spatial question，模型自動拆解為「3D grounding → 基於 grounding 的 spatial reasoning」；(2) 使用者明確先要求 3D grounding，再以 grounding 結果發問。兩種模式下，reasoning 皆條件於 grounding 結果。</li><li>訓練語料規模：總計 2.78M lifted 3D 樣本；ablation 中觀察到從 340K 擴張至 1.7M 帶來顯著增益。</li><li>評測協定：SpatialRGPT-Bench 上除 SpatialRGPT 自身外，所有方法均以畫在影像上的 bounding box 提供物件參照；3D grounding 為公平比較，會將預測 box 對齊至 GT 深度後計算 3D 指標，且 3D 指標僅在採樣子集上回報以降低 alignment noise。</li><li>Hardware、batch size、optimizer、learning rate schedule、training steps、inference 解碼設定：the paper does not specify。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>3D Spatial Reasoning（Tab. 2，accuracy）：</p>
+<table><thead><tr><th>Method</th><th>N3D-Bench Open / Num</th><th>SpatialRGPT-Bench Open / Num</th><th>CV-Bench-3D MC</th><th>Notes</th></tr></thead><tbody><tr><td>GPT-4o [11]</td><td>63.5 / 27.8</td><td>76.3 / 55.8</td><td>72.4</td><td>closed-source</td></tr><tr><td>Gemini-2.5-Flash [28]</td><td>64.2 / 36.7</td><td>82.4 / 42.2</td><td>86.0</td><td>closed-source</td></tr><tr><td>Qwen2.5-VL-7B [2]</td><td>55.0 / 22.5</td><td>74.4 / 38.2</td><td>75.8</td><td>base model</td></tr><tr><td>Qwen3-VL-8B [29]</td><td>66.3 / 36.3</td><td>89.2 / 40.7</td><td>91.3</td><td>open-source SoTA baseline</td></tr><tr><td>SpatialLadder-3B [14]</td><td>48.9 / 18.1</td><td>55.9 / 26.5</td><td>74.9</td><td>spatial-specialized</td></tr><tr><td>SpatialReasoner-7B [21]</td><td>54.8 / 27.4</td><td>63.2 / 33.7</td><td>80.3</td><td>spatial-specialized</td></tr><tr><td>SpatialRGPT-VILA-1.5-8B [8]</td><td>63.1 / 50.4</td><td>92.7 / 62.7</td><td>63.3</td><td>spatial-specialized</td></tr><tr><td><strong>N3D-VLM-3B (ours)</strong></td><td><strong>77.0 / 90.1</strong></td><td><strong>80.5 / 73.3</strong></td><td><strong>96.3</strong></td><td><strong>本文方法</strong></td></tr><tr><td><strong>N3D-VLM-7B (ours)</strong></td><td><strong>89.7 / 92.1</strong></td><td><strong>95.7 / 78.0</strong></td><td><strong>93.3</strong></td><td><strong>本文方法</strong></td></tr></tbody></table>
+<p>3D Grounding，projected metrics（Tab. 3）：</p>
+<table><thead><tr><th>Method</th><th>RefCOCO Proj.IoU↑ / Off.↓</th><th>RefCOCO+ Proj.IoU↑ / Off.↓</th><th>RefCOCOg Proj.IoU↑ / Off.↓</th><th>Objects365 Proj.IoU↑ / Off.↓</th></tr></thead><tbody><tr><td>Qwen3-VL-8B [29]</td><td>0.37 / 0.16</td><td>0.34 / 0.26</td><td>0.36 / 0.14</td><td>0.28 / 0.12</td></tr><tr><td>Qwen3-VL-30B-A3B [29]</td><td>0.38 / 0.14</td><td>0.36 / 0.16</td><td>0.38 / 0.13</td><td>0.28 / 0.13</td></tr><tr><td><strong>N3D-VLM-7B (ours)</strong></td><td><strong>0.59 / 0.06</strong></td><td><strong>0.53 / 0.10</strong></td><td><strong>0.54 / 0.08</strong></td><td><strong>0.61 / 0.05</strong></td></tr></tbody></table>
+<p>3D Grounding，3D-aligned metrics（Tab. 4，RefCOCO/+/g 合併）：</p>
+<table><thead><tr><th>Method</th><th>3D IoU ↑</th><th>3D Offset ↓</th></tr></thead><tbody><tr><td>Qwen3-VL-8B [29]</td><td>0.20</td><td>1.88</td></tr><tr><td>Qwen3-VL-30B-A3B [29]</td><td>0.27</td><td>1.86</td></tr><tr><td><strong>N3D-VLM-7B (ours)</strong></td><td><strong>0.48</strong></td><td><strong>0.36</strong></td></tr></tbody></table>
+<p>主要觀察：N3D-VLM 在三個 spatial reasoning benchmark 的 open-ended、numerical、multiple-choice 三類題型上多數欄位取得最高分；對 numerical 類別的提升幅度最大（如 N3D-Bench numerical 由 base 22.5 提升至 92.1）。在 3D grounding 上，N3D-VLM-7B 不僅大幅超越同級 Qwen3-VL-8B，亦勝過更大的 Qwen3-VL-30B-A3B，顯示 native 3D grounding 設計對 localization 精度的助益。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<p>模型設計（Tab. 5，Objects365 驗證集 5,565 images / 341 classes，$\text{IoU}=0.25$）：</p>
+<table><thead><tr><th>Variant</th><th>F1 ↑</th><th>P ↑</th><th>R ↑</th><th>變更</th></tr></thead><tbody><tr><td>(0) SpatialLM [22]-340K</td><td>2.2</td><td>2.3</td><td>2.4</td><td>point cloud encoder + LLM 架構</td></tr><tr><td>(1) 3B-340K-nodepth</td><td>9.4</td><td>10.9</td><td>9.4</td><td>移除 depth 輸入</td></tr><tr><td>(2) 3B-340K-cameraxy</td><td>10.8</td><td>11.6</td><td>10.7</td><td>直接於 camera $(x,y,z)$ 空間預測中心</td></tr><tr><td>(3) 3B-340K-imageuv</td><td>12.8</td><td>13.6</td><td>12.9</td><td>full design：depth + 預測 $(u,v,z)$</td></tr><tr><td>(4) 3B-1.7M-imageuv</td><td>22.9</td><td>24.3</td><td>22.9</td><td>同 (3)，訓練資料擴張至 1.7M</td></tr></tbody></table>
+<ul><li>(1) vs (3)：加入 depth 輸入使 F1 從 9.4 提升至 12.8，回答了「depth-aware visual encoding 是否有用」的核心設計問題。</li><li>(2) vs (3)：在 image-space $(u, v)$ 空間預測比直接在 camera-space $(x, y)$ 預測更佳（10.8 → 12.8），作者解釋是因為 base model 的 2D 預訓練先驗與 image-space 表徵自然對齊。此屬診斷型 ablation。</li><li>(3) vs (4)：訓練樣本由 340K 擴大至 1.7M 帶來大幅增益（F1 12.8 → 22.9），驗證 data construction pipeline 規模化的價值；但這同時混淆「pipeline 品質」與「樣本數」兩個變因——若希望嚴格量化資料 quality 的貢獻，應再加上「相同樣本數但取自既有 3D dataset」的對照組。</li><li>(0) vs (1)–(4)：與 SpatialLM 之比較主要凸顯 indoor-only 點雲 encoder 在多樣化資料上的泛化不足，較接近 sanity check 而非對 N3D-VLM 各組件的細部診斷。</li></ul>
+<p>3D grounding → spatial reasoning 解耦（Tab. 6，N3D-Bench）：</p>
+<table><thead><tr><th>Method</th><th>N3D-open ↑</th><th>N3D-num ↑</th><th>解讀</th></tr></thead><tbody><tr><td>Qwen3-VL-8B（直接作答）</td><td>66.3</td><td>36.3</td><td>baseline</td></tr><tr><td>Qwen3-VL-8B（給定本模型 grounding 結果）</td><td>71.3</td><td>54.6</td><td>提供 grounding 即提升 +7.5% / +50.4%，顯示 grounding 對 reasoning 的因果貢獻</td></tr><tr><td>QAonly-7B（同架構，端到端 QA，不解耦）</td><td>80.6</td><td>62.4</td><td>同架構但不顯式分階段訓練</td></tr><tr><td><strong>N3D-VLM-7B（full）</strong></td><td><strong>89.7</strong></td><td><strong>92.1</strong></td><td>解耦 grounding + reasoning 的完整方法</td></tr></tbody></table>
+<p>此 ablation 屬診斷型：第一個對照（將 grounding 結果灌入第三方 model）特別好地隔離了「grounding 品質」對 reasoning 的影響；第二個對照（QAonly-7B）則直接質詢「顯式 grounding-then-reasoning」的必要性。可惜的是，paper 未提供 N3D-VLM 用 GT 3D bbox 作答的 oracle upper bound，難以判斷剩餘 gap 屬於 grounding error 還是 reasoning error。</p>
+<p>詳細題型拆分（Tab. 7、Tab. 8）顯示 N3D-VLM 在數值化題型（distance、ver./hor. dis.、width/height）的提升尤其顯著，但在 N3D-Bench 的 <code>wide/thin</code>（3B 為 45.5）等部分題型上遜於 7B 變體，提示對小尺寸物件的尺寸比較仍受 grounding 精度限制。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 同時對比 closed-source SoTA（GPT-4o、Gemini-2.5-Flash）與 open-source SoTA / 任務專家（Qwen3-VL-8B/30B-A3B、SpatialRGPT、SpatialReasoner、SpatialLadder、SpatialLM），baseline 覆蓋面充足（Tab. 2、Tab. 3、Tab. 4）。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 同時評測 spatial reasoning（N3D-Bench、SpatialRGPT-Bench、CV-Bench-3D）與 3D grounding（RefCOCO/+/g、Objects365），跨任務跨資料集均有比較。</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — depth 輸入、image-uv vs camera-xy、grounding-then-reasoning 解耦皆為診斷型 ablation；但缺少對 sinusoidal positional encoding、兩階段訓練順序、以及 grounding 給定 GT 時的 oracle upper bound 等更細的分解。</li><li>[partial] Has a scaling study (size, length, or compute) — 提供 model size（3B vs 7B）與 data size（340K vs 1.7M）兩條 scaling 軸；但僅各兩點，無法擬合 scaling trend，且未有 compute / FLOPs 軸。</li><li>[missing] Has an efficiency / wall-clock comparison — 全文未報告推論延遲、tokens/s 或 GPU memory 比較；對需要先 grounding 再 reasoning 的兩步推論，這項缺漏較為可惜。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 所有主表與 ablation 皆為單一數字，未報告多 seed 變異或信賴區間。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 作者於 §1 結尾承諾 “release code, checkpoints, and datasets upon acceptance”，但截至論文提交時尚未提供，目前僅能透過 project page 取得有限資訊。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: Unified RGB-D model with native 3D detection/grounding enabling spatial reasoning</strong> (§1, p.3). <em>Supported.</em> Tables 2–4 show consistent gains over Qwen2.5-VL, Qwen3-VL, SpatialRGPT, and SpatialLM across both spatial reasoning and 3D grounding metrics.</li><li><strong>C2: Scalable data pipeline that lifts 2D annotations into 3D</strong> (§1, p.3). <em>Supported on scale, partial on quality.</em> The 2.78M corpus and the $340$K $\to$ $1.7$M ablation in Table 5 ($F_1@0.25$: $12.8 \to 22.9$) directly defend the scale claim. Quality is defended only indirectly: there is no ablation against a true 3D-annotated subset, so the pseudo-label ceiling is undocumented.</li><li><strong>C3: Benchmark with explicit reasoning, multi-object, view-change</strong> (§1, p.3; Table 1, p.6). <em>Supported as artifact, partial as evaluation.</em> N3D-Bench exists and is broader than SpatialRGPT-Bench, but the same team built it using the same lifting pipeline as training — the cross-bench number on SpatialRGPT-Bench numerical ($78.0$) is the more independent evidence and is itself substantial.</li><li><strong>Implicit claim: state-of-the-art across three benchmarks.</strong> <em>Supported with a caveat.</em> Table 2 is consistently best on all three, but the largest margin is on N3D-Bench (self-built); on SpatialRGPT-Bench numerical the lead over SpatialRGPT is $78.0$ vs $62.7$ (15.3 points), much smaller than the $92.1$ vs $50.4$ gap on N3D-Bench numerical.</li><li><strong>Implicit claim: grounding-first decomposition is necessary, not just helpful.</strong> <em>Supported.</em> Both Table 6 ablations point the same way: feeding grounding to Qwen3-VL helps it ($36.3 \to 54.6$), and removing the decomposition from N3D-VLM hurts it ($92.1 \to 62.4$).</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Depth-model coupling.</strong> The entire system is anchored to MoGE-2&#x27;s coordinate frame: 3D pseudo-labels at training time, the depth tensor concatenated at inference, and the alignment oracle used to compute 3D IoU all come from the same predictor. The reported metric-scale accuracy is therefore upper-bounded by MoGE-2&#x27;s accuracy and cannot be evaluated independently of it. Failure modes that MoGE-2 itself cannot handle (mirrors, glass, very-far-field, low-texture sky) propagate verbatim into N3D-VLM and would be invisible to the current evaluation because the labels share the failure.</p>
+<p><strong>Template-bound reasoning.</strong> The CoT traces are produced by deterministic geometric formulas (vector subtraction, $\mathrm{atan2}$, clock-position rounding) and then LLM-rephrased for naturalness (§3.1, p.5). The model learns to emit the formula trajectory, not to choose which formula applies; there is no mechanism for composing new geometric operations or for recognizing that a question lies outside the template family. The $92.1\%$ numerical accuracy on N3D-Bench is therefore partly an in-distribution score on the same template family the model was trained to imitate.</p>
+<p><strong>Pseudo-label extent ceiling.</strong> The 3D extents $s_x, s_y, s_z$ are derived from the back-projected visible point cloud of the 2D mask (§3.1, p.3–4). This systematically underestimates the occluded sides of every object, especially in cluttered scenes. The trained model therefore inherits a &quot;thin-side&quot; bias that no current evaluation surfaces because RefCOCO/Objects365 have no 3D ground truth either, and SpatialRGPT-Bench numerical questions are mostly distance-based, which is dominated by center error, not extent error.</p>
+<p><strong>Self-evaluation entanglement.</strong> N3D-Bench is generated by the same authors using the same lifting pipeline as training, so the $90+\%$ numbers measure agreement between the model and its own data-generation prior, not agreement with an independent ground truth. The same observation applies to the 3D IoU column in Table 4: predictions are aligned to GT depth before scoring, which structurally deletes the dimension where MoGE-2 dependency would hurt most.</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[32] Wang et al., MoGE-2</strong> — the monocular depth/intrinsics estimator that anchors the metric frame at training, inference, and evaluation. Reading its error analysis is a precondition for interpreting N3D-VLM&#x27;s numbers.</li><li><strong>[22] SpatialLM</strong> — closest 3D-grounding-from-VLM baseline; its indoor-only failure on outdoor scenes (Fig. 6, p.13) is the empirical case that motivates N3D-VLM&#x27;s broader 2D-lifting strategy.</li><li><strong>[8] SpatialRGPT (and SpatialRGPT-Bench)</strong> — defines the bench protocol, the $\pm 25\%$ tolerance, and the question-type taxonomy that N3D-Bench extends; the strongest non-N3D numerical baseline in Table 2.</li><li><strong>[21] SpatialReasoner</strong> — the closest prior &quot;explicit 3D reasoning&quot; attempt without full bounding boxes; the contrast clarifies what <em>box-level</em> explicit 3D buys over center-only or orientation-only outputs.</li><li><strong>[37] DetAny3D</strong> — the strongest prior single-image 3D detection dataset ($\sim$450K) and the reference point for the $6\times$ scale claim; reading it sets a calibration for what &quot;lifted 3D data&quot; should look like.</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] How much of the gain survives if MoGE-2 is replaced by Depth Anything v2 [36] or Metric3D at inference, with training kept the same?</li><li>[ ] What is the unaligned 3D IoU (no depth alignment) on RefCOCO and Objects365, and what fraction of error is metric-scale versus localization?</li><li>[ ] What absolute median error in meters does the model achieve on SpatialRGPT-Bench distance/height questions, beyond the $\pm 25\%$ pass rate?</li><li>[ ] How does CoT accuracy degrade on question templates held out from training (e.g., volume comparison, occluded-object reasoning, multi-step geometric chains)?</li><li>[ ] How robust is the model on real RGB-D sensor inputs (Kinect, ARKit LiDAR) versus MoGE-2 estimates, where the depth distribution differs structurally?</li><li>[ ] On the dense-scene failure mode (jellyfish), what is the recall as a function of object count, and does extra training data fix recall or just per-object precision?</li><li>[ ] Does the N3D-VLM-3B advantage over N3D-VLM-7B on CV-Bench-3D ($96.3$ vs $93.3$, Table 2) reflect noise or capacity-saturation on a 1.2K-question multichoice bench?</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>Report unaligned 3D metrics alongside aligned ones</strong> (highest feasibility). Add a column in Tables 3–4 with raw 3D IoU and per-axis $(x, y, z)$ error so readers can separate metric-scale error from localization error. Justification: aligning predictions to GT depth structurally removes the dimension where MoGE-2 coupling would manifest, so the current numbers cannot answer the depth-coupling question.</li><li><strong>Cross-depth-backbone ablation</strong> (high feasibility). Train a second model with Depth Anything v2 and evaluate both models with both depth backbones at inference. Justification: if accuracy collapses when the train-time and inference-time depth disagree, the model is fitting MoGE-2 specifically rather than 3D structure; the current paper cannot rule this out.</li><li><strong>Independent held-out test slice</strong> (medium feasibility). Have human annotators draw 3D boxes on a few hundred Objects365 images that the lifting pipeline could not see, and report results separately. Justification: this is the only way to bound the pseudo-label ceiling without circular evaluation.</li><li><strong>Held-out template generalization</strong> (medium feasibility). Train on a subset of CoT templates (e.g., distance, clock direction) and evaluate on a strictly held-out template family (e.g., volume, occluded-object reasoning). Justification: the current $92.1\%$ N3D-Bench number is consistent with both &quot;the model learned geometry&quot; and &quot;the model learned templates&quot;; this experiment separates them.</li><li><strong>Program-of-thought head instead of templated CoT</strong> (lower feasibility). Replace the LLM-rephrased deterministic trace with a small DSL emitted by the model and evaluated by an external calculator, so that geometric correctness is decoupled from language fluency and the LLM-as-a-judge pass rate stops conflating the two. Justification: this directly attacks the template-bound limitation in §7.2 and would let CoT generalize compositionally, at the cost of an additional decoding head.</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

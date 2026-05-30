@@ -1,0 +1,536 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Voyager: Long-Range and World-Consistent Video Diffusion for Explorable 3D Scene Generation</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">Voyager: Long-Range and World-Consistent Video Diffusion for Explorable 3D Scene Generation</h1>
+          <p class="cover-meta">Tianyu Huang, Wangguandong Zheng, Tengfei Wang, Yuhao Liu, Zhenwei Wang, Junta Wu, Jie Jiang, Hui Li, Rynson W.H. Lau, Wangmeng Zuo, Chunchao Guo</p>
+          <p class="cover-meta">2506.04225 · arXiv preprint (later ACM TOG) · 2025-06-04</p>
+          <div class="cover-tagline"><p>本文研究如何從單張影像與使用者自訂相機軌跡,生成長距離、世界一致(world-consistent)且可探索的 3D 場景。屬於以視訊擴散模型(video diffusion)做場景級世界建模的新興方向,結合可控視角影像合成、新視角合成(NVS)與 3D 重建。重點議題包括:長序列下的時空一致性、以幾何作為條件以避免視覺幻覺、以及如何擺脫後處理 SfM/MVS 重建以直接得到可用的 3D 點雲場景。同時涵蓋大規模 RGB-D 視訊資料集自動化建構的資料引擎設計,屬於電腦視覺、生成模型與計算機圖學交會領域。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本文研究如何從單張影像與使用者自訂相機軌跡,生成長距離、世界一致(world-consistent)且可探索的 3D 場景。屬於以視訊擴散模型(video diffusion)做場景級世界建模的新興方向,結合可控視角影像合成、新視角合成(NVS)與 3D 重建。重點議題包括:長序列下的時空一致性、以幾何作為條件以避免視覺幻覺、以及如何擺脫後處理 SfM/MVS 重建以直接得到可用的 3D 點雲場景。同時涵蓋大規模 RGB-D 視訊資料集自動化建構的資料引擎設計,屬於電腦視覺、生成模型與計算機圖學交會領域。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張既有可控視角的視訊生成方法存在三項根本問題:(1)缺乏顯式 3D 結構支撐,長距離相機軌跡下空間一致性崩潰;(2)以「從點雲渲染的部分 RGB 影像」作為條件雖能引入幾何先驗,但在複雜遮擋場景中會出現錯誤遮擋與幻覺,反而注入不正確的訓練監督;(3)即使生成結果視覺上可接受,仍須經由 SfM 等後處理 3D 重建才能得到可用 3D 內容,既慢又會引入幾何瑕疵。據此,作者推論真正的解法必須讓模型同時感知「彩色」與「幾何」並在生成階段就完成 3D 化:因此提出 (a)同步輸出對齊的 RGB 與深度視訊,並在條件端額外注入「部分深度圖」以彌補部分 RGB 的歧義,使 DiT 的全注意力能在像素層級耦合視覺與幾何資訊;(b)為支援無限長探索,設計帶 point culling 的 world cache 持續累積點雲歷史,並以重疊片段加噪重去噪的 smooth video sampling 平順拼接相鄰片段,擺脫一般 auto-regressive 僅靠少量前幀記憶的限制;(c)由於現有資料集缺乏精準相機與度量深度,提出可擴充的資料引擎,先以 VGGT 估相機與深度,再用 MoGE 與 Metric3D 對齊到統一度量尺度,共構建逾 10 萬段訓練片段。整體方案在邏輯上是「為了端到端輸出 3D 一致世界,必須同時擁有像素級幾何條件、跨片段持久空間記憶與度量一致的訓練資料」三者缺一不可的必然結果。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>在 RealEstate10K 上的 novel view synthesis 全面領先四個 baseline:PSNR 18.751、SSIM 0.715、LPIPS 0.277,優於 FlexWorld 的 18.278/0.693/0.281(Table 1, p.5)。</li><li>即使搭配同樣的 VGGT post-hoc 重建,Voyager 仍能在 3DGS 重建上勝出(PSNR 17.742 vs FlexWorld 17.623),改用自家生成的 depth 後再進一步提升至 18.035(Table 2, p.5)。</li><li>在 WorldScore 靜態 benchmark 上以平均分 77.62 拿下第一,超越 3D-based 的 WonderWorld(72.69)與所有四個 video baseline(Table 3, p.7)。</li><li>提出 jointly 生成對齊的 RGB 與 depth 視訊,並把兩者沿 height 軸串接 $[\,I_k, \Phi, D_k\,]_h$,讓 DiT 的 full-attention 能在 pixel level 同時耦合視覺與幾何資訊(Sec 4.2, p.4)。</li><li>在條件端用 partial depth $\hat{D}_k$ 取代僅靠 partial RGB $\hat{I}_k$ 的設計,直觀地解決複雜遮擋下 partial RGB 出現錯誤遮擋與幻覺的問題(Figure 2, p.2)。</li><li>World cache 的 normal-check point culling 將儲存點數縮減約 40%,且在 Figure 8(p.7)的視覺結果與「全部保留」幾近一致。</li><li>Smooth video sampling 透過重疊片段 noise re-init 與輕度 noise injection 再 denoise,提供 auto-regressive 拼接的色彩一致性策略(Sec 4.3, p.5)。</li><li>Scalable data engine 將 VGGT(相機+深度)、MoGE(robust depth)以 least squares 對齊、再以 Metric3D 做 quantile-based metric 校準,構建超過 100,000 段 RGB-D 訓練 clip(Sec 4.4, p.5; App C, p.11)。</li><li>三階段訓練的 ablation 顯示 RGB-only 到 RGB-D 的躍升最大(Camera Control 74.98 → 85.04),Control block 再小幅補強到 85.95(Table 4, p.7)。</li><li>同一模型可不重訓即支援 long-range 探索、image-to-3D、depth-consistent video transfer 與 video depth estimation 四個應用(Figure 6, p.8)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>標題「Voyager: Long-Range and World-Consistent Video Diffusion for Explorable 3D Scene Generation」一次點出四個關鍵字：long-range（長距離）、world-consistent（世界一致）、video diffusion（視訊擴散）、explorable 3D scene（可探索 3D 場景），把作品定位為「以 video diffusion 為手段、以可探索 3D 世界為目標」的生成框架，而非單純的 NVS 或 video model。</p>
+<p>Abstract 先以實際應用（video gaming、virtual reality）切入，說明「使用者沿自定相機軌跡探索 3D 場景」是真實需求，並指出儘管 3D 物件生成已有進展，long-range、3D-consistent、explorable 場景仍是難題。接著正式提出 Voyager：以單張影像 + user-defined camera path，端到端生成 world-consistent 3D point-cloud sequences，免除 SfM/MVS 等後處理。</p>
+<p>之後 Abstract 用三段式列出三大貢獻支柱：(1) World-Consistent Video Diffusion——共同生成對齊的 RGB 與 depth video 並以世界觀測為條件；(2) Long-Range World Exploration——具 point culling 的 world cache 加上 smooth video sampling 的 auto-regressive inference；(3) Scalable Data Engine——自動估計 camera pose 與 metric depth 以收集大規模訓練資料。最後以「視覺品質與幾何精度的明顯提升」與專案網址作結。</p>
+<p>整段為後續鋪陳定下三層敘事骨架：consistency（§4.1–4.2）、長度可擴展（§4.3）、資料可規模化（§4.4），讓讀者帶著明確期待進入主文。</p>
+<h3>3.2 Introduction</h3>
+<p>(720 words)</p>
+<p>Introduction 採「應用 → 既有方法的三類缺陷 → 我們的整體解法 → 三項貢獻」的四段結構，把全文敘事一次撐起。</p>
+<p>開頭先講 high-fidelity、explorable 3D scenes 在遊戲、影視、機器人模擬上的價值，指出傳統流程仰賴大量人工 layout 與 asset，而 data-driven 物件/簡單場景生成又受限於 3D scene data 稀缺，引出對「scalable 生成可導覽虛擬世界」的需求，建立問題正當性。</p>
+<p>接著作者把目前以 NVS 與 video generation 取代 3D 表徵的研究概括成三個共通問題：(1) Long-Range Spatial Inconsistency——缺乏顯式 3D 結構，長軌跡下視角轉換難以保持一致；(2) Visual Hallucination——既有以 partial RGB 作為 3D 條件的方法在複雜遮擋下會出現錯誤的 occlusion（呼應 Figure 2 的對比）；(3) Post-hoc 3D Reconstruction——即使生成視訊精美，仍須額外重建步驟取得可用 3D，耗時且引入幾何瑕疵。這三點直接對映後續三大模組，等於是論文骨架的索引。</p>
+<p>第三段引入 Voyager，將其定位為「從單張影像與使用者相機軌跡合成 long-range, world-consistent RGB-D videos」的框架，核心是 world-consistent video diffusion 配上 expandable world caching：以 depth map 反投影建立初始 world cache，將其投影到目標相機獲得 partial RGB-D 觀測作為 diffusion 條件，再把生成幀回灌更新 cache，形成 closed-loop。隨後強調與 RGB-only 方法的差異——同時引入 depth 作為空間先驗並聯合生成 RGB+depth，可直接做 3D 重建而免去 SfM。</p>
+<p>第四段處理長度與資料兩個延伸問題：以 world cache 與 smooth video sampling 支援 auto-regressive 場景擴張，並以 point culling 移除冗餘點以節省記憶體；訓練端則提出 video reconstruction data engine，自動估計 camera pose 與 metric depth，使資料來源能跨真實拍攝與 Unreal Engine 渲染統一尺度，最終彙整超過 100,000 段 video clips。</p>
+<p>收尾段呼應 Figure 1，宣稱方法產出更一致的幾何，可直接 3D 重建並支援 infinite world expansion，同時點出 3D generation、video transfer、depth estimation 等下游應用，為 §6 Application 預留鉤子。最後條列三項貢獻：world-consistent RGB-D video diffusion、world caching + auto-regressive sampling、scalable data engine 與 100K 訓練資料，與 Abstract 的三支柱一一對應，使後續每章節（§4 Method、§5 Experiments、§6 Application）都能被讀者明確定位回此處的三點宣告。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(620 words)</p>
+<p>本書寫合併論文的 §2 Related Work 與 §3 Preliminaries，因為兩者共同的功能是「在進入 Voyager 方法前先把文獻定位與技術基底鋪好」。</p>
+<p>§2.1 Camera-Controllable View Generation 將既有可控相機生成法分成三類：(a) NVS 透過多視重建合成新視角，仰賴密集視點，難處理單張輸入；(b) 把 camera parameter 隱式注入 model，雖能依視角生成圖像，但常見視點不一致；(c) 以輸入視 warp 出的 point cloud 作為條件，雖大幅提升空間一致性，但 warp 後的圖像仍含 artifact，會干擾訓練。作者藉此明確自己屬於第三類，但獨特之處在於「同時引入 warping depth 作為條件並聯合生成 RGB + depth」，把 §4.1 與 §4.2 的設計動機與既有路線的差距點清楚。</p>
+<p>§2.2 Long-Range Video Generation 把長視訊生成切成 training-free、hierarchical、auto-regressive 三條路線，指出前兩者無法擴張到無限長度，後者則受限於 memory cache 難以保留遠期歷史。這直接導出 §4.3 的世界快取與 point culling：用 point cloud 而非 latent cache 來保留完整空間歷史，並以 smooth video sampling 在 auto-regressive 推論中連接 clips。</p>
+<p>§3 Preliminaries of Video Diffusion Models 則是給後續方法所需的記號與基底模型一個交代。先用一句話介紹 diffusion 的 forward/reverse 過程，再說明 video diffusion 透過 3D convolution、attention、latent diffusion 進入時間維度。重點落在他們所選的骨幹 Hunyuan-Video：給定文字 $y$ 與 ground-truth video $[I_0, \dots, I_{T-1}]\in\mathbb{R}^{T\times 3\times H\times W}$，由 3D-VAE 取得 latent $z_0$，形狀為 $(T/c_t+1)\times C\times H/c_s\times W/c_s$；noisy latent $z_t$ 進入「Dual-stream to Single-stream」混合 DiT，雙流區塊 $f_D^i$ 分別處理 video 與 text latent，單流區塊 $f_S^i$ 在串接後共同處理；image-conditioned 時把 image latent 沿 channel 軸串到 $z_t$；訓練目標是預測 velocity $u_t = dz_t/dt$；推論用 first-order Euler ODE solver 還原 $z_0$，再由 3D-VAE decoder 輸出視訊。</p>
+<p>這段技術鋪陳的策略意圖很明確：把 §4 中會反覆出現的 latent shape、雙/單流 block 命名、channel-wise 條件串接、velocity 訓練目標都先定義好，使讀者進入 §4.2 看到 $z&#x27;_{t,0} = f_{\mathrm{emb}}(\mathrm{concat}(z_t, z_{\mathrm{rgb}}, z_{\mathrm{depth}}))$ 與 Eq. (1)–(2) 時，能直接把 Voyager 的修改視為「在 Hunyuan-Video 的雙/單流 DiT 上加 depth concatenation 與 control blocks」，而非從零理解一個新架構。整體來看，§2 給「為什麼要做」的對手定位，§3 給「在誰之上做」的技術前提，共同把讀者引導至 §4 的方法主軸。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(360 words)</p>
+<p>§4 Methodology: Voyager 開頭重申輸入輸出設定：給定影像 $I_0\in\mathbb{R}^{3\times H\times W}$ 與使用者自訂相機軌跡，目標是建立可探索的世界。作者把 video generation 與 3D world modeling 之間的落差概括為三個面向：long-range 視訊延伸的不一致、視覺條件帶來的幻覺、以及無法從視訊輸出重建世界，並對應宣告三組設計，作為 §4.1–4.4 的章節地圖。</p>
+<p>§4.1 Geometry-Injected Frame Condition 是整個方法論的入口：作者解釋 camera parameter 作為隱式條件難訓練、純 warped RGB 作為顯式條件又會在複雜遮擋下幻覺，因此提出在 partial RGB image 之外再導入對齊的 partial depth map，由 depth map 與相機參數投影得到 point cloud，再 render 回各視角生成 partial RGB+depth+mask，作為後續 diffusion 的幾何條件。</p>
+<p>§4.2 World-Consistent Video Diffusion 把這組條件接到 §3 預備的 Hunyuan DiT。先說明 channel-wise concatenation 的 baseline 做法在缺口大小變化大時不穩，因此提出 Depth-Fused Video Generation——把 RGB 與 depth 沿 height 軸串成 $\mathcal{I}_k=[I_k,\Phi,D_k]_h$，讓 full-attention DiT 能在 pixel 層級交互視覺與幾何資訊；再以 Context-Based Control Enhancement 複製首個 double/single-stream block 為 control blocks $\hat f_D, \hat f_S$，以 zero-initialized linear layer 注回主幹，加強對 partial 條件的 follow。</p>
+<p>§4.3 Long-Range World Exploration 處理長度問題：以 World Caching with Point Culling 累積 RGB-D 投影所得 point cloud，並用 visibility mask 與 surface-normal 角度檢查決定加點，宣稱可省約 40% 點數；以 Smooth Video Sampling 透過 overlapping segment 初始化、再經平均與 light-noise 微擾後再 denoise，確保連續 clip 間色彩過渡無跳變。</p>
+<p>§4.4 Scalable Video Data Engine 則為前述模型的訓練資料把關：以 RealEstate10K、DL3DV 與自渲染 UE 場景共逾 100,000 clips 為素材，以 VGGT 取得 camera pose 與粗 depth、以 MoGE 透過 least-squares 對齊改善 depth、再以 Metric3D 校準 metric scale。整章敘事從「條件設計 → 模型結構 → 推論延伸 → 訓練資料」一氣呵成，為 §5 的多面向實驗鋪好評估基底。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(330 words)</p>
+<p>§5 Experiments 採「能力分層、由近到遠」的安排：先看單段視訊品質、再看下游 3D 重建、再看跨領域 world-scale 評測，最後以 ablation 收束方法論主張。</p>
+<p>§5.1 Video Generation 在 RealEstate10K 隨機抽樣 150 段 clip，與 SEVA、ViewCrafter、See3D、FlexWorld 在 image-to-video 任務上比較，採 PSNR、SSIM、LPIPS 評估視覺相似度。Table 1 顯示 Voyager 在三項指標上皆領先，Figure 4 則進一步呈現在大幅相機運動或細節物件保留上仍能維持合理性。這一節的角色是先確立「在熟悉 benchmark 與標準指標下 Voyager 至少不輸並普遍勝出」。</p>
+<p>§5.2 Scene Generation 把同一批生成視訊接到 3DGS 重建：baselines 因僅輸出 RGB，要先用 VGGT 補出 camera 與 depth；Voyager 則因原生產出 RGB-D，可直接初始化點雲，也另測試以 VGGT 為共同基準的版本。Table 2 同時呈現 VGGT-post 與「Voyager 自帶 depth」兩列，並於後者三項指標再進一步提升，論證 depth 共生成不只是視覺輔助、實際提升幾何一致性。</p>
+<p>§5.3 World Generation 將戰場拉到 WorldScore 的 2,000 個 static 例子，跨室內外、寫實與風格化，與 WonderJourney、WonderWorld、EasyAnimate、Allegro、Gen-3、CogVideoX-I2V 六種 SOTA 比較。Table 3 顯示 Voyager 取得最高 WorldScore Average，並在 Subjective Quality 拿下首位，作者特別點出他們因採 metric depth 條件而產生「比其他方法更大幅度的相機運動」，相對更難生成。</p>
+<p>§5.4 Ablation Studies 分兩條軸：World-Consistent Video Diffusion 上比較三個訓練階段——RGB-only、RGB-D、加 control blocks——Table 4 顯示 depth 融合主要拉高 camera control 與 content alignment，control blocks 進一步補強 3D consistency；Long-range 部分則以 Figure 8 對比「保留全部點 / 僅保留不可見區域 / 加 normal check」與「無/有 smooth sampling」，論證 point culling 在維持品質下省 ~40% 儲存、smooth sampling 確保跨 clip 過渡無接縫。整體實驗鏈為 §6 的多元應用展示提供量化背書。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(110 words)</p>
+<p>§7 Conclusion 用一段話收尾：Voyager 是一個 world-consistent video generation framework，目標是 long-range world exploration；其 RGB-D video diffusion 能在使用者輸入相機軌跡下產出空間一致的 video sequences，並可直接用於 3D scene reconstruction，配合 auto-regressive 推論支援世界擴張。實驗證實在生成視訊與點雲兩端皆有高視覺保真與強空間一致性。</p>
+<p>論文未設專門的 Limitations 或 Future Work 段落，僅在 §6 Application 隱含展望——透過 long video generation、image-to-3D、depth-consistent video transfer、video depth estimation 四個 demo 暗示後續延伸方向；對於失效情境、計算成本、無動態物件支援、依賴單張輸入等限制，paper does not specify。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(720 words)</p>
+<div class="card"><p>Introduction 採「應用 → 既有方法的三類缺陷 → 我們的整體解法 → 三項貢獻」的四段結構，把全文敘事一次撐起。</p></div>
+<div class="card"><p>開頭先講 high-fidelity、explorable 3D scenes 在遊戲、影視、機器人模擬上的價值，指出傳統流程仰賴大量人工 layout 與 asset，而 data-driven 物件/簡單場景生成又受限於 3D scene data 稀缺，引出對「scalable 生成可導覽虛擬世界」的需求，建立問題正當性。</p></div>
+<div class="card"><p>接著作者把目前以 NVS 與 video generation 取代 3D 表徵的研究概括成三個共通問題：(1) Long-Range Spatial Inconsistency——缺乏顯式 3D 結構，長軌跡下視角轉換難以保持一致；(2) Visual Hallucination——既有以 partial RGB 作為 3D 條件的方法在複雜遮擋下會出現錯誤的 occlusion（呼應 Figure 2 的對比）；(3) Post-hoc 3D Reconstruction——即使生成視訊精美，仍須額外重建步驟取得可用 3D，耗時且引入幾何瑕疵。這三點直接對映後續三大模組，等於是論文骨架的索引。</p></div>
+<div class="card"><p>第三段引入 Voyager，將其定位為「從單張影像與使用者相機軌跡合成 long-range, world-consistent RGB-D videos」的框架，核心是 world-consistent video diffusion 配上 expandable world caching：以 depth map 反投影建立初始 world cache，將其投影到目標相機獲得 partial RGB-D 觀測作為 diffusion 條件，再把生成幀回灌更新 cache，形成 closed-loop。隨後強調與 RGB-only 方法的差異——同時引入 depth 作為空間先驗並聯合生成 RGB+depth，可直接做 3D 重建而免去 SfM。</p></div>
+<div class="card"><p>第四段處理長度與資料兩個延伸問題：以 world cache 與 smooth video sampling 支援 auto-regressive 場景擴張，並以 point culling 移除冗餘點以節省記憶體；訓練端則提出 video reconstruction data engine，自動估計 camera pose 與 metric depth，使資料來源能跨真實拍攝與 Unreal Engine 渲染統一尺度，最終彙整超過 100,000 段 video clips。</p></div>
+<div class="card"><p>收尾段呼應 Figure 1，宣稱方法產出更一致的幾何，可直接 3D 重建並支援 infinite world expansion，同時點出 3D generation、video transfer、depth estimation 等下游應用，為 §6 Application 預留鉤子。最後條列三項貢獻：world-consistent RGB-D video diffusion、world caching + auto-regressive sampling、scalable data engine 與 100K 訓練資料，與 Abstract 的三支柱一一對應，使後續每章節（§4 Method、§5 Experiments、§6 Application）都能被讀者明確定位回此處的三點宣告。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(620 words)</p>
+<div class="card"><p>本書寫合併論文的 §2 Related Work 與 §3 Preliminaries，因為兩者共同的功能是「在進入 Voyager 方法前先把文獻定位與技術基底鋪好」。</p></div>
+<div class="card"><p>§2.1 Camera-Controllable View Generation 將既有可控相機生成法分成三類：(a) NVS 透過多視重建合成新視角，仰賴密集視點，難處理單張輸入；(b) 把 camera parameter 隱式注入 model，雖能依視角生成圖像，但常見視點不一致；(c) 以輸入視 warp 出的 point cloud 作為條件，雖大幅提升空間一致性，但 warp 後的圖像仍含 artifact，會干擾訓練。作者藉此明確自己屬於第三類，但獨特之處在於「同時引入 warping depth 作為條件並聯合生成 RGB + depth」，把 §4.1 與 §4.2 的設計動機與既有路線的差距點清楚。</p></div>
+<div class="card"><p>§2.2 Long-Range Video Generation 把長視訊生成切成 training-free、hierarchical、auto-regressive 三條路線，指出前兩者無法擴張到無限長度，後者則受限於 memory cache 難以保留遠期歷史。這直接導出 §4.3 的世界快取與 point culling：用 point cloud 而非 latent cache 來保留完整空間歷史，並以 smooth video sampling 在 auto-regressive 推論中連接 clips。</p></div>
+<div class="card"><p>§3 Preliminaries of Video Diffusion Models 則是給後續方法所需的記號與基底模型一個交代。先用一句話介紹 diffusion 的 forward/reverse 過程，再說明 video diffusion 透過 3D convolution、attention、latent diffusion 進入時間維度。重點落在他們所選的骨幹 Hunyuan-Video：給定文字 $y$ 與 ground-truth video $[I_0, \dots, I_{T-1}]\in\mathbb{R}^{T\times 3\times H\times W}$，由 3D-VAE 取得 latent $z_0$，形狀為 $(T/c_t+1)\times C\times H/c_s\times W/c_s$；noisy latent $z_t$ 進入「Dual-stream to Single-stream」混合 DiT，雙流區塊 $f_D^i$ 分別處理 video 與 text latent，單流區塊 $f_S^i$ 在串接後共同處理；image-conditioned 時把 image latent 沿 channel 軸串到 $z_t$；訓練目標是預測 velocity $u_t = dz_t/dt$；推論用 first-order Euler ODE solver 還原 $z_0$，再由 3D-VAE decoder 輸出視訊。</p></div>
+<div class="card"><p>這段技術鋪陳的策略意圖很明確：把 §4 中會反覆出現的 latent shape、雙/單流 block 命名、channel-wise 條件串接、velocity 訓練目標都先定義好，使讀者進入 §4.2 看到 $z&#x27;_{t,0} = f_{\mathrm{emb}}(\mathrm{concat}(z_t, z_{\mathrm{rgb}}, z_{\mathrm{depth}}))$ 與 Eq. (1)–(2) 時，能直接把 Voyager 的修改視為「在 Hunyuan-Video 的雙/單流 DiT 上加 depth concatenation 與 control blocks」，而非從零理解一個新架構。整體來看，§2 給「為什麼要做」的對手定位，§3 給「在誰之上做」的技術前提，共同把讀者引導至 §4 的方法主軸。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>Voyager 是一個建立在 HunyuanVideo 雙流／單流 DiT 基礎模型上的 <strong>world-consistent video diffusion</strong> 框架。給定單張輸入影像 $I_0 \in \mathbb{R}^{3 \times H \times W}$、文字提示 $y$、以及使用者指定的相機軌跡 $\{c_k\}_{k=0}^{T-1}$,模型一次性生成 $T$ 幀對齊的 RGB-D 視訊,並支援透過 auto-regressive inference 進行任意長度的世界探索。其核心創新是把「幾何感知」內建於擴散過程本身,而非作為 post-hoc 後處理:輸入影像先以單目深度估計轉為點雲 $p_0$,該點雲被投影到每個目標視點 $c_k$ 上,得到 partial RGB image $\hat{I}_k$、partial depth map $\hat{D}_k$ 與 rendering mask $M_k = \text{render}(p_0, c_k)$,作為 DiT 的明確幾何條件。</p>
+<p>第二項創新是 <strong>depth-fused video generation</strong>:不是僅用 partial depth 補完 RGB 缺失區域,而是讓擴散模型同時生成完整的 RGB 與 depth 兩種視訊。具體做法是把 RGB 與深度沿 height 軸串接成 $\mathcal{I}_k = [I_k, \Phi, D_k]_h$(中間以 placeholder 列 $\Phi$ 分隔),條件圖 $\hat{\mathcal{I}}_k$ 與 mask $\mathcal{M}_k$ 同樣以高度軸組合。這樣 DiT 的 full-attention 結構就能在 pixel level 直接耦合視覺與幾何資訊。為了強化幾何條件的控制力,Voyager 額外引入仿照 VideoPainter 的 <strong>context-based control blocks</strong> $\hat{f}_D, \hat{f}_S$,把第一層 double-stream 與 single-stream 區塊的輸出以 zero-initialized linear layer 回注每一層 transformer block。</p>
+<p>第三項創新是 <strong>長距離世界探索機制</strong>:Voyager 維護一個跨片段累積的 <strong>world cache</strong> ——點雲集合 $\hat{p} \in \mathbb{R}^{(T \times H \times W) \times 3}$。每生成一個新片段,新點雲會被增量加入 cache,並透過 point culling(基於可見性 mask 與 surface normal 與當前視向的夾角是否超過 90°)去除冗餘點,儲存量約減少 40%。為了讓相鄰片段的色調與內容連續,作者設計 <strong>smooth video sampling</strong>:把序列切成重疊區為一半段長的 segments,前一片段的去噪結果作為當前片段重疊區的 noise initialization;兩片段推理完成後對重疊區做 averaging,再注入 light-level noise 並做最後一輪 denoising。</p>
+<p>訓練資料則由 <strong>scalable video data engine</strong> 自動標註:VGGT 估計相機與初始深度,MoGE 提供 robust 單目深度並用 disparity 空間下的 least squares 對齊到 VGGT 的相機座標系,Metric3D 進一步將深度尺度校正到統一的 metric 範圍,共產出超過 100,000 段訓練片段,涵蓋 RealEstate10K、DL3DV 與 Unreal Engine 渲染合成資料。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>User Input
+├─ Image I_0                           [B, 3, H, W]
+├─ Text y                              (string)
+└─ Camera trajectory {c_k}_{k=0..T-1}  [B, T, 4, 4]   (extrinsics + intrinsics)
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  (A) Geometry-Injected Frame Condition                  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │ Depth estimation on I_0  → D_0   [B, 1, H, W]    │   │
+│  │ Unproject (D_0, c_0)     → p_0   [B, N=H*W, 6]   │   │
+│  │ For each k:                                      │   │
+│  │   M_k = render(p_0, c_k)         [B, T, 1, H, W] │   │
+│  │   Î_k = I_warp ⊙ M_k             [B, T, 3, H, W] │   │
+│  │   D̂_k = D_warp ⊙ M_k             [B, T, 1, H, W] │   │
+│  │ Height-axis concat:                              │   │
+│  │   Î_k = [Î_k, Φ, D̂_k]_h          [B, T, 3, 2H+1, W]│  │
+│  │   M_k = [M_k, Φ, M_k]_h          [B, T, 1, 2H+1, W]│  │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  (B) 3D-VAE Encoder + Latent Concatenation              │
+│   GT video [I_k, Φ, D_k]_h → z_0    [B, T&#x27;, C, H&#x27;, W&#x27;]  │
+│     where T&#x27;=T/c_t+1, H&#x27;=(2H+1)/c_s, W&#x27;=W/c_s           │
+│   Cond latent  ẑ_0                  [B, T&#x27;, C, H&#x27;, W&#x27;]  │
+│   Mask down-pool m                  [B, T&#x27;, 1, H&#x27;, W&#x27;]  │
+│   Forward diffusion: z_0 → z_t      [B, T&#x27;, C, H&#x27;, W&#x27;]  │
+│   Patch embed:                                          │
+│     z&#x27;_{t,0} = f_emb(concat(z_t, ẑ_0, m))               │
+│                                     [B, L, d_model]     │
+│     where L = T&#x27; * (H&#x27;/p) * (W&#x27;/p)                      │
+└─────────────────────────────────────────────────────────┘
+        │
+        ├──→ Text encoder → z&#x27;_{y,0}  [B, L_text, d_model]
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  (C) Depth-Fused DiT  (Eq. 1–2)                         │
+│   Double-stream blocks  f_D^i × N_D                     │
+│     (z&#x27;_{t,i}, z&#x27;_{y,i}) = f_D^i(z&#x27;_{t,i-1}, z&#x27;_{y,i-1}, t)│
+│                                     [B, L, d_model]     │
+│   Single-stream blocks  f_S^i × N_S                     │
+│     z&#x27;&#x27;_{t,i} = f_S^i(z&#x27;&#x27;_{t,i-1}, t)                   │
+│                                     [B, L+L_text, d_model]│
+└─────────────────────────────────────────────────────────┘
+        │           ▲
+        │           │ (residual injection per block)
+        ▼           │
+┌─────────────────────────────────────────────────────────┐
+│  (D) Context-Based Control Blocks  (Eq. 3–4)            │
+│   z_D = f̂_D(z&#x27;_{t,0})               [B, L, d_model]     │
+│   z_S = f̂_S(z_D)                    [B, L, d_model]     │
+│   z&#x27;_{t,i}  += l_D(z_D)   (zero-init linear)            │
+│   z&#x27;&#x27;_{t,i} += l_S(z_S)   (zero-init linear)            │
+└─────────────────────────────────────────────────────────┘
+        │
+        ▼
+   Velocity prediction û_t            [B, T&#x27;, C, H&#x27;, W&#x27;]
+        │
+        ▼   first-order Euler ODE solve
+   Recovered latent z_0               [B, T&#x27;, C, H&#x27;, W&#x27;]
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  (E) 3D-VAE Decoder                                     │
+│   z_0 → [I_k, Φ, D_k]_h frames                          │
+│   Split height-axis → I_k:  [B, T, 3, H, W]             │
+│                     D_k:    [B, T, 1, H, W]             │
+└─────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│  (F) World Cache Update with Point Culling              │
+│   New points p̂_new = unproject(D_k, c_k)                │
+│                                     [B, T*H*W, 3]       │
+│   For each frame k:                                     │
+│     M_vis = render(p̂_cache, c_k)                        │
+│     keep p ∈ p̂_new where ¬M_vis OR cos(n,v) &lt; 0         │
+│   p̂_cache ← p̂_cache ∪ kept points   [B, N_cache, 3]     │
+│   (≈ 40% reduction vs. naive accumulation)              │
+└─────────────────────────────────────────────────────────┘
+        │
+        ▼ (next clip)
+┌─────────────────────────────────────────────────────────┐
+│  (G) Smooth Video Sampling                              │
+│   Overlap = T/2                                         │
+│   z_t^{seg_n}[overlap] ← noised z_0^{seg_{n-1}}[overlap]│
+│   After two-segment inference:                          │
+│     merge = avg(seg_{n-1}[overlap], seg_n[overlap])     │
+│     + light noise → final denoising round               │
+└─────────────────────────────────────────────────────────┘
+        │
+        ▼
+   Output: T-frame RGB-D video + accumulated point cloud
+   (no SfM/MVS post-processing required)</code></pre>
+<p>注:<code>?</code> 標示的具體數值($c_t$、$c_s$、$N_D$、$N_S$、$d_{model}$、$p$ 等)詳見 §5.3 各模組的「Implementation Details」;這些值為 HunyuanVideo 主幹的設定,本論文未額外揭露具體數字。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Geometry-Injected Frame Condition"><h2 class="slide-title">Method — 5.3.1 Geometry-Injected Frame Condition</h2><div class="card"><p><strong>Function:</strong> 將輸入影像轉為點雲後,依使用者指定的相機軌跡渲染出 partial RGB、partial depth 與可見性 mask,作為擴散模型的顯式幾何條件,以避免僅用 partial RGB 在複雜遮擋下產生的視覺幻覺。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I_0$, $\{c_k\}_{k=0}^{T-1}$</li><li>Shape: $[B, 3, H, W]$,$[B, T, 4, 4]$(相機外參/內參)</li><li>Source: 使用者輸入</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat{\mathcal{I}}_k$,$\mathcal{M}_k$</li><li>Shape: $[B, T, 3, 2H+1, W]$,$[B, T, 1, 2H+1, W]$</li><li>Consumer: §5.3.2 3D-VAE Encoder</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>對 $I_0$ 估計深度 $D_0$,以相機 $c_0$ unproject 為點雲 $p_0 \in \mathbb{R}^{N \times 6}$($N = H \times W$,通道為 $(x,y,z,r,g,b)$)。</li><li>對每個目標視點 $c_k$,渲染可見性遮罩 $M_k = \text{render}(p_0, c_k)$,並把點雲投影回 2D 得 $\hat{I}_k$、$\hat{D}_k$。</li><li>沿 height 軸串接 RGB 與深度:$\mathcal{I}_k = [I_k, \Phi, D_k]_h$、$\hat{\mathcal{I}}_k = [\hat{I}_k, \Phi, \hat{D}_k]_h$、$\mathcal{M}_k = [M_k, \Phi, M_k]_h$,中間夾入 placeholder 列 $\Phi$ 以幫助模型分離兩種模態。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ M_k = \text{render}(p_0, c_k), \quad \hat{\mathcal{I}}_k = [\hat{I}_k, \Phi, \hat{D}_k]_h $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未揭露使用何種單目深度估計器作為推理階段 $D_0$ 的來源,訓練階段的 ground-truth depth 由資料引擎(§5.3.7)以 VGGT + MoGE + Metric3D 對齊產生。論文支援多種 width-height ratio,訓練時從 $\{1, 1.25, 1.5, 1.75\}$ 中隨機抽樣。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 3D-VAE Encoding &amp;amp; Latent Concatenation"><h2 class="slide-title">Method — 5.3.2 3D-VAE Encoding &amp;amp; Latent Concatenation</h2><div class="card"><p><strong>Function:</strong> 把高度軸串接後的 RGB-D 視訊壓縮到低維 latent 空間,並把噪聲 latent、條件 latent 與下採樣 mask 沿通道串接後送入 patch embedding。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: GT 視訊 $[\mathcal{I}_k]_{k=0}^{T-1}$、$\hat{\mathcal{I}}_k$、$\mathcal{M}_k$</li><li>Shape: $[B, T, 3, 2H+1, W]$</li><li>Source: §5.3.1 Frame Condition</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $z&#x27;_{t,0}$</li><li>Shape: $[B, L, d_{model}]$,其中 $L = T&#x27; \cdot (H&#x27;/p) \cdot (W&#x27;/p)$</li><li>Consumer: §5.3.3 DiT</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>3D-VAE Encoder 將 $T$ 幀視訊壓縮為 latent $z_0$,形狀為 $(T/c_t + 1) \times C \times H&#x27;/c_s \times W&#x27;/c_s$,其中 $H&#x27; = 2H+1$。</li><li>Forward diffusion 在 $z_0$ 上加噪得 $z_t$,條件視訊以同一 VAE 編碼為 $\hat{z}_0$,mask $\mathcal{M}_k$ 經 max-pooling 下採樣為 $m$。</li><li>沿 channel 軸串接 $\text{concat}(z_t, \hat{z}_0, m)$,經 patch-embedding 層 $f_{emb}$ 投影回 transformer 維度:$z&#x27;_{t,0} = f_{emb}(\text{concat}(z_t, \hat{z}_0, m))$。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$z&#x27;_{t,0} = f_{emb}\bigl(\text{concat}(z_t, \hat{z}_0, m)\bigr)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>3D-VAE 直接沿用 HunyuanVideo 預訓練權重,具體 $c_t$、$c_s$、$C$、patch size $p$、$d_{model}$ 等本論文未揭露。Stage-1 訓練時僅串接 RGB 相關 latent;Stage-2 起加入深度 latent。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 Depth-Fused DiT (Double-Stream + Single-Stream)"><h2 class="slide-title">Method — 5.3.3 Depth-Fused DiT (Double-Stream + Single-Stream)</h2><div class="card"><p><strong>Function:</strong> Hybrid Transformer 主幹,先以 dual-stream 區塊獨立處理視訊與文字 latent,再在 single-stream 階段把兩者串接以 full-attention 共同建模時空與跨模態關係,並在 pixel level 耦合 RGB 與深度。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $z&#x27;_{t,0}$、文字 latent $z&#x27;_{y,0}$、時間步 $t$</li><li>Shape: $[B, L, d_{model}]$、$[B, L_{text}, d_{model}]$、scalar</li><li>Source: §5.3.2 patch embedding 與文字編碼器</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 速度預測 $\hat{u}_t$</li><li>Shape: $[B, T&#x27;, C, H&#x27;&#x27;, W&#x27;&#x27;]$(再經反 patch-embed 還原為 latent 形狀)</li><li>Consumer: ODE solver → 3D-VAE Decoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>雙流階段(Eq. 1)獨立處理視訊與文字 latent;單流階段(Eq. 2)把 $z&#x27;_{t, N_D}$ 與 $z&#x27;_{y, N_D}$ 串接後一起做 full-attention,目的是讓視覺、幾何與文字在像素層級互動。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ z&#x27;_{t,i},\; z&#x27;_{y,i} = f_D^i(z&#x27;_{t,i-1},\; z&#x27;_{y,i-1},\; t),\quad i = 1, \dots, N_D $$</p>
+<p>$$ z&#x27;&#x27;_{t,i} = f_S^i(z&#x27;&#x27;_{t,i-1},\; t),\quad i = 1, \dots, N_S, \quad z&#x27;&#x27;_{t,0} = \text{concat}(z&#x27;_{t, N_D}, z&#x27;_{y, N_D}) $$</p>
+<p>訓練目標為 velocity prediction:最小化 $\|\hat{u}_t - u_t\|_2^2$,其中 $u_t = dz_t/dt$。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>主幹來自 HunyuanVideo,具體 $N_D$、$N_S$ 數值論文未揭露。每次推理生成 49 幀。Stage-1 訓練 RGB 通道、Stage-2 加入深度通道 fine-tune 全部 DiT 參數,Stage-3 凍結 DiT。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Context-Based Control Blocks"><h2 class="slide-title">Method — 5.3.4 Context-Based Control Blocks</h2><div class="card"><p><strong>Function:</strong> 仿照 VideoPainter 的輕量級控制模組,把第一層 double-stream 與 single-stream 區塊的早期特徵以 zero-initialized linear layer 加回每一層 transformer 區塊,強化幾何條件的 pixel-level controllability,解決僅在輸入層串接條件導致控制力不足的問題。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $z&#x27;_{t,0}$</li><li>Shape: $[B, L, d_{model}]$</li><li>Source: §5.3.2 patch embedding</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 殘差項 $l_D(z_D)$、$l_S(z_S)$</li><li>Shape: $[B, L, d_{model}]$</li><li>Consumer: §5.3.3 每一層 DiT 區塊(殘差累加)</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>複製第一層 double-stream 與 single-stream 區塊作為 control blocks $\hat{f}_D$、$\hat{f}_S$,計算 $z_D = \hat{f}_D(z&#x27;_{t,0})$、$z_S = \hat{f}_S(z_D)$。</li><li>對 DiT 每一層 $i$,以 zero-initialized linear layer $l_D, l_S$ 把 $z_D, z_S$ 加回對應 latent。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$z_D = \hat{f}_D(z&#x27;_{t,0}), \quad z_S = \hat{f}_S(z_D)$</p>
+<p>$$ z&#x27;_{t,i} \leftarrow z&#x27;_{t,i} + l_D(z_D), \quad z&#x27;&#x27;_{t,i} \leftarrow z&#x27;&#x27;_{t,i} + l_S(z_S) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Control blocks 僅在 Stage-3 訓練,此時主 DiT 參數凍結,僅訓練兩個複製出的 control blocks 與 zero-init 線性層。Stage-3 僅使用具有 ground-truth metric depth 的 UE 合成資料。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 World Cache with Point Culling"><h2 class="slide-title">Method — 5.3.5 World Cache with Point Culling</h2><div class="card"><p><strong>Function:</strong> 跨片段累積點雲歷史以支援長距離 auto-regressive 探索,並透過可見性與表面法向夾角檢查移除冗餘點,降低記憶體與計算開銷。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 新生成的 RGB-D 幀 $(I_k, D_k, c_k)$</li><li>Shape: $[B, T, 3, H, W]$、$[B, T, 1, H, W]$、$[B, T, 4, 4]$</li><li>Source: §5.3.3 解碼後的視訊輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: world cache $\hat{p}$</li><li>Shape: $[B, N_{cache}, 3]$(初始上界為 $T \times H \times W$ 但經 culling 大幅減少)</li><li>Consumer: 下一片段的 §5.3.1 Frame Condition</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個新點:(1) 計算當前視點下既有 cache 的可見性遮罩 $M = \text{render}(\hat{p}, c_i)$;(2) 落在 invisible 區域的點直接加入 cache;(3) 落在 visible 區域的點,若既有點的表面法向與當前視向夾角超過 90°(代表既有點在當前視點是「背面」、不應遮擋新點),則新點仍加入 cache。論文回報此策略使儲存點數降低約 40%,同時避免多幀聚合造成的雜訊累積。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \hat{p} \in \mathbb{R}^{(T \times H \times W) \times 3}, \quad M = \text{render}(\hat{p}, c_i) $$</p>
+<p>加入條件:點在當前視點 invisible,或現有可見點的表面法向 $\mathbf{n}$ 與視向 $\mathbf{v}$ 滿足 $\mathbf{n} \cdot \mathbf{v} &lt; 0$。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Culling 採 per-frame 增量更新,具體渲染實作(rasterization vs. splatting)論文未明確說明。Ablation 顯示此策略相對於「儲存所有點」與「僅儲存不可見點」在視覺品質相當的前提下節省約 40% 儲存。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Smooth Video Sampling"><h2 class="slide-title">Method — 5.3.6 Smooth Video Sampling</h2><div class="card"><p><strong>Function:</strong> 透過 overlapping segment 的 noise initialization 與後處理 averaging+denoising,消除相鄰 auto-regressive 片段間的色調不連續,維持長視訊的時序與光度一致性。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 前一片段去噪結果 $z_0^{(n-1)}$</li><li>Shape: $[B, T&#x27;, C, H&#x27;&#x27;, W&#x27;&#x27;]$</li><li>Source: §5.3.3 上一片段的 DiT 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 當前片段去噪結果 $z_0^{(n)}$</li><li>Shape: $[B, T&#x27;, C, H&#x27;&#x27;, W&#x27;&#x27;]$</li><li>Consumer: §5.3.5 World Cache 更新</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>把連續輸出視訊切成 overlapping segments,重疊長度為一個 segment 長度的一半。</li><li>當前 segment 的重疊區以前一 segment 對應位置的去噪結果作為 noise initialization,而非從 pure Gaussian noise 開始。</li><li>兩個連續 segment 推理完成後,對重疊區做 averaging 並注入 light-level noise,執行最後一輪 denoising 以細化過渡。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ z_t^{(n)}[\text{overlap}] = \text{noise}\bigl(z_0^{(n-1)}[\text{overlap}], t\bigr) $$</p>
+<p>$$ z_0^{\text{merged}} = \text{denoise}\Bigl(\text{noise}\bigl(\tfrac{1}{2}(z_0^{(n-1)} + z_0^{(n)})_{\text{overlap}},\; t_{\text{light}}\bigr)\Bigr) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未揭露 light-level noise 的具體 timestep,但定性結果(Figure 8)顯示啟用 smooth sampling 後,跨片段顏色漂移與內容不連續顯著減少。</p>
+<p>---</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>RealEstate10K [Zhou et al. 2018]</td><td>Image-to-video / scene generation</td><td>74,766 video clips (real-estate, mostly indoor)</td><td>train; 150 clips randomly sampled from the test split for evaluation in §5.1–5.2</td></tr><tr><td>DL3DV [Ling et al. 2024]</td><td>Video diffusion training</td><td>~3,000 curated videos segmented into ~18,000 clips</td><td>train (used only in stage 1; removed in stage 2 due to fast/shaky camera motion per Appendix A)</td></tr><tr><td>Unreal Engine (UE) renders (self-collected)</td><td>Video diffusion training with metric depth</td><td>1,500 scene models, &gt;10,000 rendered video samples</td><td>train (used in all three stages; sole dataset in stage 3 because it provides ground-truth metric depth)</td></tr><tr><td>WorldScore static benchmark [Duan et al. 2025]</td><td>World generation evaluation</td><td>2,000 static test examples (indoor/outdoor, photorealistic/stylized)</td><td>test only (§5.3)</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>PSNR</td><td>Pixel-level fidelity between generated frame and ground-truth frame on RealEstate10K</td><td>yes</td></tr><tr><td>SSIM</td><td>Structural similarity between generated and ground-truth frames</td><td>no</td></tr><tr><td>LPIPS</td><td>Learned perceptual similarity (lower is better)</td><td>no</td></tr><tr><td>WorldScore Average</td><td>Aggregate score over 7 sub-dimensions on the WorldScore benchmark</td><td>yes</td></tr><tr><td>WorldScore: Camera Control</td><td>Adherence to the prescribed camera trajectory</td><td>no</td></tr><tr><td>WorldScore: Object Control</td><td>Controllability of object-level content</td><td>no</td></tr><tr><td>WorldScore: Content Alignment</td><td>Alignment between generated content and the prompt/input</td><td>no</td></tr><tr><td>WorldScore: 3D Consistency</td><td>Geometric consistency across viewpoints</td><td>no</td></tr><tr><td>WorldScore: Photometric Consistency</td><td>Photometric stability across frames</td><td>no</td></tr><tr><td>WorldScore: Style Consistency</td><td>Style coherence across the generated video</td><td>no</td></tr><tr><td>WorldScore: Subjective Quality</td><td>Human-judged visual quality</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p>訓練流程 (Appendix A) 採三階段：(1) 僅以 RGB 條件訓練 video model，使用全部三個資料集；(2) 加入 depth 條件聯合訓練 RGB-D，剔除 DL3DV (因 camera motion 過快不利 depth 監督)；(3) 凍結 DiT 參數，僅訓練新增的 ControlNet-style control blocks，且只在帶有 ground-truth metric depth 的 UE 資料上訓練。Backbone 為 Hunyuan-Video [Kong et al. 2024] 的 image-to-video model；單次生成 frame 數為 49；訓練時隨機從 [1, 1.25, 1.5, 1.75] 抽取 width-height ratio 以支援多比例輸出。</p>
+<p>Inference 採 first-order Euler ODE solver (繼承 §3 的 flow-matching 公式，預測 velocity $u_t$)。長視頻採用 auto-regressive 與 smooth video sampling：將輸入切成重疊片段 (重疊長度為單一 segment 的一半)，重疊區以前一段生成結果作為 noise initialization；連續兩段推論完成後對重疊區做平均並注入 light-level noise，再執行最後一輪 denoising。World cache 採 point culling 策略 (不可見區域全部加入；可見區域若既有點 surface normal 與當前 view direction 夾角 &gt;90° 則加入)，相較全量儲存可減少約 40% point 數量。</p>
+<p>The paper does not specify hardware (e.g. GPU type/count), batch size, optimizer, learning-rate schedule, total training steps, inference resolution, or number of denoising steps.</p></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>RealEstate10K novel view synthesis (Table 1):</p>
+<table><thead><tr><th>Method</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>Notes</th></tr></thead><tbody><tr><td>SEVA</td><td>16.648</td><td>0.613</td><td>0.349</td><td>camera-parameter conditioning</td></tr><tr><td>ViewCrafter</td><td>16.512</td><td>0.636</td><td>0.332</td><td>point-cloud conditioning</td></tr><tr><td>See3D</td><td>18.189</td><td>0.694</td><td>0.290</td><td>point-cloud conditioning</td></tr><tr><td>FlexWorld</td><td>18.278</td><td>0.693</td><td>0.281</td><td>point-cloud conditioning</td></tr><tr><td><strong>Voyager</strong></td><td><strong>18.751</strong></td><td><strong>0.715</strong></td><td><strong>0.277</strong></td><td>RGB-D joint generation</td></tr></tbody></table>
+<p>RealEstate10K 3DGS reconstruction (Table 2):</p>
+<table><thead><tr><th>Method</th><th>Post Rec.</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th></tr></thead><tbody><tr><td>SEVA</td><td>VGGT</td><td>15.581</td><td>0.602</td><td>0.452</td></tr><tr><td>ViewCrafter</td><td>VGGT</td><td>16.161</td><td>0.628</td><td>0.440</td></tr><tr><td>See3D</td><td>VGGT</td><td>16.764</td><td>0.633</td><td>0.440</td></tr><tr><td>FlexWorld</td><td>VGGT</td><td>17.623</td><td>0.659</td><td>0.425</td></tr><tr><td><strong>Voyager</strong></td><td>VGGT</td><td>17.742</td><td>0.712</td><td>0.404</td></tr><tr><td><strong>Voyager (own depth)</strong></td><td>–</td><td><strong>18.035</strong></td><td><strong>0.714</strong></td><td><strong>0.381</strong></td></tr></tbody></table>
+<p>WorldScore (Table 3, Average is the headline column):</p>
+<table><thead><tr><th>Method</th><th>WorldScore Avg</th><th>Camera Ctrl</th><th>Object Ctrl</th><th>Content Align</th><th>3D Consist</th><th>Photo Consist</th><th>Style Consist</th><th>Subj Quality</th></tr></thead><tbody><tr><td>WonderJourney</td><td>63.75</td><td>84.6</td><td>37.1</td><td>35.54</td><td>80.6</td><td>79.03</td><td>62.82</td><td>66.56</td></tr><tr><td>WonderWorld</td><td>72.69</td><td>92.98</td><td>51.76</td><td>71.25</td><td>86.87</td><td>85.56</td><td>70.57</td><td>49.81</td></tr><tr><td>EasyAnimate</td><td>52.85</td><td>26.72</td><td>54.5</td><td>50.76</td><td>67.29</td><td>47.35</td><td>73.05</td><td>50.31</td></tr><tr><td>Allegro</td><td>55.31</td><td>24.84</td><td>57.47</td><td>51.48</td><td>70.5</td><td>69.89</td><td>65.6</td><td>47.41</td></tr><tr><td>Gen-3</td><td>60.71</td><td>29.47</td><td>62.92</td><td>50.49</td><td>68.31</td><td>87.09</td><td>62.82</td><td>63.85</td></tr><tr><td>CogVideoX-I2V</td><td>62.15</td><td>38.27</td><td>40.07</td><td>36.73</td><td>86.21</td><td>88.12</td><td>83.22</td><td>62.44</td></tr><tr><td><strong>Voyager</strong></td><td><strong>77.62</strong></td><td>85.95</td><td><strong>66.92</strong></td><td>68.92</td><td>81.56</td><td>85.99</td><td><strong>84.89</strong></td><td><strong>71.09</strong></td></tr></tbody></table>
+<p>Voyager 在 RealEstate10K 上 PSNR 較最強 baseline FlexWorld 提升 0.473 dB，並在 SSIM/LPIPS 同步領先；自有 depth 直接做 3DGS 初始化進一步將 PSNR 推到 18.035 (而 baselines 必須額外跑 VGGT post-hoc 重建)。WorldScore 上 Average 較最強 baseline WonderWorld 高 4.93 分，Subjective Quality 為全表最高 71.09。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>論文在 §5.4 與 Table 4 報告兩組 ablation：</p>
+<ul><li><strong>World-consistent video diffusion (Table 4，於 WorldScore 子指標上比較)</strong>：移除 depth condition 的 RGB-only 版 Camera Control 74.98、Content Alignment 48.92、3D Consistency 68.86；加入 depth 後分別躍升至 85.04 / 65.72 / 78.58 (分別 +10.06 / +16.80 / +9.72)；再加上 control blocks 達到 85.95 / 68.92 / 81.56。此 ablation 直接拆解了論文兩個核心貢獻 (depth fusion、context-based control blocks) 對應的指標增益，屬於 diagnostic 性質。</li><li><strong>Long-range world exploration (Figure 8，僅 qualitative)</strong>：(a) point culling — 全量儲存所有 point (302,992)、僅儲存不可見區 point (132,715)、加上 normal check (194,253) 三種策略比較，結論為 normal-check 視覺品質與全量相當但節省約 40% 儲存；(b) smooth sampling — 比較 w/ vs. w/o sampling 兩段 clip 的 transition 一致性。此組 ablation 回答了 cache 設計與 sampling 策略各自是否必要，但<strong>僅以視覺與 point 數量呈現，未提供 long-video 場景下的量化指標</strong> (例如 multi-clip PSNR/3D consistency drift)。</li></ul>
+<p>整體而言，Table 4 的 ablation 屬 diagnostic — 它對應論文宣稱的 method components 並顯示明顯增益；Figure 8 的長視頻 ablation 偏向 qualitative sanity check，缺乏量化是明顯不足之處。論文亦未對「是否使用 placeholder row Φ」、「partial depth vs partial RGB 單獨作為條件」等更細緻的設計選擇做拆解。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 在 RealEstate10K 上比較 SEVA、ViewCrafter、See3D、FlexWorld，且 WorldScore 上比較 WonderWorld、CogVideoX 等近期 SoTA。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 同時在 RealEstate10K (in-domain video + 3DGS reconstruction) 與 WorldScore (out-of-domain world generation) 兩個 benchmark 評估。</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — Table 4 對 depth condition 與 control blocks 拆解到位，但 long-range 模組 (point culling、smooth sampling) 僅 qualitative，未量化。</li><li>[missing] Has a scaling study (size, length, or compute) — 論文未報告 model size、training data 量、generation length 變化對指標影響的曲線。</li><li>[missing] Has an efficiency / wall-clock comparison — 僅以「point culling 節省約 40% storage」帶過，未提供推論時間、memory peak、與 baselines 的 wall-clock 對比。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 所有 PSNR/SSIM/LPIPS/WorldScore 數字均為單次點估計，無誤差棒或多 seed 報告。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 提供專案頁 https://voyager-world.github.io，但論文正文未明確聲明 code/weights/training data 釋出狀態，且 UE 自製資料、訓練超參數 (batch size、LR、steps、硬體) 皆未揭露，獨立復現難度高。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>作者明白指出 video diffusion 無法單次 pass 生成長視訊,因此整套 long-range exploration 必須仰賴 auto-regressive(Sec 4.3, p.4)。</li><li>DL3DV 因 camera 抖動過快被認為不適合 depth 訓練,僅能從原始 10K 影片中精挑 3,000 段,並在第二階段就被踢出訓練集(Sec 4.4, p.5; App A, p.11)。</li><li>作者承認不同 clip 各自獨立生成時會產生 color discrepancies,「無法直接拼接」,因此才需要 smooth video sampling(Sec 4.3, p.5)。</li><li>VGGT 估出的 depth「不夠精準」,所以才需要 MoGE 做 least squares 對齊(Sec 4.4, p.5)。</li><li>Channel-wise concatenation 「struggles to handle variable situations」,當缺失區域從小裂縫到大空白都可能出現時表現受限,這個 trivial baseline 才被 Depth-Fused 設計取代(Sec 4.2, p.4)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>在最直接量測 spatial 一致性的 WorldScore &quot;3D Consistency&quot; 軸上,Voyager 僅得 81.56,落後 WonderWorld(86.87)與 CogVideoX-I2V(86.21),這直接動搖「world-consistent」這個全文核心賣點(Table 3, p.7)。</li><li>與本文方法最接近的同期工作 GEN3C(Ren et al. 2025)被反覆引述為 partial-RGB conditioning 的代表,卻未出現在 Table 1/2/3 任何比較中,使「partial RGB+D vs 純 partial RGB」的關鍵 ablation 缺了最關鍵的對手(p.3, p.5 提到但無實驗對照)。</li><li>Long-range 與 &quot;infinite&quot; exploration 只有 Figure 1 與 Figure 6(a) 的定性展示,沒有任何 drift、re-projection error、PSNR-vs-distance 曲線等量化指標,標題的 &quot;Long-Range&quot; 主張在文中完全不可驗證(Sec 4.3, p.4-5; Sec 6, p.7)。</li><li>Video generation 評估只用 frame-wise 的 PSNR/SSIM/LPIPS、且僅 150 段測試,沒有 FVD、temporal metric 或 human eval,因此 flicker、temporal artifact 與 motion 不一致都不會反映在報告數字中(Sec 5.1, p.5-6)。</li><li>第三階段的 ControlNet block 「solely on the UE dataset」訓練(App A, p.11),意味著最終強化幾何 controllability 的關鍵模組只看過合成資料分佈,real-world 測試上的提升有相當機率混雜了第二階段 RGB-D 訓練的貢獻。</li><li>Point culling 只報「約 40%」的相對縮減,沒有絕對記憶體用量、rendering FPS 或與 voxel hashing 等簡單 baseline 的對照,因此「scalable to arbitrary length」的工程主張無從佐證(Sec 4.3, p.5)。</li><li>整個 data engine 的 metric depth 是 Metric3D quantile scaling(Eq. 6, App C, p.11)的產物,從未在 NYU、KITTI、ScanNet 等帶 GT 的 depth benchmark 上驗證,所有訓練 label 都是 pseudo-label 卻被當成 ground truth。</li><li>Smooth video sampling 只有 Figure 8 的定性對照,缺少 &quot;w/o sampling vs w/ sampling&quot; 的量化指標,且重疊片段的 re-denoise 額外計算開銷在全文未被披露(Sec 4.3, p.5; Fig 8, p.7)。</li><li>「the first video model that jointly generates RGB and depth sequences with given camera trajectories」這個主張僅以一句話列出,並未針對 image-level 或 single-frame RGB-D diffusion 工作做完整文獻盤點以支撐 &quot;first&quot;(Sec 1, p.3)。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: World-Consistent Video Diffusion(jointly 生成 RGB-D)</strong>:<strong>partially supported</strong>。Table 1、Table 4(p.7)的 ablation 確認了從 RGB-only 到 RGB-D conditioning 的提升,但 WorldScore 3D Consistency 81.56 仍落後 WonderWorld 86.87 與 CogVideoX-I2V 86.21(Table 3),說明「世界一致」這個 framing 在跨方法的 3D 一致性指標上沒有真的兌現。</li><li><strong>C2: Efficient world caching + auto-regressive smooth sampling 支援 infinite exploration</strong>:<strong>weakly supported</strong>。Figure 6(a)、Figure 8 提供視覺示意,Figure 8 的 point culling 結果說服力較強,但全文無 long-range 量化指標、無 cache 隨時間的 drift 曲線、無 inference 成本曲線,使「infinite」與「long-range」的主張停留在 demo 等級。</li><li><strong>C3: Scalable video data engine</strong>:<strong>supported as a curation effort</strong>。VGGT → MoGE 的 least squares 對齊(Eq. 5, App C, p.11)與 Metric3D quantile scaling(Eq. 6-8)在工程上是合理的合成方案,且確實產出 100K+ 訓練 clip;但作為「accurate camera + metric depth」的 claim,沒有對任何 depth GT 做誤差量化。</li><li><strong>C4: First video model jointly generating RGB+depth with camera trajectories(Sec 1, p.3)</strong>:<strong>overclaimed</strong>。&quot;first&quot; 屬於極端宣稱,但全文未對先前 image/video-level 的 RGB-D diffusion 工作做完整盤點,在沒有充分文獻調查支撐之下,此 claim 不應視為已被證明。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>靜態世界假設</strong>:world cache 純粹累積 $(x,y,z,r,g,b)$ 點,並把它們重新投影回 partial RGB 與 partial depth 作為條件。這個 representation 在設計上不能表達移動物體、光照變化或場景動態,所以「explorable world」永遠是凍結時間點的世界。要支援動態場景,必須整個改成 4D 表示(例如帶 timestamp 的 dynamic Gaussian),不是參數調整可以彌補。</p>
+<p><strong>Auto-regressive 漂移無修正機制</strong>:每個 clip 之間僅靠 world cache 的點雲記憶銜接,smooth sampling 只負責顏色銜接、normal-check 只負責記憶體控制,整條 pipeline 沒有任何全域最佳化(類似 SfM 的 bundle adjustment)能修正累積的相機與幾何誤差。隨著 clip 數量增加,投影誤差會結構性地累積,這是 cache-based auto-regressive 範式本身的限制,而不是訓練多就能解決的問題。</p>
+<p><strong>Pseudo-label 上限封頂</strong>:訓練 label 完全來自 VGGT + MoGE + Metric3D 的組合,模型能學到的相機與深度精度,結構上不會超過這條 pipeline 中最弱一環(尤其 sky region 與 outdoor large-scale scene 上 Metric3D quantile scaling 並不穩健)。即使再放大資料量,精度都會卡在 data engine 自己的 noise floor。</p>
+<p><strong>幾何條件本身的稀疏性瓶頸</strong>:partial depth $\hat{D}_k$ 是從 cache 點雲投影出來的,當場景含薄結構(樹葉、纜線)、透明或反射表面時,cache 根本存不到可信的點,因此 DiT 在這些區域得不到任何幾何訊號,只能完全依靠 prior 進行 hallucination,這會反過來抵消「partial depth 比 partial RGB 更乾淨」這個論證的優勢。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>VGGT [Wang et al. 2025]</strong>:整個 data engine 的相機與初始 depth 都由 VGGT 提供,Voyager 訓練 label 的天花板等同於 VGGT 的精度上限,理解它的失效模式就是理解 Voyager 的精度上限。</li><li><strong>GEN3C [Ren et al. 2025]</strong>:文中明指其屬於 partial-RGB conditioning 路線,卻未進入任何比較表;若要實證評估「加入 partial depth」帶來的真正增量,GEN3C 是最該補上的對照組。</li><li><strong>FlexWorld [Chen et al. 2025]</strong>:Voyager 全部主表中最強的 baseline,且也採 point-cloud-conditioned 路線,兩者差異本質上就是 RGB-only vs RGB-D conditioning,適合做為理解貢獻來源的對照。</li><li><strong>WorldScore [Duan et al. 2025]</strong>:Voyager 的招牌數字 77.62 來自此 benchmark,務必先讀 metric 定義(尤其是 3D Consistency 怎麼算),才能正確評估 Voyager 在該軸落後 WonderWorld 與 CogVideoX 的意義。</li><li><strong>HunyuanVideo [Kong et al. 2024]</strong>:Voyager 的 backbone(dual-stream / single-stream DiT、3D-VAE、velocity prediction)完全繼承自此,Voyager 能或不能做的事很大一部分是 base model 決定的。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 single-pass 49 frames 之外、跨多個 clip 累積後,Voyager 的 3D 一致性如何隨 trajectory 長度衰減?是否存在量化的 drift 曲線?</li><li>[ ] 在 NYU、KITTI 或 ScanNet 等帶 metric depth GT 的 benchmark 上,Voyager 生成的 depth 與其 data engine label 的 AbsRel / $\delta &lt; 1.25$ 是多少?</li><li>[ ] 為何在 WorldScore 自家的 3D Consistency 軸上 Voyager(81.56)反而落後 WonderWorld(86.87)與 CogVideoX-I2V(86.21)?是 metric 衡量的「一致性」與作者定義的「world-consistent」根本不同,還是方法在該軸真的較弱?</li><li>[ ] 與最直接同類工作 GEN3C(Ren et al. 2025)在 RealEstate10K 與 WorldScore 上的 head-to-head 結果是什麼?「partial RGB+D 比純 partial RGB 好」這個論證在最相近 baseline 上是否仍成立?</li><li>[ ] 第三階段 ControlNet 只在 UE 合成資料上訓練,若改在 real RGB-D(例如 ScanNet、ARKitScenes)上訓練,real-world 上的 camera control 與 3D consistency 會升或降?</li><li>[ ] World cache 在數十個 clip 之後的記憶體峰值、point culling 後的絕對點數、render FPS 為何?point culling 與單純 voxel-hash / octree 比較的具體 trade-off?</li><li>[ ] Smooth video sampling 中重疊區段 noise re-init 與額外 denoise 步驟,對 inference 時間與 PSNR/LPIPS 的量化影響為何?</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>加入 FVD 與 human eval(高可行性)</strong>:目前所有指標都是 frame-wise,加入 FVD 與小規模 human eval 立即能讓「視覺品質與時間一致性」獲得目前 PSNR/SSIM/LPIPS 偵測不到的證據;這是最低成本、最高 ROI 的補強。</li><li><strong>補上對 GEN3C 的直接對照(高可行性)</strong>:GEN3C 是最接近的 partial-RGB conditioning 同期工作,在 Table 1-3 加入它,直接驗證「加 partial depth」是否真的是性能來源,而非 data engine 或 base model 帶來的增益。</li><li><strong>量化 long-range drift(中等可行性)</strong>:沿著生成的 trajectory 在不同距離下回投影到 ground truth depth 並計算 re-projection error,或在合成 UE 場景上做 PSNR-vs-clip-index 曲線,讓 &quot;long-range&quot; 主張變成可驗證命題;邏輯依據在於 cache-based auto-regressive 缺乏 global correction,理論上一定有可量化的 drift。</li><li><strong>以 NYU/KITTI 評估 data engine 與生成 depth(中等可行性)</strong>:現有 pipeline 把 VGGT/MoGE/Metric3D 的輸出當 GT,只要用標準 depth benchmark 量一次 AbsRel/$\delta$ 就能釐清訓練 label 的天花板,這直接對應「Pseudo-label 上限封頂」這個結構性問題。</li><li><strong>第三階段 ControlNet 改用 real + synthetic 混合(中等可行性)</strong>:目前 stage-3 只看 UE,改混合 ScanNet、ARKitScenes 等真實 RGB-D 來源,可緩解合成域偏置,理論依據是 real distribution 的 occlusion 與材質統計與 UE 不同,讓 control block 看到真實分佈會直接改善 real-world camera-following。</li><li><strong>加入 cache 級別的全域微調步驟(較大改動)</strong>:每生成 N 個 clip 後對 world cache 做一次輕量 bundle-adjustment 風格的相機/深度微調(可採 differentiable rendering),對應修正「auto-regressive 漂移無修正機制」這個結構性限制;邏輯依據是只要還在 cache-based 範式內,就必須有某種全域最佳化點才能收斂誤差。</li><li><strong>將 cache 升級為時間維度的 4D 表示(最大改動)</strong>:把點雲帶上 timestamp 或改成 dynamic Gaussian splat,可從根本鬆綁「靜態世界假設」這個 fundamental limitation,讓框架支援動態場景;這是把 Voyager 從「探索靜態世界」推進到「探索動態世界」的最大潛在突破點,但需要重做 data engine 與訓練資料。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(110 words)</p>
+<div class="card"><p>§7 Conclusion 用一段話收尾：Voyager 是一個 world-consistent video generation framework，目標是 long-range world exploration；其 RGB-D video diffusion 能在使用者輸入相機軌跡下產出空間一致的 video sequences，並可直接用於 3D scene reconstruction，配合 auto-regressive 推論支援世界擴張。實驗證實在生成視訊與點雲兩端皆有高視覺保真與強空間一致性。</p></div>
+<div class="card"><p>論文未設專門的 Limitations 或 Future Work 段落，僅在 §6 Application 隱含展望——透過 long video generation、image-to-3D、depth-consistent video transfer、video depth estimation 四個 demo 暗示後續延伸方向；對於失效情境、計算成本、無動態物件支援、依賴單張輸入等限制，paper does not specify。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

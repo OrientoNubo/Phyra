@@ -1,0 +1,476 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>TTSA3R — TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-02 | lang: zh-TW --&gt;</p>
+<h1 id="ttsa3r-ttsa3r-training-free-temporal-spatial-adaptive-persistent-state-for-streaming-3d-reconstruction">TTSA3R — TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>TTSA3R</td></tr><tr><td>Paper full title</td><td>TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction</td></tr><tr><td>arXiv ID</td><td>2601.22615</td></tr><tr><td>Release date</td><td>2026-02-17</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2601.22615</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2601.22615v2</td></tr><tr><td>Code link</td><td>https://github.com/anonus2357/ttsa3r</td></tr><tr><td>Project page</td><td>—</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Zhijie Zheng</td><td>University of California, Davis</td><td>— (https://www.ifmlab.org/current_people.html)</td><td>first author</td></tr><tr><td>Xinhao Xiang</td><td>University of California, Davis</td><td>https://shanexiangh.github.io/xinhao-xiang/</td><td>co-author</td></tr><tr><td>Jiawei Zhang</td><td>University of California, Davis (Associate Professor, Computer Science; IFM Lab Director)</td><td>https://jiaweizhang.net/</td><td>corresponding author / advisor</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>Streaming 3D Reconstruction, Training-free Adaptation, Temporal-Spatial Updates, Persistent State, Catastrophic Forgetting, Recurrent Transformer, Pointmap Regression</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>CUT3R [49]</td><td>base model</td><td>Recurrent transformer with persistent state tokens; TTSA3R replaces its uniform update with adaptive masks.</td></tr><tr><td>TTT3R [9]</td><td>baseline</td><td>Training-free adaptive learning rates from observation-history alignment confidence; single-signal.</td></tr><tr><td>MUT3R [39]</td><td>baseline</td><td>Training-free attention gating using multi-layer self-attention motion cues; single-dimensional signal.</td></tr><tr><td>DUSt3R [50]</td><td>influence</td><td>Pairwise pointmap regression via ViT; foundational feed-forward 3D reconstruction baseline.</td></tr><tr><td>VGGT [48]</td><td>influence</td><td>Joint global self-attention over all frames; motivates streaming alternative due to quadratic cost.</td></tr><tr><td>Spann3R [47]</td><td>predecessor</td><td>External spatial memory of previous 3D predictions; representative streaming method.</td></tr><tr><td>Point3R [54]</td><td>concurrent</td><td>Explicit spatial pointer memory anchoring observations at 3D positions for streaming reconstruction.</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本論文聚焦於串流式 3D 重建 (streaming 3D reconstruction) 中的長序列退化問題。當輸入影片或影像序列愈來愈長,以 recurrent persistent state 為核心的模型 (如 CUT3R) 會因均勻更新策略而發生 catastrophic forgetting,導致 pose drift 與幾何扭曲。作者提出 TTSA3R,一個免訓練 (training-free) 的推論期框架,從時間維度的 state 演變與空間維度的 observation–state 對齊兩個互補訊號出發,動態決定每個 state token 的更新幅度與位置。其目標是在不重新訓練骨幹模型的情況下,維持長序列下的幾何穩定性,同時保留即時、固定記憶體佔用的優勢,並在 video depth、camera pose 與 3D reconstruction 等多項任務上提升最先進方法的表現。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>Computer Vision</li><li>3D Reconstruction</li><li>Streaming / Online Perception</li><li>Recurrent Neural Networks</li><li>Training-free Inference Adaptation</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>CUT3R recurrent transformer (base model)</strong>:作為 backbone,提供 shared ViT encoder、shared-weight transformer decoder,以及維持固定大小的 persistent state $S_t \in \mathbb{R}^{N \times C}$;TTSA3R 直接重用其權重,不做任何 fine-tuning。</li><li><strong>ViT encoder (DUSt3R/CUT3R 沿用)</strong>:將每張輸入 frame $I_t$ 編碼成 $K \times C$ 的 image tokens $F_t$,作為後續 decoder 與空間訊號的輸入特徵。</li><li><strong>Transformer decoder with cross-attention (DUSt3R 系列)</strong>:同時消化當前 image tokens $F_t$ 與前一時刻 state $S_{t-1}$,產生候選 state $\tilde{S}_t$ 與多層特徵 $D_t$;其 cross-attention map 也是 SCUM 的關鍵訊號來源。</li><li><strong>Task-specific prediction heads (CUT3R)</strong>:從 $D_t$ 預測 pointmap $X_t$、camera pose $T_t$ 與 per-pixel confidence $\text{conf}_t$,負責輸出最終幾何結果。</li><li><strong>Temporal Adaptive Update Module (TAUM,本文提出)</strong>:以相鄰時刻 state 的 per-token L2 變動量並做全域正規化後過 sigmoid,輸出時間維度的 token 級更新 mask $M_{\text{temp}}$。</li><li><strong>Spatial Context Update Module (SCUM,本文提出)</strong>:將 cross-attention alignment 與 frame 間 cosine dissimilarity 做 element-wise 乘積、再經 spatial max pooling 與 sigmoid,輸出空間維度的更新 mask $M_{\text{spat}}$,並與 $M_{\text{temp}}$ 融合成 $M_{\text{final}}$ 控制 per-token persistent state 更新。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者指出串流式 3D 重建之所以在長序列下崩壞,根因並非模型容量不足,而是 persistent state 的更新策略太粗糙:CUT3R 對所有 state token 均以全 1 mask 直接覆寫,使低品質的新觀測能任意覆蓋已收斂的歷史幾何;近期改良方法 (TTT3R、MUT3R) 雖嘗試以注意力訊號做自適應更新,但僅依賴單一維度的 intra-frame 訊號,既看不到「state 隨時間是否已經穩定」,也無法分辨「高 cross-attention 究竟代表正在精修的動態區域,還是已經收斂的穩定幾何」。作者主張一個有效的 state 更新必須同時回答兩個問題:時間上 token 是否仍在劇烈變化、空間上該區域的觀測是否真的需要被吸收。基於此,他們設計 Temporal Adaptive Update Module (TAUM),藉由比較相鄰時刻 state 的 L2 變動量並做全域正規化,推導出每個 token 的時間穩定性權重——變動小者偏向保留歷史,變動大者放開更新。同時設計 Spatial Context Update Module (SCUM),結合 cross-attention alignment 與 frame 間 feature consistency,定位真正需要被精修、且當前觀測具備充分覆蓋的區域,避免無關更新破壞穩定幾何。兩個模組的 mask 在 token 粒度被融合,逐 token 控制 St = ˜St ⊙ M + St-1 ⊙ (1−M)。這套論證在邏輯上是必要的:既然問題出在「對什麼 token、何時、用多大幅度更新」皆未明,那麼解法必須對時空兩維度同時做細粒度的判定,單獨一個訊號都無法將「保留」與「更新」這兩種動作正確分離,因此 temporal 與 spatial 的解耦並聯合融合成為最小且充分的設計。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(210 words)</p>
+<p>標題 &quot;TTSA3R: Training-Free Temporal-Spatial Adaptive Persistent State for Streaming 3D Reconstruction&quot; 一次性壓縮了四個關鍵賣點:training-free(無需重訓)、temporal-spatial(雙軸自適應)、persistent state(承接 CUT3R 的 recurrent 範式),以及 streaming 3D reconstruction(目標任務)。讀者由標題即可推斷:作者並非提出新的 backbone,而是在既有 streaming model 的 inference 階段插入一組決定 state 是否更新的訊號。</p>
+<p>Abstract 的敘事採「問題 → 既有方案缺口 → 本方法 → 量化證據」四步推進。第一句先確立 streaming recurrent model 透過 persistent state 達成效率優勢,第二句立刻指出這類模型在長序列下會 catastrophic forgetting,因為 historical information 與新觀測之間的權衡失敗。第三句把近期的補救方案(以 attention 衍生 adaptive signal)框定為「single dimension」,藉此凸顯本文的差異化:同時採用 temporal state evolution 與 spatial observation quality。隨後逐一介紹 Temporal Adaptive Update Module 以調節 update magnitude、Spatial Contextual Update Module 以定位需要更新的空間區域,並說明兩者輸出會被 fuse 為最終的更新策略。</p>
+<p>最後一段給出最具體的量化承諾:在延長序列下 TTSA3R 僅有 $1.33\times$ 的誤差增加,而 baseline 則退化超過 $4\times$。這個對比直接定義了論文要保護的核心宣稱,也為後續實驗章節的 long-sequence 比較圖(Fig. 4、Fig. 6)埋下伏筆。Abstract 結尾提供開源連結,符合 training-free / 可重現的定位,並順勢將讀者導入 Introduction 對 forgetting 問題的展開。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(620 words)</p>
+<p>Introduction 採「應用需求 → 兩條既有路線的瓶頸 → 補救派系的局限 → 本文 insight」的漏斗結構,目的是把 reader 的注意力從整體 3D reconstruction 領域逐步收斂到「state update 該如何決策」這個微觀切點。</p>
+<p>第一段先用 robotic manipulation 與 augmented reality 建立 real-time 3D perception 的應用動機,接著回顧 SfM/MVS 的高精度但工作流複雜,以及 transformer-based 的 DUSt3R、VGGT 透過 dense global attention 取得性能突破,但 quadratic complexity 使其無法處理長序列。這段的功能是讓讀者接受「streaming 是必要選擇」這個前提。</p>
+<p>第二段把 streaming 路線細分為兩支:spatial memory-based(Spann3R、Point3R)、causal transformer + KV cache(STREAM3R、StreamVGGT),並指出兩者都會 unbounded memory growth;隨後把 CUT3R 標示為「constant memory + competitive accuracy」的代表,鎖定本文的 baseline。這個分類動作很關鍵,它讓 CUT3R 自然成為延伸對象,而不是任意挑選。</p>
+<p>第三段是真正的 problem statement。作者主張 CUT3R 的 uniform state update 會讓低品質觀測覆蓋歷史資訊,造成 long-sequence 下的幾何漂移(對應 Fig. 1 中 CUT3R 的扭曲重建)。再進一步指出,即便有近期的 attention-based adaptive 方法(TTT3R、MUT3R),它們只仰賴單一 attention 訊號,因此「fine-grained state update control」仍未被解決。此段同時插入一個重要觀察:cross-attention 高的區域可能代表 active refinement 也可能代表 converged stable geometry,差別取決於 feature 是否在變化——這一段為 SCUM 中 attention 與 cosine dissimilarity 的乘法 fusion 預先鋪陳了動機。</p>
+<p>第四段宣告本文 insight:state degradation 的根因是「無差別更新」,因此有效更新需同時考慮 temporal state evolution(揭示變化幅度)與 spatial correspondence(區分 active refinement 與 stable geometry)。這個宣告不僅定義了方法的兩個模組對應的觀察軸,也預告 §3.2、§3.3 將分別處理這兩個維度。</p>
+<p>第五段條列四項貢獻:框架本身、TAUM、SCUM、實驗範圍。值得注意的是,作者把實驗範圍寫成「video depth estimation, camera pose estimation, 3D reconstruction」三項,正好對應 §4.1–4.3 的順序,讓 Introduction 與 Experiments 形成一一對映。</p>
+<p>整段 Introduction 的敘事策略可以被總結為:用兩段建立「streaming + recurrent」的場域,用一段把缺口聚焦於 update 決策,用一段把缺口轉化為 temporal × spatial 的雙軸方案。讀完 Introduction 後,讀者應該已經能預期 §3 會給出兩個分別處理 temporal 與 spatial 的模組,以及一個 fusion 策略。這段文字也暗示了 Method 之後 Experiments 的衡量重點將是 long-sequence stability,而非 short-sequence SOTA,這呼應 Abstract 中 $1.33\times$ vs $4\times$ 的關鍵賣點,也為後續 Fig. 4–9 的長序列曲線設置好了論證舞台。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(490 words)</p>
+<p>Related Work 以三個小節呈現:Classical and Neural Rendering、Feed-Forward、Streaming Online。三者並非平行陳列,而是依「越接近本文場景越靠後」的順序鋪設,讓讀者隨閱讀深度逐步接近 TTSA3R 的競品集。</p>
+<p>第一個小節(Classical and Neural Rendering)用最短的篇幅交代 SfM、SLAM、NeRF、3DGS 等傳統與 neural rendering 路線。這段不是論文的真正競品,而是用來建立「為什麼需要 generalizable feed-forward」的理由——每一個 NeRF/3DGS 都需要 per-scene optimization,無法跨場景泛化,從而催生下一節的 feed-forward 方法。這段安排讓讀者理解「learned, generalizable」的研究軌跡。</p>
+<p>第二個小節(Feed-Forward 3D Reconstruction)介紹 DUSt3R、MASt3R、Fast3R 這條 pairwise 路線,以及 VGGT、FastVGGT 這條 multi-view 路線。作者特別強調 VGGT 用 global self-attention 處理所有 frame,因此 attention quadratic、memory linear 與 sequence length 同步增長。這個結論直接導向 streaming 方案的必要性,也呼應 Introduction 中對 dense attention 不可行性的判斷,讓讀者準備好接受第三段的核心對手。</p>
+<p>第三個小節(Streaming Online 3D Reconstruction)是真正的 competitor 部分,並隱含兩層分類。第一層按 memory 結構區分:Spann3R 與 Point3R 是 external spatial memory、STREAM3R 與 WinT3R 是 causal/window-based、CUT3R 是 recurrent persistent state——這個分類與後續 Tables 中的 baseline 列名一致,讓讀者能對照 §4 的表格內容。第二層更細,針對「uniform update」的修補方向,點名 TTT3R 從 alignment confidence 推 adaptive learning rate、MUT3R 用 multi-layer self-attention 抽 motion cue 並抑制 dynamic region。作者隨即指出兩者皆 single-dimensional signal,因此 suboptimal——這個批評正是 TTSA3R 的差異化定位,也是後續 ablation 中 TAUM、SCUM 必須各自展現獨立貢獻的原因。</p>
+<p>整體而言,Related Work 的敘事邏輯是「從不可泛化 → 不可擴展 → 可擴展但 forgetting → 修補 forgetting 但訊號不足」,四步推進每一步都在剔除一類路線。這個設計把 TTSA3R 安置在唯一未被佔據的位置:streaming + recurrent + temporal-spatial 雙訊號融合。讀完 Related Work 後,讀者已經接受了 baseline 必為 CUT3R、主要競品必為 TTT3R 與 MUT3R 的設定,這正是 §4 各表中對比基準的選擇邏輯。</p>
+<p>由於 Preliminaries 在這篇論文中被歸入 §3.1(屬於 Method 章節而非 Related Work),嚴格來說它的字數不應併入 Related Work,但它與 Related Work 共同負責「描述既有體系」的工作。Preliminaries 用 Eq. 1–4 復刻 CUT3R 的 encoder–decoder–head 流程,並在 Eq. 4 用 $S_t = \tilde{S}_t \odot M + S_{t-1} \odot (1-M)$ 點名 mask $M$ 是被本文改造的關鍵介面,為後續 TAUM、SCUM 各自輸出 $M_{\text{temp}}$、$M_{\text{spat}}$ 鋪好接口。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(910 words)</p>
+<p>Method 章節以「先回顧 CUT3R 的 update 介面 → 再分別填入 temporal 與 spatial 兩個訊號 → 最後 fuse 回同一條 update 公式」的三段論結構,讓讀者把整個方法視為對 Eq. 4 中 mask $M$ 的精細化改寫,而不是另起一個 pipeline。這個敘事策略最大的優勢,是把所有改動都限縮在 inference 端的 mask 計算,從而支撐 Abstract 與標題對 training-free 的宣稱。</p>
+<p>§3.1 Preliminaries 先用 Eq. 1–4 把 CUT3R 的 encoder→decoder→head→state update 流程展開,並明確指出 CUT3R 預設 $M = \mathbf{1}$,亦即每一幀的新狀態 $\tilde{S}_t$ 全部覆蓋舊狀態 $S_{t-1}$。這個寫法的功能不只是技術交代,更是把「為什麼 long sequence 會 forgetting」的責任精準歸因到 mask $M$。一旦讀者接受 $M$ 是病灶,後續兩個模組就只需要回答「如何更聰明地產生 $M$」,而不必重新設計 architecture。這也解釋了為什麼 TTSA3R 的所有改動都不需要 retrain。</p>
+<p>§3.2 Temporal Adaptive Update Module(TAUM)填入第一個訊號:temporal state evolution。其核心觀察是,token 在連續幀間的變化幅度是判斷其是否已 converge 的最直接訊號——變化小代表已收斂為可靠幾何、應保留;變化大代表場景動態或估計不穩、應更新。Eq. 5 用 $\Delta_t = \text{Norm}(\tilde{S}_t - \tilde{S}_{t-1})$ 量測 per-token L2-norm,再用全局平均做標準化得到 $\hat{\Delta}_t$,以避免不同場景間 motion magnitude 不一致導致同一絕對閾值有不同語意。Eq. 6 接著以 $M_{\text{temp}} = \sigma(\hat{\Delta}_t - \tau)$ 把標準化後的變化幅度經 sigmoid 平滑映射到 $[0,1]$,使 update 強度連續可控。值得注意的是,TAUM 完全不依賴 attention 訊號,它的訊息源是 state token 自身的 inter-frame 演化,這與 TTT3R、MUT3R 形成正交補位。</p>
+<p>§3.3 Spatial Context Update Module(SCUM)填入第二個訊號:spatial correspondence。作者先點出 TAUM 的盲點——若某 token 在歷史視角下從未被覆蓋,其跨幀變化會偏小,但這不代表它應被保留,反而可能正等待新觀測補完。SCUM 因此引入兩個互補的 spatial signal:cross-attention $A_t$(state 與 image token 的 alignment confidence,Eq. 8)以及 cosine dissimilarity $D_t = 1 - \text{CosSim}(F_t, F_{t-1})$(連續幀影像特徵的場景變化,Eq. 7)。Eq. 9 透過 element-wise 乘積 $A_t \odot D_t$、跨 image token 的 max pooling 與 sigmoid 得到 $M_{\text{spat}}$。乘法的關鍵在於同時要求「該 state token 真的對齊到某影像區域」與「該影像區域確實在變化」——只滿足其一都不更新。這正是 Introduction 中「cross-attention 高且 feature 在變才是 active refinement」那段觀察的數學實作。</p>
+<p>最後,Eq. 10 以 $M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$ 將兩個訊號相乘融合,Eq. 11 把結果代回 CUT3R 的 update 公式 $S_t = \tilde{S}_t \odot M_{\text{final}} + S_{t-1} \odot (1 - M_{\text{final}})$。這個 fusion 設計具有 AND 邏輯語意:只有 temporal 變化顯著「且」spatial 訊號支持時,token 才會被更新。這與 Introduction 中「無差別更新是病灶」的診斷形成閉環,也與 §4.4 ablation 中 TAUM-only、SCUM-only 各自不及完整模型的結果一致——若採加法 fusion,單模組性能反而可能更高,因此乘法選擇本身即是對 ablation 結論的預先保證。</p>
+<p>整個 Method 章節並未引入任何 trainable parameter 或新的 backbone,所有改動都集中在 inference 階段對 $M$ 的計算。這個設計選擇直接決定了 §4 將強調「相同 backbone、相同權重、不同 update 策略」的對照邏輯,並將比較焦點從 short-sequence SOTA 轉向 long-sequence stability,為 Experiments 中 Fig. 4、Fig. 6、Fig. 8 的曲線敘事鋪好土壤。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(1080 words)</p>
+<p>Experiments 章節遵循「三任務 × 兩種長度尺度 × 一組消融」的設計藍圖,順序排列為 video depth estimation(§4.1)、camera pose estimation(§4.2)、3D reconstruction(§4.3)、ablation 與 analysis(§4.4)。這個順序並非任意,而是依「最直接量測幾何 → 量測軌跡一致性 → 量測完整重建 → 解構模組貢獻」的層次推進,讓讀者逐步從 per-frame 指標走向 sequence-level 指標,最後抵達 mechanism-level 解釋。</p>
+<p>開頭的 Implementation Details 段落先把後續所有結果可被外部對照的實驗設定一次說清:Sintel、Bonn、KITTI 用於 video depth(指標 Abs Rel 與 $\delta &lt; 1.25$);Sintel、TUM-dynamics、ScanNet 用於 camera pose(指標 ATE、$\text{RPE}_{\text{trans}}$、$\text{RPE}_{\text{rot}}$,均經 Sim(3) alignment);NRGBD 用於 3D reconstruction(指標 Acc 與 NC)。比較對象按處理範式分組為 optimization-based、full-attention、streaming 三類。這種分組安排讓讀者能立刻判讀:本文的真正競品在 streaming 列,而 optimization 與 full-attention 列只是性能上限參考。所有實驗皆在單張 NVIDIA A6000 上執行,呼應 training-free 與 real-time 的論文定位。</p>
+<p>§4.1 Video Depth Estimation 採取「短序列 quantitative table → 長序列 qualitative curve」的雙視角策略。Table 1 在 per-sequence scale 與 metric scale 兩種協定下比較 streaming 競品,作者刻意不宣稱在所有 dataset 上 SOTA,而是強調 KITTI 第一、其餘兩個 dataset 競爭力相當,且 metric scale 下逼近 full-attention pipeline 的水準。這個謙抑寫法的功能,是把讀者期待從「單表大勝」轉移到「跨長度穩定」,為 Fig. 4 的 50–500 frames 曲線鋪場。Fig. 4 顯示 CUT3R 在 200 frames 之後快速劣化、TTT3R 雖較穩但仍漂移、TTSA3R 全程僅輕微退化——這正是 Abstract $1.33\times$ vs $4\times$ 宣稱的視覺證據。</p>
+<p>§4.2 Camera Pose Estimation 重複類似結構但提高賭注。Table 2 顯示 TTSA3R 在 TUM-dynamics 與 ScanNet 上取得 streaming 中最低 ATE,並逼近 full-attention 的 Easi3R。Fig. 5 接著把序列拉到 800 frames,在兩個 dataset 上 TTSA3R 的 pose error 顯著低於 CUT3R 與 TTT3R。這段論證強化了一個推論:temporal-spatial fusion 對「軌跡一致性」的幫助比對 per-frame depth 更明顯,因為 pose 是序列累積誤差最敏感的指標。</p>
+<p>§4.3 3D Reconstruction 將 long-sequence 論證推到頂點。在 NRGBD 上將序列從 50 拉到 250 frames,TTSA3R 僅 $1.33\times$ 誤差增加,baseline CUT3R 則超過 $4\times$,且全長度都優於 TTT3R。Fig. 7 用 qualitative reconstruction 展示三者的視覺差距:CUT3R 出現幾何扭曲、TTT3R 殘留 surface 不一致、TTSA3R 則同時取得結構正確與軌跡準確。這組質化結果是論文最有說服力的單一視覺證據,也是 Fig. 1 catastrophic forgetting 圖示的閉環。</p>
+<p>§4.4 Ablation Studies and Analysis 是整個 Experiments 的解釋層。Table 3 在 Bonn 與 TUM-dynamics 上分別測試 baseline、TAUM-only、SCUM-only、full model,結果為 0.078 / 0.066 / 0.074 / 0.064 Abs Rel 與 0.046 / 0.028 / 0.040 / 0.026 ATE。重點觀察有三:其一,單獨加 TAUM 已帶來顯著改善,確認 temporal evolution 訊號是主要貢獻;其二,單獨加 SCUM 改善較小但仍正向,確認 spatial 訊號獨立有效;其三,兩者合併取得最佳,驗證 Eq. 10 的乘法 fusion 是互補而非冗餘。Camera Trajectory Analysis(Fig. 8)以兩條室內帶人物走動的軌跡視覺化,顯示 CUT3R 在持續移動下漸進漂移、在快速視角切換下突發偏離,TTT3R 改善但仍偏移,TTSA3R 全程貼合 reference path——這把「temporal 抓變化幅度、spatial 抓觀測品質」兩個機制的協作具象化。Inference Efficiency Analysis(Fig. 9)在 KITTI 512×144 解析度下量測,Spann3R 與 Point3R 因 spatial memory 線性增長記憶體,CUT3R 雖維持常數但長序列退化,TTT3R 約 6 GB,TTSA3R 取得 5 GB 與 18.5 FPS——這個結果回應 training-free 設計的實用承諾,證明 mask 計算的額外開銷不會犧牲 streaming 的實時優勢。</p>
+<p>整個 Experiments 章節的論證鏈條可被歸納為:short-sequence 表格證明 TTSA3R 不退步;long-sequence 曲線證明 TTSA3R 顯著拉開差距;ablation 證明 TAUM 與 SCUM 各自必要;trajectory 與 efficiency 分析證明機制可解釋且部署可行。這四層證據共同覆蓋了 Introduction 中 contributions 條列的每一項,並把 Abstract 中 $1.33\times$ 的具體數字錨定為 NRGBD 250-frame 條件下的可驗證量化結果,為 §5 Conclusion 的 limitations 段落留出未覆蓋的空間。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(150 words)</p>
+<p>Conclusion 採極短篇幅,僅用兩段完成「重述方法 → 說明邊界」的收束工作,反映論文整體訴求是「對既有 streaming pipeline 的最小侵入式改造」而非新架構。</p>
+<p>第一段把 TTSA3R 重新定位為 training-free 框架,將核心貢獻濃縮為「dual-module design that models temporal state dynamics and spatial correspondence」。這個簡化敘事故意省略 Eq. 5–11 的細節,只強調 cross-frame evolution 與 observation quality 兩個訊號的互補,意在讓讀者把全文核心壓縮為一條可口述的 punchline。隨後重申 fine-grained memory persistence 與 real-time 效率的雙重賣點,並以「extensive experiments demonstrate competitive or superior performance」收尾,呼應 Abstract 的承諾。</p>
+<p>Limitations 段落坦承兩項邊界:其一,方法針對「extended streaming + 充分視覺重疊」優化,因此在嚴重遮蔽或稀疏觀測下,cross-attention 與 cosine dissimilarity 等 correspondence 訊號會變得不可靠;其二,作為 training-free 設計,自適應機制的能力上限被 base recurrent architecture 的表徵容量所限。論文未明確列出 future work,但這兩項 limitation 已隱含後續方向——可訓練的 fusion 函式或更強的 backbone 替換——為延伸研究留下開放接口。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>提出 training-free 框架,完全不重訓 CUT3R 骨幹,僅在推論期透過遮罩細粒度地重新詮釋 persistent state 更新策略 (page 5, §3)。</li><li>將 state 更新的決策顯式分解為 temporal stability 與 spatial coverage 兩個互補閘門,互為補充地控制每個 state token 的更新幅度 (page 5, Fig. 2)。</li><li>在 NRGBD [2] 序列從 50 影格延伸到 250 影格時,誤差僅 $1.33\times$ 增長,相對於 CUT3R 基線的 $4\times$ 以上退化有顯著改善 (Fig. 6, page 12)。</li><li>KITTI [19] per-sequence scale 上以 Abs Rel $=0.110$、$\delta&lt;1.25$ 達 91.2,在所有 streaming 方法中位居第一 (Table 1, page 9)。</li><li>Bonn [35] metric scale 上以 Abs Rel $=0.079$、$\delta&lt;1.25$ 達 96.6,優於同期所有 streaming 方法,接近 full-attention pipeline (Table 1, page 9)。</li><li>TUM-dynamics [42] 與 ScanNet [14] 的 ATE 分別為 0.026、0.057,皆為 streaming 組最低,且 ATE 已優於 DUSt3R-GA 等 optimization-based 方法 (Table 2, page 10)。</li><li>800 影格的 long-term pose 評估上,TTSA3R 的誤差曲線維持平緩,顯著低於 CUT3R 與 TTT3R (Fig. 5, page 11)。</li><li>在 KITTI $512 \times 144$ 設定下達到 5 GB GPU memory 與 18.5 FPS,為比較方法中記憶體最低且仍具即時推論速度 (Fig. 9, page 14)。</li><li>Ablation 顯示 TAUM 與 SCUM 各自皆能提升表現,且兩者組合優於任一單獨模組 (Table 3, page 13),支持「temporal 與 spatial 解耦」這一論證主軸。</li><li>相鄰 state 變動量採全域平均正規化 $\hat{\Delta}_t = \Delta_t / (\frac{1}{N}\sum \Delta_t^{(i)})$,設計上可跨不同運動複雜度的場景保持語意一致 (page 6, Eq. 5)。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>方法針對「具備充足視覺重疊」的延伸串流場景優化,在嚴重遮擋或稀疏觀測下,correspondence 訊號變得不可靠,效能會退化 (page 14, Limitations)。</li><li>作為 training-free 設計,自適應機制的上限受限於底層 recurrent 架構 (CUT3R) 本身的表達能力 (page 14, Limitations)。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>標題級的「$1.33\times$ vs $4\times$」對比僅在 NRGBD 50→250 影格上成立 (Fig. 6);在 Bonn (Fig. 4) 與 TUM/ScanNet (Fig. 5) 上對 TTT3R 的相對優勢小得多,但全文反覆引用 NRGBD 數字作為核心賣點,有 cherry-picking 風險。</li><li>在 Sintel per-sequence scale 上 TTSA3R 的 Abs Rel $=0.401$ 僅以 0.004 略勝 TTT3R 的 0.405 (Table 1),作者用以推銷「single-dimension 訊號不足」的核心論點在此資料集幾乎沒有實證差距。</li><li>StreamVGGT [62] 在 Sintel ($0.323$) 與 Bonn ($0.059$) per-sequence 上明顯擊敗 TTSA3R,但全文未對此架構抉擇 (causal transformer + KV cache vs recurrent persistent state) 提出討論,讀者無從判斷 persistent-state 路線是否仍是正確選擇。</li><li>Table 3 顯示 SCUM 單獨使用僅將 Bonn Abs Rel 從 0.078 改善到 0.074、TUM-dynamics ATE 從 0.046 改善到 0.040,改善幅度遠小於 TAUM 單獨的 0.066/0.028;這暗示 dual-module 敘事中 SCUM 的實證貢獻偏弱,但論文並未討論此不對稱性。</li><li>TAUM 中的 threshold $\tau$ 是核心超參數,卻完全沒有 sensitivity analysis;若 $\tau$ 需逐資料集調整,則「training-free」實際上是「training-free + dataset-specific tuning」,對 zero-config 敘事構成削弱。</li><li>最終遮罩採乘法融合 $M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$ 等同邏輯 AND 閘,只有兩訊號同時觸發才更新;論文未提供 additive、max-pool 或 learned fusion 的對照,難以排除這只是其中一種尚可的選擇而非最優設計。</li><li>SCUM 的兩個訊號 (cross-attention $A_t$、cosine dissimilarity $D_t$) 採乘法融合後再 max-pool,但兩訊號各自的貢獻沒有獨立 ablation,讀者無法分辨 SCUM 是「對齊+變化」缺一不可,或其實只有其中一支在做事。</li><li>程式碼倉庫採匿名連結 (github.com/anonus2357/ttsa3r) 且僅以 arXiv preprint 形式發表,核心結果尚未經過同行審查與獨立復現,可信度應折扣後檢視。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>真正新的觀念是「該不該更新一個 token」這個決策被顯式拆成 temporal stability 與 spatial coverage 兩個互相獨立的閘門,在 token 粒度逐個合成最終遮罩,概念上比 TTT3R/MUT3R 的單訊號更乾淨。然而實作層面仍是把現成訊號 (相鄰 state 的 L2 差、cross-attention map、frame-wise cosine 相似度) 拼接後丟進 sigmoid,屬工程組裝而非新原理;對 TTT3R 的數值優勢在多數 short-sequence benchmark 上極小,真正撐起標題的是 NRGBD 與 800-frame pose 的 long-sequence 圖。核心未解的問題是:乘法 AND 融合是否過於保守、SCUM 是否真的不可或缺,以及 $\tau$ 的可移植性是否仍允許「training-free」這個標籤。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>TTSA3R 是一個建構於 CUT3R 之上的 training-free 推論期框架。整體架構維持 CUT3R 原本的「ViT encoder + 共享權重 transformer decoder + persistent state $S_t \in \mathbb{R}^{N \times C}$」設計,並且不重新訓練任何參數;作者僅在 state 更新環節插入兩個分析模組,將 CUT3R 原本「mask 全為 1、直接覆寫」的更新策略,替換為「逐 token、由時空訊號共同決定的 soft mask」。形式上,本方法把 CUT3R 的更新 $S_t = \tilde{S}_t \odot M + S_{t-1} \odot (1-M)$(Eq. 4)中的 $M$ 從常數矩陣換成由 TAUM 與 SCUM 融合而成的 $M_{\text{final}}$(Eq. 10–11),其餘 encoder/decoder/head 路徑不變,推論成本維持 streaming、固定記憶體佔用的特性。</p>
+<p>第一個模組 Temporal Adaptive Update Module (TAUM) 處理「時間維度」的問題:對每個 state token,計算相鄰時刻候選 state 之間的 L2 變動量 $\Delta_t = \text{Norm}(\tilde{S}_t - \tilde{S}_{t-1})$,再以全域平均做 per-token 正規化得到 $\hat{\Delta}_t$(Eq. 5),最後透過 sigmoid 與閾值 $\tau$ 得到 temporal mask $M_{\text{temp}} = \sigma(\hat{\Delta}_t - \tau)$(Eq. 6)。其直覺是:跨幀變動小的 token 視為已收斂的穩定幾何,應傾向保留歷史;變動大的 token 視為仍在精修或對應動態場景,應放開更新。第二個模組 Spatial Context Update Module (SCUM) 處理「空間維度」的問題:用 $D_t = 1 - \text{CosSim}(F_t, F_{t-1})$(Eq. 7)度量影像 feature 在 frame 間的 divergence,作為「該區域是否真的在變」的訊號;再用 decoder 各層 cross-attention 對 $S_{t-1}$ 與 $F_t$ 做平均聚合得到 alignment map $A_t$(Eq. 8),代表 state token 與當前觀測的對齊強度。兩者以 element-wise 相乘並對 image token 做 max pooling、再過 sigmoid,得到 spatial mask $M_{\text{spat}} = \sigma(\max_{\text{spat}}(A_t \odot D_t))$(Eq. 9)。</p>
+<p>最後,$M_{\text{temp}}$ 與 $M_{\text{spat}}$ 在 token 粒度做 element-wise 乘法融合為 $M_{\text{final}}$(Eq. 10),並以此 mask 控制 persistent state 的軟更新(Eq. 11)。融合的語意是「同時要求」:只有當某個 token 在時間上仍在變動,且空間上對應的觀測既具備充分覆蓋又顯示出場景變化時,才允許用新候選 state 覆寫;否則保留歷史。這種解耦再聯合的設計,正對應作者在 §3 中強調的核心論點——單一 intra-frame attention 訊號無法同時回答「token 是否穩定」與「該區域是否需要被吸收」這兩個問題,因此必須對 temporal 與 spatial 兩維度做細粒度且互補的判定。所有運算均在 inference 時以 closed-form 完成,不引入額外可訓練參數,使整體框架可直接套用於 CUT3R 等以 persistent state 為核心的 streaming 3D reconstruction 模型。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input: 影像序列 {I_1, ..., I_T}, I_t ∈ [B, 3, H, W]
+   │
+   ▼
+ViT Encoder (shared)              Eq. 1: F_t = Encoder(I_t)
+   │  F_t ∈ [B, K, C]             (K = #patches, C = feature dim)
+   │
+   ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Shared-weight Transformer Decoder                            │
+│   Inputs:  F_t  ∈ [B, K, C]                                  │
+│            S_{t-1} ∈ [B, N, C]   (previous persistent state) │
+│   Outputs: \tilde{S}_t ∈ [B, N, C]   (candidate state)       │
+│            D_t = {D_t^{(0)}, ..., D_t^{(L)}}, 每層 ∈ [B, K, C]│
+│   Eq. 2: \tilde{S}_t, D_t = Decoder(F_t, S_{t-1})            │
+└──────────────────────────────────────────────────────────────┘
+   │                                    │
+   │                                    │ D_t (multi-layer features)
+   │                                    ▼
+   │                           ┌─────────────────────────────┐
+   │                           │ Task-specific Heads         │
+   │                           │   Eq. 3: X_t, T_t, conf_t = │
+   │                           │          Head(D_t)          │
+   │                           │   X_t   ∈ [B, H, W, 3]      │
+   │                           │   T_t   ∈ [B, 4, 4]         │
+   │                           │   conf_t ∈ [B, H, W]        │
+   │                           └─────────────────────────────┘
+   │
+   ├──────────────► TAUM (Temporal Adaptive Update Module)
+   │                Inputs: \tilde{S}_t, \tilde{S}_{t-1}
+   │                  both ∈ [B, N, C]
+   │                Eq. 5: Δ_t = Norm(\tilde{S}_t - \tilde{S}_{t-1}) ∈ [B, N]
+   │                       \hat{Δ}_t = Δ_t / mean_N(Δ_t)        ∈ [B, N]
+   │                Eq. 6: M_temp = σ(\hat{Δ}_t - τ)            ∈ [B, N, 1]
+   │
+   └──────────────► SCUM (Spatial Context Update Module)
+                    Inputs: F_t, F_{t-1} ∈ [B, K, C]
+                            S_{t-1} ∈ [B, N, C]
+                            CrossAttn^{(l)} maps from decoder layers
+                    Eq. 7: D_t^{cos} = 1 - CosSim(F_t, F_{t-1})  ∈ [B, K]
+                    Eq. 8: A_t = (1/L) Σ_{l=1}^{L}
+                                 |CrossAttn^{(l)}(S_{t-1}, F_t)| ∈ [B, N, K]
+                    A_t ⊙ D_t^{cos}                              ∈ [B, N, K]
+                    max_{spat} over K                            ∈ [B, N]
+                    Eq. 9: M_spat = σ(max_{spat}(A_t ⊙ D_t^{cos}))
+                                                                 ∈ [B, N, 1]
+   ┌──────────────────────────────────────────────────────────────┐
+   │ Mask Fusion &amp; State Update                                   │
+   │   Eq. 10: M_final = M_temp ⊙ M_spat        ∈ [B, N, 1]       │
+   │   Eq. 11: S_t = \tilde{S}_t ⊙ M_final +                      │
+   │                  S_{t-1} ⊙ (1 - M_final)   ∈ [B, N, C]       │
+   └──────────────────────────────────────────────────────────────┘
+   │
+   ▼
+S_t  →  下一時刻 t+1 的 Decoder 輸入(streaming recurrent loop)</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-vit-encoder">5.3.1 ViT Encoder</h4>
+<p><strong>Function:</strong> 將輸入幀 $I_t$ 編碼為 patch-level visual tokens,作為後續 decoder 的 query/context 來源。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I_t$</li><li>Shape: <code>[B, 3, H, W]</code></li><li>Source: 串流影像序列 $\{I_1, ..., I_T\}$</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_t$</li><li>Shape: <code>[B, K, C]</code></li><li>Consumer: Transformer Decoder(作為 image token 輸入)以及 SCUM(計算 frame 間 cosine dissimilarity)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>依 Eq. 1,$F_t = \text{Encoder}(I_t)$,$K$ 為 patch 數,$C$ 為 feature dimension。Encoder 在序列中所有時刻共享權重,且在 TTSA3R 中保持 frozen,不參與任何 training-free 調整。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$F_t = \text{Encoder}(I_t), \quad F_t \in \mathbb{R}^{K \times C}$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文沿用 CUT3R [49] 的 ViT 編碼器設定,並參考 DUSt3R [50] 系列的 patch 化方式;具體 $K$、$C$ 的數值、patch size、以及 ViT 變體(ViT-B/L 等)the paper does not specify。</p>
+<h4 id="5-3-2-shared-weight-transformer-decoder">5.3.2 Shared-weight Transformer Decoder</h4>
+<p><strong>Function:</strong> 以前一時刻 persistent state $S_{t-1}$ 為 query/context,結合當前影像 token $F_t$,產生候選新 state $\tilde{S}_t$ 與多層 decoder 特徵 $D_t$,後者供 task heads 與 SCUM 的 cross-attention 聚合使用。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $F_t$, $S_{t-1}$</li><li>Shape: $F_t \in $ <code>[B, K, C]</code>,$S_{t-1} \in $ <code>[B, N, C]</code>($N$ 為 state token 數)</li><li>Source: ViT Encoder 輸出 $F_t$;前一時刻最終更新後的 $S_{t-1}$</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\tilde{S}_t$, $D_t = \{D_t^{(0)}, ..., D_t^{(L)}\}$</li><li>Shape: $\tilde{S}_t \in $ <code>[B, N, C]</code>,每層 $D_t^{(l)} \in $ <code>[B, K, C]</code></li><li>Consumer: $\tilde{S}_t$ → TAUM 與最終 state 更新公式;$D_t$ → Task-specific Heads 以及 SCUM 的 cross-attention 平均(Eq. 8)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>依 Eq. 2,decoder 同時更新 state token 與 image token 表徵,輸出候選 state $\tilde{S}_t$ 與分層特徵 $D_t$。Decoder 沿用 CUT3R [49] 與 DUSt3R [50, 51] 的 shared-weight 設計,並保持 frozen。SCUM 在此模組內部利用 cross-attention 中 $S_{t-1}$ 對 $F_t$ 的注意力分布(Eq. 8 中的 $\text{CrossAttn}^{(l)}(S_{t-1}, F_t)$)作為 alignment 訊號。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\tilde{S}_t, D_t = \text{Decoder}(F_t, S_{t-1})$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Decoder 層數 $L$、注意力頭數、隱藏維度等具體超參數沿用 CUT3R 設定;論文僅在 §3.3 指出 $A_t$ 是對 $L$ 層 cross-attention 的逐層平均(Eq. 8),具體層配置 the paper does not specify。</p>
+<h4 id="5-3-3-temporal-adaptive-update-module-taum">5.3.3 Temporal Adaptive Update Module (TAUM)</h4>
+<p><strong>Function:</strong> 以候選 state 在相鄰時刻間的 L2 變動量為訊號,為每個 state token 生成 temporal mask,刻畫其「時間穩定性」並決定更新幅度。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\tilde{S}_t$, $\tilde{S}_{t-1}$</li><li>Shape: 皆為 <code>[B, N, C]</code></li><li>Source: 當前與前一時刻 decoder 輸出的候選 state(Eq. 2)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $M_{\text{temp}}$</li><li>Shape: <code>[B, N, 1]</code>(逐 token 的時間穩定性權重)</li><li>Consumer: Mask Fusion(Eq. 10),與 $M_{\text{spat}}$ 相乘形成 $M_{\text{final}}$</li></ul>
+<p><strong>Processing:</strong></p>
+<p>第一步沿 feature 維度計算每個 token 的 L2 變動 $\Delta_t = \text{Norm}(\tilde{S}_t - \tilde{S}_{t-1}) \in \mathbb{R}^{N}$;第二步以該 batch/時刻所有 token 的平均做全域正規化,得到 $\hat{\Delta}_t$,使「變動大小」成為相對於當前場景動態強度的尺度不變量,避免不同場景中 motion magnitude 不一致導致閾值難以設定(§3.2)。最後以 sigmoid 與閾值 $\tau$ 平滑門控:變動小於 $\tau$ 的 token 趨向保留歷史(mask 趨近 0),大於 $\tau$ 的 token 趨向接受新候選(mask 趨近 1),對應 Eq. 5–6。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \Delta_t = \text{Norm}(\tilde{S}_t - \tilde{S}_{t-1}), \quad \hat{\Delta}_t = \Delta_t \Big/ \Big(\frac{1}{N}\sum_{i=1}^{N}\Delta_t^{(i)}\Big) $$</p>
+<p>$M_{\text{temp}} = \sigma(\hat{\Delta}_t - \tau)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>$\text{Norm}(\cdot)$ 為跨 feature 維度的 per-token L2 範數(§3.2 明確指出)。閾值 $\tau$ 為超參數,作者在文中說明其作用為控制更新強度的軟門控,但具體數值 the paper does not specify(可能於補充材料或程式碼中提供,見 https://github.com/anonus2357/ttsa3r)。整個模組為 training-free,僅含一次差分、一次正規化與一次 sigmoid,額外計算量為 $\mathcal{O}(NC)$。</p>
+<h4 id="5-3-4-spatial-context-update-module-scum">5.3.4 Spatial Context Update Module (SCUM)</h4>
+<p><strong>Function:</strong> 結合 cross-attention alignment 與 frame 間 feature consistency,定位真正需要更新的空間區域,生成 spatial mask,避免無關更新破壞穩定幾何。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $F_t$, $F_{t-1}$, $S_{t-1}$,以及 decoder 中 $\text{CrossAttn}^{(l)}(S_{t-1}, F_t)$</li><li>Shape: $F_t, F_{t-1} \in $ <code>[B, K, C]</code>;$S_{t-1} \in $ <code>[B, N, C]</code>;每層 cross-attention map 為 <code>[B, N, K]</code></li><li>Source: ViT Encoder(提供 $F_t$, $F_{t-1}$);Decoder 內部 cross-attention(提供 $A_t^{(l)}$);前一時刻 persistent state $S_{t-1}$</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $M_{\text{spat}}$</li><li>Shape: <code>[B, N, 1]</code>(逐 state token 的空間更新權重)</li><li>Consumer: Mask Fusion(Eq. 10),與 $M_{\text{temp}}$ 相乘形成 $M_{\text{final}}$</li></ul>
+<p><strong>Processing:</strong></p>
+<p>(i) 以 $D_t = 1 - \text{CosSim}(F_t, F_{t-1}) \in \mathbb{R}^{K}$ 量測每個 image patch 在跨幀間的 feature 變化,代表「場景在該空間位置是否真的在變」。   (ii) 對 decoder 各層 cross-attention 取絕對值並沿層數平均,得到 $A_t \in \mathbb{R}^{N \times K}$,表示每個 state token 與每個 image token 的對齊強度(Eq. 8)。   (iii) 將 $A_t$ 與 $D_t$ 做 element-wise 乘法,要求「對齊高且 feature 也在變」才會被視為有效更新訊號;這正是論文 §3.3 提出的關鍵 insight——單看 cross-attention 無法分辨「正在精修的動態區域」與「已收斂的穩定幾何」。   (iv) 對 image token 維度 $K$ 做 max pooling,因每個 state token 通常只對應到少量影像區域,max pooling 強化最具代表性的對齊位置(§3.3)。   (v) 經 sigmoid 將結果壓到 $[0,1]$,得到 $M_{\text{spat}}$(Eq. 9)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$D_t = 1 - \text{CosSim}(F_t, F_{t-1})$</p>
+<p>$A_t = \frac{1}{L}\sum_{l=1}^{L}\big|\text{CrossAttn}^{(l)}(S_{t-1}, F_t)\big|$</p>
+<p>$M_{\text{spat}} = \sigma\big(\max_{\text{spat}}(A_t \odot D_t)\big)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>CosSim 在 $C$ 維 feature 上計算,並取 1 減餘弦相似度作為 dissimilarity。$L$ 為 decoder 中參與聚合的 cross-attention 層數,沿用 CUT3R decoder 結構;具體層索引、是否包含所有 attention head 的平均、以及 cross-attention map 在 multi-head 下的合併方式 the paper does not specify。max pooling 在 image token 軸 $K$ 上進行,得到每個 state token 的單一空間顯著值。整體模組同樣 training-free,僅在 inference 期間取用 decoder 已有的 attention tensor 與 encoder feature,額外計算開銷以 $A_t \odot D_t$ 與 max pooling 為主,複雜度為 $\mathcal{O}(NK)$。</p>
+<h4 id="5-3-5-mask-fusion-persistent-state-update">5.3.5 Mask Fusion &amp; Persistent State Update</h4>
+<p><strong>Function:</strong> 將 temporal 與 spatial 兩個互補訊號融合為單一 token 級 soft mask,並以此控制 persistent state 的選擇性覆寫,實現「同時滿足時間動態性與空間必要性才更新」的策略。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $M_{\text{temp}}$, $M_{\text{spat}}$, $\tilde{S}_t$, $S_{t-1}$</li><li>Shape: $M_{\text{temp}}, M_{\text{spat}} \in $ <code>[B, N, 1]</code>;$\tilde{S}_t, S_{t-1} \in $ <code>[B, N, C]</code></li><li>Source: TAUM、SCUM、以及 Transformer Decoder</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $S_t$</li><li>Shape: <code>[B, N, C]</code></li><li>Consumer: 下一時刻 $t+1$ 的 Decoder(作為新的 $S_{t-1}$ 輸入),持續驅動 streaming 重建</li></ul>
+<p><strong>Processing:</strong></p>
+<p>首先以 element-wise 乘法融合兩個 mask 得到 $M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$(Eq. 10),語意上是 AND-like 條件,確保 token 同時被時間訊號(仍在變動)與空間訊號(觀測有效且該區域真的在變)認可才會更新。接著以 $M_{\text{final}}$ 對候選 state $\tilde{S}_t$ 與歷史 state $S_{t-1}$ 做凸組合插值更新(Eq. 11),完全替代 CUT3R 原本「全 1 mask 直接覆寫」的 uniform update 設計(§3.1, Eq. 4)。由於 $M_{\text{final}}$ 為連續 soft mask,該更新對於穩定 token 幾乎保留歷史,對於需要精修的 token 則加大融合新觀測的比例,從而在 token 粒度上同時抑制 catastrophic forgetting 與漏更新。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$</p>
+<p>$S_t = \tilde{S}_t \odot M_{\text{final}} + S_{t-1} \odot (1 - M_{\text{final}})$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>融合採乘法而非加法或取大,直接體現「兩個條件同時成立」的設計動機;由於 $M_{\text{temp}}$ 與 $M_{\text{spat}}$ 已分別經 sigmoid 壓縮到 $[0,1]$,相乘後仍位於 $[0,1]$,可直接用於 Eq. 11 的線性插值。整個更新步驟 training-free、不引入額外參數,且僅取代 Eq. 4 中的常數 mask,因此可無縫嵌入 CUT3R 的 recurrent loop,並保留固定記憶體佔用與即時推論的優勢(§3.3 末段)。</p>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>Sintel [3]</td><td>Video depth、Camera pose</td><td>Short sequences（pose 評估亦含 long sequences）</td><td>test（training-free，僅推論評估）</td></tr><tr><td>Bonn [35]</td><td>Video depth</td><td>Short sequences；long sequences 50–500 frames</td><td>test（含 ablation）</td></tr><tr><td>KITTI [19]</td><td>Video depth、Inference efficiency</td><td>Short sequences；512×144 解析度</td><td>test</td></tr><tr><td>TUM-dynamics [42]</td><td>Camera pose</td><td>Short sequences；long sequences 至 800 frames</td><td>test（含 ablation 與 trajectory analysis）</td></tr><tr><td>ScanNet [14]</td><td>Camera pose</td><td>Short sequences；long sequences 至 800 frames</td><td>test</td></tr><tr><td>NRGBD [2]</td><td>3D reconstruction</td><td>50–250 frames</td><td>test</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Abs Rel</td><td>Video depth 的 absolute relative error，越低越好</td><td>yes</td></tr><tr><td>$\delta &lt; 1.25$</td><td>相對誤差低於 1.25 的像素百分比</td><td>no</td></tr><tr><td>ATE</td><td>Absolute Translation Error，Sim(3) 對齊後計算</td><td>yes</td></tr><tr><td>RPE trans</td><td>Relative Translation Error</td><td>no</td></tr><tr><td>RPE rot</td><td>Relative Rotation Error</td><td>no</td></tr><tr><td>Acc</td><td>NRGBD 上的 reconstruction accuracy</td><td>yes</td></tr><tr><td>NC</td><td>Normal Consistency</td><td>no</td></tr><tr><td>GPU Memory / FPS</td><td>推論記憶體佔用與每秒幀數，512×144 解析度於 KITTI 量測</td><td>no</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li>Hardware：single NVIDIA A6000 GPU（§4 Implementation Details）。</li><li>訓練設定：本方法為 training-free 框架，建立於 CUT3R [49] 既有權重之上，因此沒有 batch size、optimizer、learning rate schedule、training steps 等訓練超參數；the paper does not specify any training procedure。</li><li>推論設定：</li><li>採用 streaming/recurrent 推論，逐幀更新 persistent state。</li><li>TAUM 使用 sigmoid gating 與 threshold $\tau$（Eq. 6），the paper does not specify the value of $\tau$。</li><li>SCUM 在所有 decoder layers 上對 cross-attention 取平均（Eq. 8），並在 image tokens 維度做 max pooling（Eq. 9）。</li><li>效率量測：KITTI 上 $512 \times 144$ 解析度，最終達 5 GB GPU 記憶體與 18.5 FPS（Fig. 9）。</li><li>Long-sequence 評估長度：video depth 50–500 frames（Bonn）、camera pose 至 800 frames（TUM-dynamics、ScanNet）、3D reconstruction 50–250 frames（NRGBD）。</li><li>Camera pose 評估在 Sim(3) 對齊後計算（§4）。</li><li>其他未列項目（如各 dataset 的 frame 採樣間距、image resolution 於 depth/pose 任務的設定）the paper does not specify。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>Video Depth Estimation（per-sequence scale，short sequences；Abs Rel ↓ / $\delta &lt; 1.25$ ↑，Table 1）：</p>
+<table><thead><tr><th>Method</th><th>Sintel Abs Rel</th><th>Bonn Abs Rel</th><th>KITTI Abs Rel</th><th>Notes</th></tr></thead><tbody><tr><td>VGGT [48]</td><td>0.287</td><td>0.055</td><td>0.070</td><td>Full-attention，offline</td></tr><tr><td>StreamVGGT [62]</td><td>0.323</td><td>0.059</td><td>0.173</td><td>Streaming SoTA 之一</td></tr><tr><td>CUT3R [49]</td><td>0.421</td><td>0.078</td><td>0.118</td><td>本方法的 baseline</td></tr><tr><td>TTT3R [9]</td><td>0.405</td><td>0.069</td><td>0.114</td><td>最直接的 training-free 對手</td></tr><tr><td>MUT3R [39]</td><td>0.451</td><td>0.070</td><td>0.116</td><td>Single-signal adaptive</td></tr><tr><td><strong>Ours (TTSA3R)</strong></td><td><strong>0.401</strong></td><td><strong>0.064</strong></td><td><strong>0.110</strong></td><td>KITTI 為 streaming 第一；Sintel/Bonn 具競爭力</td></tr></tbody></table>
+<p>Camera Pose Estimation（short sequences；ATE ↓，Table 2）：</p>
+<table><thead><tr><th>Method</th><th>Sintel ATE</th><th>TUM-dyn ATE</th><th>ScanNet ATE</th><th>Notes</th></tr></thead><tbody><tr><td>VGGT [48]</td><td>0.172</td><td>0.012</td><td>0.035</td><td>Full-attention</td></tr><tr><td>Easi3R [8]</td><td>0.110</td><td>0.105</td><td>0.061</td><td>Full-attention</td></tr><tr><td>CUT3R [49]</td><td>0.213</td><td>0.046</td><td>0.099</td><td>Baseline</td></tr><tr><td>TTT3R [9]</td><td>0.210</td><td>0.028</td><td>0.064</td><td>最強 streaming 對手</td></tr><tr><td>MUT3R [39]</td><td>0.228</td><td>0.042</td><td>–</td><td>ScanNet 未報告</td></tr><tr><td><strong>Ours (TTSA3R)</strong></td><td><strong>0.210</strong></td><td><strong>0.026</strong></td><td><strong>0.057</strong></td><td>TUM-dyn 與 ScanNet 為 streaming 最佳 ATE</td></tr></tbody></table>
+<p>Long-sequence 與 3D reconstruction：Bonn 上隨序列從 50→500 frames，CUT3R 在 200 frames 後急遽劣化、TTT3R 仍有 gradual drift，TTSA3R 退化最小（Fig. 4）；NRGBD 上 50→250 frames 僅 $1.33\times$ 誤差上升，相較 CUT3R 的逾 $4\times$（Fig. 6、Abstract、§4.3）。Pose 在 TUM-dynamics 與 ScanNet 至 800 frames 也維持顯著較低的 pose error（Fig. 5）。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<p>論文僅提供一組 ablation（Table 3，Bonn video depth + TUM-dynamics camera pose），對 TAUM 與 SCUM 個別貢獻進行拆解：</p>
+<ul><li>移除兩者（Baseline = CUT3R uniform update）：Bonn Abs Rel 0.078、$\delta &lt; 1.25$ 93.7、TUM-dyn ATE 0.046、RPE rot 0.473。為合理起點，回到原始 uniform update 機制。</li><li>僅加入 TAUM：Abs Rel 降到 0.066、ATE 降到 0.028、RPE rot 降到 0.375。顯示 temporal-only 的 per-token 更新權重已能大幅抑制誤差累積，特別對 trajectory consistency 有效。</li><li>僅加入 SCUM：Abs Rel 0.074、ATE 0.040、RPE rot 0.415。提升較 TAUM 小，符合作者主張：spatial 訊號需要與 temporal 訊號互補才會充分發揮，單獨使用受限於缺乏跨幀演化資訊。</li><li>兩者並用（Ours）：Abs Rel 0.064、ATE 0.026、RPE rot 0.372，全面最佳，驗證 $M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$ 的乘法融合（Eq. 10）。</li></ul>
+<p>診斷性評估：此 ablation 確實對應論文的兩個核心宣稱模組，是 diagnostic 而非單純 sanity check。然而仍有缺口：</p>
+<ul><li>未對 TAUM 內部的 normalization 設計（Eq. 5 的全域平均除法）做 ablation，無法獨立驗證「per-scene 正規化」這個被特別論述的設計選擇。</li><li>未對 sigmoid threshold $\tau$（Eq. 6）做敏感度掃描，無法判斷模型對該超參數的穩健性。</li><li>SCUM 內部 cross-attention 與 cosine dissimilarity 兩支訊號的相對貢獻沒有拆解（例如把 $A_t$ 或 $D_t$ 各自拿掉），因此「兩個 spatial sub-signals 都必要」的論述未被驗證。</li><li>$M_{\text{temp}} \odot M_{\text{spat}}$ 的乘法融合 vs. 加法或加權平均也未做比較。</li><li>Camera trajectory analysis（Fig. 8）與 inference efficiency（Fig. 9）為定性／效率比較，並非 component ablation。</li></ul>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline — Streaming 對比含 TTT3R [9]、MUT3R [39]、StreamVGGT [62]、Point3R [54]、STREAM3R [26]，並與 full-attention 的 VGGT [48]、optimization-based 的 MASt3R-GA [27] 同表比較（Table 1、Table 2）。</li><li>[covered] Has cross-task / cross-dataset evaluation — 涵蓋 video depth、camera pose、3D reconstruction 三個任務，跨 Sintel、Bonn、KITTI、TUM-dynamics、ScanNet、NRGBD 六個資料集（§4.1–4.3）。</li><li>[partial] Has ablations that diagnose the new components — Table 3 拆解 TAUM 與 SCUM 主要模組，但未對 TAUM 的 normalization、threshold $\tau$、SCUM 內部 $A_t$ 與 $D_t$ 子訊號、以及融合方式做更細緻的 diagnostic ablation。</li><li>[covered] Has a scaling study — 對 sequence length 做了多組 scaling 評估：Bonn 50–500 frames（Fig. 4）、TUM-dynamics 與 ScanNet 至 800 frames（Fig. 5）、NRGBD 50–250 frames（Fig. 6），直接對應「catastrophic forgetting over long sequences」的核心宣稱。</li><li>[covered] Has an efficiency / wall-clock comparison — Fig. 9 在 KITTI $512 \times 144$ 上比較 GPU memory 與 FPS，回報 5 GB / 18.5 FPS，並對 Spann3R、Point3R、CUT3R、TTT3R 同台比較。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — Table 1、2、3 與所有 figures 皆為單點數值，未見任何 std、信賴區間或多 seed 統計；training-free 設定下仍可對資料集子集或不同 sequence 採樣做變異分析，但論文未提供。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — Abstract 提供 anonymous repo <code>https://github.com/anonus2357/ttsa3r</code>，但 threshold $\tau$ 等關鍵超參數於正文未明示，且 weights 是否完整釋出、是否依賴 CUT3R 原始 checkpoint 由 repo 而非論文文字保證；不算完全 covered。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<table><thead><tr><th>作者主張</th><th>Phyra 評估</th><th>證據</th></tr></thead><tbody><tr><td>(C1) 提出能緩解 streaming 3D 重建長期 catastrophic forgetting 的框架</td><td><strong>Supported</strong>:多個 long-sequence 評估皆顯示 TTSA3R 退化遠低於 CUT3R 與 TTT3R</td><td>Fig. 4 (Bonn 50–500 frames)、Fig. 5 (TUM/ScanNet 800 frames)、Fig. 6 (NRGBD 50–250 frames)</td></tr><tr><td>(C2) TAUM 透過 state evolution 分析能保留穩定資訊並適應動態變化</td><td><strong>Supported</strong>:單獨加入 TAUM 即將 Bonn Abs Rel 從 0.078 改善到 0.066、TUM-dynamics ATE 從 0.046 改善到 0.028</td><td>Table 3 (page 13)</td></tr><tr><td>(C3) SCUM 透過 observation–state alignment 與 feature consistency 識別「值得更新」的空間區域</td><td><strong>Partially supported</strong>:SCUM 單獨使用僅將 Bonn Abs Rel 從 0.078 改善到 0.074、ATE 從 0.046 到 0.040,實證效果遠不如 TAUM,且兩個內部訊號未做拆分 ablation</td><td>Table 3 (page 13)</td></tr><tr><td>(C4) 在 video depth、camera pose、3D reconstruction 等多任務上達到 SOTA streaming 表現</td><td><strong>Partially supported</strong>:KITTI per-sequence、Bonn metric、TUM-dynamics ATE、ScanNet ATE 取得 streaming 組第一,但 Sintel per-sequence (0.401) 落後 StreamVGGT (0.323),Bonn per-sequence (0.064) 也輸給 StreamVGGT (0.059)</td><td>Table 1, Table 2</td></tr><tr><td>(C5) 即時推論效率 (real-time efficiency)</td><td><strong>Supported</strong>:5 GB 記憶體與 18.5 FPS 為對比方法中最佳 efficiency-memory trade-off</td><td>Fig. 9 (page 14)</td></tr></tbody></table>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>乘法融合即邏輯 AND 閘的結構性保守性。</strong> $M_{\text{final}} = M_{\text{temp}} \odot M_{\text{spat}}$ 的代數結果是「兩訊號皆需同時觸發才更新」。對於「temporal 看似穩定但實際上之前從未觀測到、現在第一次看見」這類 token,SCUM 的高觸發應能單獨驅動更新,但 TAUM 會把該 token 判為穩定而把 mask 拉低,導致需要的 refinement 被抑制。論文沒有提供 max 或 additive fusion 的對照,這個結構性偏差無法被現有實驗排除。</p>
+<p><strong>Persistent state 沒有寫入歷史回放機制。</strong> 公式 (11) 的更新是 in-place 覆寫,一旦 mask 觸發,$S_{t-1}$ 在該 token 維度上就被永久取代;若某次更新被錯誤觸發 (例如動態物件造成假性 alignment),沒有任何修復路徑。所有 mask 機制只能控制「要不要寫」,無法回滾。這是 recurrent persistent-state 路線的根本侷限,不是 TTSA3R 自己的缺陷,但 TTSA3R 沒有提出任何補救。</p>
+<p><strong>「穩定 token = 收斂 token」的隱含假設。</strong> TAUM 把跨影格 L2 變動小的 token 視為「已收斂、值得保留」,但這是必要而非充分條件:從未獲得高品質觀測的 token 也會在 L2 上看起來穩定 (錯誤但靜止)。論文聲稱 SCUM 正是為此設計,但其實證貢獻 ($0.078 \to 0.074$) 偏弱,因此這個盲點實際上沒有被有效閉合。</p>
+<p><strong>Training-free 的天花板就是 CUT3R 的天花板。</strong> 所有 mask 都建構在 $\tilde{S}_t$ 與 $S_{t-1}$ 之上,而 $\tilde{S}_t$ 由凍結的 CUT3R decoder 產生。若 CUT3R 在某類場景 (極端視角變化、低紋理區域) 本來就估計不準,TTSA3R 至多能選擇「不接受這次 noise」,卻無法產生比 CUT3R 更好的 candidate。這也解釋了為何在 Sintel/Bonn per-sequence 上會被 StreamVGGT 等不同骨幹的方法擊敗:更換訊號融合策略無法跨越骨幹本身的表達上限。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>CUT3R [49] (Wang et al., CVPR 2025):</strong> 本論文的基底架構,所有 $\tilde{S}_t$、$S_{t-1}$、$F_t$ 的語意都來自它;欲評估 TTSA3R 的真實貢獻,必須先掌握 CUT3R 的 recurrent transformer 與 persistent state token 設計。</li><li><strong>TTT3R [9] (Chen et al., 2025):</strong> 最直接的 training-free 競品,基於 alignment confidence 推導 adaptive learning rate;TTSA3R 對它的數值優勢在多數短序列上極小 (Sintel 0.401 vs 0.405),理解 TTT3R 後才能判斷「multi-signal 真的比 single-signal 強」這個論點是否站得住。</li><li><strong>MUT3R [39] (Shen et al., 2025):</strong> 另一條 training-free 路線,使用 multi-layer self-attention 萃取 motion cues;TTSA3R 把它歸為「single-dimensional」, 但 MUT3R 自己有自己的多層聚合,這個分類是否公正需自行驗證。</li><li><strong>StreamVGGT [62] (Zhuo et al., 2025):</strong> 在 Sintel/Bonn per-sequence 上實際擊敗 TTSA3R,但論文沒有討論;判斷 persistent-state 路線是否仍是正確架構選擇前必讀。</li><li><strong>VGGT [48] (Wang et al., CVPR 2025):</strong> 全注意力 upper bound,讓人理解 streaming 方法相對於 full-attention 的真實 quality gap;Table 1 顯示 TTSA3R 在多數設定上仍落後 VGGT,這個距離是判斷 streaming 方法成熟度的關鍵基準。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] TAUM 的 threshold $\tau$ 在 Sintel、Bonn、KITTI、TUM、ScanNet、NRGBD 六個資料集上是否使用同一個值?若需逐資料集調整,則「training-free」的標籤需要重新檢視。</li><li>[ ] 為什麼 SCUM 的單獨 ablation 改善幅度 ($0.078 \to 0.074$) 遠小於 TAUM ($0.078 \to 0.066$)?是否因為 cross-attention $A_t$ 與 cosine dissimilarity $D_t$ 的訊號彼此抵消?有無可能某一支才是真正起作用的元件?</li><li>[ ] 採用乘法融合 $M_{\text{temp}} \odot M_{\text{spat}}$ 而非 $\max(M_{\text{temp}}, M_{\text{spat}})$ 或加權加法,是經過實驗篩選還是先驗選擇?是否在某些場景下 (例如新區域首次出現) AND 閘會錯誤抑制必要更新?</li><li>[ ] StreamVGGT 在 Sintel per-sequence (0.323) 與 Bonn per-sequence (0.059) 上明顯優於 TTSA3R (0.401, 0.064)。這個差距在 500–800 影格的 long-sequence 設定下是否依然成立,或會被 TTSA3R 的 long-term 穩定性反超?</li><li>[ ] TTSA3R 對 loop closure (重訪舊區域) 的行為為何?目前所有實驗都是 forward-streaming 軌跡,當相機回到先前場景,被「保留」的 historical state 是否能與新觀測正確對齊?</li><li>[ ] Table 1 在 Sintel per-sequence 上 TTSA3R 對 TTT3R 的 Abs Rel 領先僅 0.004,跨多個 random seed 的實驗變異是否大於這個差距?是否做過顯著性檢驗?</li><li>[ ] 序列拉長到 1000+ 影格時行為為何?目前 pose 評估上限 800 frames、depth 500 frames、reconstruction 250 frames,長期 plateau 是否仍存在?</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>(易) SCUM 內部訊號拆分 ablation。</strong> 把 cross-attention $A_t$ 與 cosine dissimilarity $D_t$ 各自獨立關閉,分別跑 Bonn 與 TUM-dynamics 一輪。理由:Table 3 顯示 SCUM 整體貢獻偏弱,若是其中一支訊號拖累,可以直接簡化模組;若兩支必要,則能正面強化 $A_t \odot D_t$ 的設計論證。</li><li><strong>(易) $\tau$ sensitivity sweep。</strong> 在 $\tau \in \{0.5, 0.75, 1.0, 1.25, 1.5\}$ 各自重跑三個資料集,把曲線疊到一張圖上。理由:這是判斷「training-free」是否名副其實的最低成本實驗,且結果無論正反都對讀者有用。</li><li><strong>(中) Fusion 規則對照實驗。</strong> 將 $M_{\text{temp}} \odot M_{\text{spat}}$ 換成 $\max$、加權加法 $\alpha M_{\text{temp}} + (1-\alpha) M_{\text{spat}}$、以及 element-wise 取大且取 sigmoid。理由:乘法 AND 閘在邏輯上偏保守,實證上需要排除其他更寬鬆的合成方式可能更優。</li><li><strong>(中) 引入「拒絕更新」的暫存 buffer。</strong> 當前一旦 $M_{\text{final}}$ 遮蔽更新,$\tilde{S}_t$ 該 token 就被丟棄。可以維護一個小型 ring buffer,在後續若該 token 連續多步觸發 SCUM,則允許將累積的候選改寫回去。理由:目前的 in-place 覆寫無法區分「此次觀測雜訊」與「持續多步的真實場景變化」,buffer 可在不增加 asymptotic 記憶體的前提下提供延遲決策能力。</li><li><strong>(中) 把 temporal-spatial 框架移植到 KV-cache 類 streaming 模型 (STREAM3R、StreamVGGT)。</strong> 這些模型的「state」是 KV cache 而非 persistent token,但「該不該寫入新觀測」的問題完全等價。理由:既能驗證 TTSA3R 的核心設計是否跨架構成立,也能直接挑戰 §4.2.2 中提出的「persistent-state 是否仍是正確路線」的疑慮。</li><li><strong>(難) 引入輕量 learned gate 取代固定 $\sigma(\hat{\Delta}_t - \tau)$。</strong> 用一個小型 MLP 接 $(\hat{\Delta}_t, A_t, D_t)$ 三個訊號學習融合,僅在小型 calibration set 上 fine-tune,保留 backbone 凍結。理由:這偏離了嚴格的 training-free 教義,但能直接量化「heuristic 融合 vs 學習融合」的差距,作為 TTSA3R 路線價值的上限參考。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

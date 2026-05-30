@@ -1,0 +1,415 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory</h1>
+          <p class="cover-meta">Junyi Zhang, Charles Herrmann, Junhwa Hur, Chen Sun, Ming-Hsuan Yang, Forrester Cole, Trevor Darrell, Deqing Sun</p>
+          <p class="cover-meta">2603.03269 · arXiv preprint · 2026-04-27</p>
+          <div class="cover-tagline"><p>本文聚焦於長序列、大尺度場景下的 feedforward 密集 3D 重建。現有 geometric foundation models（如 DUSt3R、VGGT、π3）雖能在短窗格內輸出高品質 pointmap，但受限於 bidirectional attention 的二次方複雜度，以及訓練資料多為數十至上百 frame 的「短窗泡泡」，難以擴展至數千乃至上萬 frame 的影片。作者提出 LoGeR，採用 chunk-wise 的因果處理流程，在每個 chunk 內保留強大的雙向幾何推理，並透過一個學習式的 hybrid memory 模組同時維持鄰接 chunk 的高保真對齊與長距離全域一致性。為了驗證在前所未有規模下的表現，作者重新利用 VBR 資料集，建立涵蓋最長 19k frame、軌跡達 11.5 km 的長序列重建基準，並在 KITTI、ScanNet、TUM、7scenes 等標準資料集上評估 ATE 與重建品質。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本文聚焦於長序列、大尺度場景下的 feedforward 密集 3D 重建。現有 geometric foundation models（如 DUSt3R、VGGT、π3）雖能在短窗格內輸出高品質 pointmap，但受限於 bidirectional attention 的二次方複雜度，以及訓練資料多為數十至上百 frame 的「短窗泡泡」，難以擴展至數千乃至上萬 frame 的影片。作者提出 LoGeR，採用 chunk-wise 的因果處理流程，在每個 chunk 內保留強大的雙向幾何推理，並透過一個學習式的 hybrid memory 模組同時維持鄰接 chunk 的高保真對齊與長距離全域一致性。為了驗證在前所未有規模下的表現，作者重新利用 VBR 資料集，建立涵蓋最長 19k frame、軌跡達 11.5 km 的長序列重建基準，並在 KITTI、ScanNet、TUM、7scenes 等標準資料集上評估 ATE 與重建品質。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張：feedforward 幾何重建之所以無法擴展到分鐘級影片，根因有二，一是架構上的「context wall」——bidirectional global attention 為了學到複雜幾何先驗而必須付出 $O(N^2)$ 代價，無法直接套用於長序列；二是訓練面的「data wall」——現有資料集集中於短窗、室內或小尺度場景，模型即使透過推論期最佳化（如 FastVGGT）擠出記憶體，也仍會在大尺度 VBR 上崩潰。要同時跨越這兩道牆，必須將序列拆成 chunk 以維持局部推理在訓練分佈內，再以線性複雜度的記憶機制處理跨 chunk 一致性。然而單一記憶機制都不夠：純 RNN/TTT（如 CUT3R）將所有時序壓進單一 hidden state，在鄰接 chunk 間損失高精度幾何細節導致接縫錯位；單純 sliding window attention 雖能無損保留近距資訊，卻沒有長距記憶以抑制 scale drift；naive deterministic stitching 則完全沒有全域記憶。因此作者提出「dual-component hybrid memory」——以非參數的 SWA 提供短距、無損的高精度對齊「資訊高速公路」，以參數化的 chunk-wise TTT（採 LaCT）作為固定大小、線性複雜度的長距全域記憶來錨定全域座標、抑制尺度漂移；兩者作用於不同時間尺度而互補，且能用 progressive curriculum 強迫模型把全域責任轉移至 TTT。再加上以 TartanAirV2 等大尺度資料為主的訓練混合與可選的 feedforward pose alignment，模型只需在 128 frame 上訓練即可推論至 19k frame，在 KITTI ATE 上比前一代 feedforward 方法降低逾 74%。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>LoGeR 在 KITTI 上把 feedforward 方法的平均 ATE 從前一代最佳 $72.86$ m（TTT3R）壓到 $18.65$ m，相對下降逾 $74\%$，並在 average 指標上勝過 optimization-based 的 VGGT-Long $32.5\%$（Tab. 2，p. 7）。</li><li>模型只在 $48$/$128$ frame 上訓練，卻能直接 inference 到 $19{,}000$ frame、軌跡達 $11.5$ km 的 VBR 序列，且相對 prior feedforward 方法整體進步 $55.2\%$（Fig. 4，p. 7；Tab. 6，p. 15）。</li><li>提出的 hybrid memory 在 Tab. 1 中明確界定設計位置：用 non-parametric SWA 維持 lossless 局部 context、用 parametric TTT 做 compressed 全域 context，整體仍維持 $O(N)$ 複雜度（p. 2）。</li><li>7-Scenes 重建的 Chamfer Distance 比 prior work 改善 $69.2\%$（Fig. 6，p. 7），ScanNet 與 TUM-Dynamics 的 ATE 分別提升 $80.0\%$ 與 $66.1\%$（Fig. 9，p. 8）。</li><li>Bonn 上 $500$ frame 的 video depth Abs Rel 比 TTT3R 再降 $21.05\%$（Fig. 11，p. 15），顯示 hybrid memory 對局部 dense 預測同樣有正面效果。</li><li>Ablation 同時驗證 SWA 與 TTT 缺一不可：拿掉 TTT 在 ScanNet $1000$ frame 從 $0.107$ 漲到 $0.162$，拿掉 SWA 漲到 $0.143$（Tab. 3，p. 9）。</li><li>Curriculum training 與大尺度資料混合（TartanAirV2 等 5 個資料集）為 generalization 關鍵：移除大尺度資料後 ScanNet $1000$ frame 從 $0.107$ 退化至 $0.156$（Tab. 3，p. 9）。</li><li>LoGeR$^{*}$ 變體加入 feedforward SE(3) alignment，在 KITTI 上把平均 ATE 進一步從 $25.44$ 推到 $18.65$，顯示 chunk 對齊與 TTT memory 可以互補（Tab. 2，p. 7）。</li><li>提出的 Pi3-Chunk 是一個簡潔但實用的 SIM(3) stitching baseline，本身就在 KITTI 上勝過 TTT3R 與 CUT3R（$52.07$ vs $72.86$ / $91.62$，Tab. 2，p. 7），凸顯 chunk-wise causal 處理本身的價值，再用 hybrid memory 進一步壓榨。</li><li>提出 VBR 重新標註的 long-context 評測協議，序列長度 $8{,}815$–$18{,}846$ frame、軌跡 $1.4$–$11.5$ km，是目前 feedforward 文獻中最長的 dense 重建 benchmark（Sec. 5.1，p. 7）。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>論文標題 &quot;LoGeR: Long-Context Geometric Reconstruction with Hybrid Memory&quot; 直接點出三個核心關鍵字：long-context（長序列）、geometric reconstruction（幾何重建）、hybrid memory（混合記憶）。標題即承諾要把 feedforward 3D 重建從短窗口推到 minutes-long 影片尺度，且解法是「記憶混合」而非單一記憶機制。</p>
+<p>Abstract 以「問題－方法－結果」三段式佈局展開故事。問題端先陳述現況：feedforward geometric foundation models 在短窗口 (short-window) 表現強，但放大到 minutes-long videos 時受限於 quadratic attention complexity 或 recurrent design 的有限有效記憶。方法端提出 LoGeR：以 chunk-wise 處理影片串流，chunk 內保留 bidirectional priors 的高保真推理，chunk 間以 learning-based hybrid memory module 維持一致性，由兩個互補元件組成：parametric Test-Time Training (TTT) 錨定 global coordinate frame、防止 scale drift；non-parametric Sliding Window Attention (SWA) 保留未壓縮的鄰近上下文以利高精度對齊。</p>
+<p>結果端承諾兩件量化事實：在 128 frames 訓練可推廣到推論時 thousands of frames；在 KITTI 上 ATE 相對 prior feedforward state-of-the-art 降低逾 74%，並在重新整理的 VBR 資料集（最長 19k frames）上達到 robust globally consistent 的結果。Abstract 為後續 §1 introduction 的「context wall + data wall」雙牆論述鋪陳了先決條件。</p>
+<h3>3.2 Introduction</h3>
+<p>(720 words)</p>
+<p>Introduction 採取「典範轉移－雙重瓶頸－設計取捨－混合記憶提案－基準與成效」五拍敘事。第一拍鋪陳大尺度 dense 3D reconstruction 在 holistic scene understanding 與 generative world-building 的核心地位，並對比 classical optimization frameworks 與 geometric foundation models（DUSt3R、MonST3R、VGGT、π3）的兩種典範：前者可重建整座城市但需離線且在 sparse / texture-less 輸入失靈；後者具強 feedforward 推論能力卻 confined to bounded scenes，從而界定本文要填補的空缺。</p>
+<p>第二拍將阻礙形式化為兩堵牆。Architectural 的 &quot;context wall&quot;：bidirectional attention 對學習複雜幾何先驗不可或缺，但其 quadratic complexity 限制其只能用於短上下文窗口。Data 的 &quot;data wall&quot;：現行模型訓練資料以 dozens to over a hundred frames 的「短上下文 bubbles」為主，缺乏整合 thousands to tens of thousands of frames 長距依賴的能力。FastVGGT 即便在記憶體上鬆綁，仍在 VBR 上失敗（Figs. 1 and 3），指認 inference-time heuristics 解不開 data wall。</p>
+<p>第三拍提出 end-to-end chunk-wise processing 為實用策略：分段確保 local inference 落在 in-distribution 範圍，並能直接複用 π3 等強 bidirectional baseline。然而此典範引入新問題——chunk 邊界的記憶與一致性管理。作者把 dense 3D reconstruction 所需的 coherence 拆成三層：intra-window details、uncompressed context for high-precision local alignment、global structural integrity。並指出既有 sequential models 無法同時兼顧：CUT3R 將時間 context 壓進單一 lossy hidden state，犧牲鄰近對齊所需的 dense 高精度資訊；naïve deterministic stitching 雖保留局部細節但缺乏防止 scale drift 的長距記憶。</p>
+<p>第四拍引出本文核心立論：單一 memory strategy 在本質上不足，必須走 hybrid memory module。Table 1 的對照表將 Full Attention、SWA、TTT/Linear Attention、Ours (Hybrid Memory) 在 compute cost、local context、global context 三軸並列，將「Lossless local + Compressed global + O(N)」定位為 LoGeR 的設計座標。具體做法是把 non-parametric SWA 用於 most recent chunks 的高保真鄰接傳遞、把 parametric TTT 用於壓縮全域上下文以錨定座標系，並明確主張兩者「decouple」——長程 parametric memory 防 scale drift、短程 non-parametric memory 保 high-precision transitions。</p>
+<p>第五拍同時鋪陳 benchmark 與成效。為了在前所未見的尺度上評估，作者基於 VBR 資料集打造長序列重建 benchmark，最高達 19k frames、11.5 km 軌跡。架構設計使模型能在 128 frames 訓練、推論時 generalize 到 1k frames，並在 periodic state resets 與 optional feedforward pose-alignment 加持下擴張到 19k frames。引言以兩個量化結果作為 §5 的下游 anchor：KITTI ATE 從 72.86 降到 18.65、VBR 上 55.2% 相對提升，把 §3 preliminary 與 §4 approach 的閱讀預期錨定在「兩堵牆同時被 hybrid memory 攻破」這條主線上。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(900 words)</p>
+<p>§2 Related Work 與 §3 Preliminary 共同承擔三項功能：定位本文於既有 visual SLAM 與 feedforward 3D reconstruction 兩條學術脈絡之中、把長序列重建現況收斂為三條失敗模式、為 §4 的 hybrid memory 模組提供必要的 TTT 數學介面。</p>
+<p>§2 先以四個子主題盤點先驗工作。Learning-based visual SLAM 將 DROID-SLAM、DPV-SLAM 與 VGGT-Long、VGGT-SLAM 並列為「以 backend 維持長距 coherence 的唯一可行路徑」，但同時點出其昂貴的 graph construction、loop closure、global optimization 後端，為本文「全 feedforward 也能贏」的論斷劃出對照組。Feedforward 3D reconstruction 一段把 DUSt3R、MASt3R、MonST3R、VGGT、π3 串成一條主線，並指出其共同弱點：受 global attention 的高記憶體成本所限、僅能處理 bounded scenes，從而無法滿足 robotics 與 autonomous driving 對 global consistency 的需求。Long sequence reconstruction 一段細分四種既有路線——external spatial memory（Spann3R、Long3R、Point3R、Stream3R）、RNN-style persistent state（CUT3R）、sparse / causal VGGT 變體（FastVGGT、InfiniteVGGT、Streaming 4D VGGT、LongStream），並把 TTT3R 的 frame-wise confidence-based update 點名為「缺乏多影格 reasoning expressivity」的代表，藉此把 LoGeR 的 chunk-wise + bidirectional + hybrid memory 與其區隔。</p>
+<p>第四個子主題 Memory for long-context modeling 把視野拉到 NLP 與通用 sequence modeling：state-space models（S4、Mamba）、linear attention（Katharopoulos et al.、Schlag et al.）、local attention（Longformer、BigBird）與 fast-weight 的 TTT。Table 1 的取捨被在此處正式化——個別機制都在 compute、local、global 三軸間有不可避免的折衷。作者也明確承認，語言模型常見的 hybrid 配方（Longformer、Jamba）會搭配 full global attention，但 dense vision 的 token density 讓此路徑在計算上不可行，因此 LoGeR 才必須採用嚴格 linear-in-N 的 SWA + TTT 組合。Dataset 段落則為 §4.3 的 &quot;data wall&quot; 預先列出可用訓練資源（ARKitScenes、DL3DV、MegaDepth、ScanNet、Waymo、HyperSim、Spring、TartanAir/V2、UnReal4K、Virtual KITTI 2、OmniWorld-Game），並指出既有 benchmark 的空間範疇限制，因而需採用 VBR 作為 8,815–18,846 frames、11.5 km 等級的長序列尺規。</p>
+<p>§3 Preliminary 為後續方法章節提供最小必要符號。第一段定義 3D reconstruction model 的輸入/輸出介面：給定 $N$ 張 multi-view 影像 $I = \{I_i\}_{i=1}^{N}$，每張 $I_i \in \mathbb{R}^{H \times W \times 3}$，bidirectional transformer 預測局部 pointmap $P_i \in \mathbb{R}^{H \times W \times 3}$ 與 camera pose $c_i \in \mathbb{R}^{4 \times 4}$。第二段引入 Test-Time Training：把 fast weights $W$ 與 slow weights 區分，對於 token 序列 $x = [x_1, \dots, x_N]$, $x_i \in \mathbb{R}^d$，標準 attention 投影為 $q_i, k_i, v_i$，TTT 把 $f_W(\cdot): \mathbb{R}^d \to \mathbb{R}^d$ 視為 fast-weight 參數化的神經網路，並列出兩個操作：</p>
+<p>$W \leftarrow W - \eta \nabla_W L\bigl(f_W(k), v\bigr)$</p>
+<p>$o = f_W(q)$</p>
+<p>並補充實作細節：fast weight 採 SwiGLU layer、優化器採 Muon，並承認 TTT 對長 context 的線性複雜度伴隨 lossy 壓縮。此節因此清楚把「TTT 提供 compressed global memory 但有 inherent lossiness」植入讀者腦中，為 §4 中以 SWA 補足 lossless local context 的必要性鋪軌。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1300 words)</p>
+<p>§4 Approach 整章的敘事弧為：先以「為什麼是 chunk-wise」為前提，再從 chunk 邊界 coherence 拆出三項需求，導出 SWA + TTT 的 hybrid memory 組合；接著以單一 block 的四步驟流水線把架構落地；最後提出三項損失與 LoGeR* feedforward alignment 的可選變體，並以 data 與 curriculum 策略補上資料側的設計。</p>
+<p>§4.1 Long-Context 3D Reconstruction Architecture 從 motivation 開場：要把 feedforward dense 3D reconstruction 推到 minutes-long videos，必須同時克服 global attention 的 quadratic complexity 與 long-horizon training data 的稀缺，end-to-end chunk-wise processing 因此是自然解。但獨立處理 chunk 會破壞 global consistency，故架構必須同時提供三件事：(i) chunk 內強 bidirectional reasoning 以保 dense geometric fidelity；(ii) chunk 邊界 lossless 短程資訊高速公路 以保高精度對齊；(iii) 線性時間、固定大小的長距 memory 以跨越 thousands of frames。Overview 段把輸入串流 $X = \{I_t\}_{t=1}^{T}$ 切成 $M$ 個 chunk $\{C_m\}_{m=1}^{M}$，採最小 overlap（如單一 overlapping frame），chunk 內部以 VGGT 或 π3 等 bidirectional backbone 處理，跨 chunk 則同時引入兩條互補通路。</p>
+<p>第一條為 long-term lossy 壓縮的 chunk-wise TTT：每個 residual block 中插入 TTT layer，維持一組跨多 chunk 的 fast weights $W$，並採用 Large-Chunk TTT (LaCT) 以對齊 chunk-wise 處理；apply 操作把歷史資訊送進當前 chunk、update 操作把當前 chunk 的 coarse geometry 與 scale 等冗餘但重要資訊壓回 $W$。雖然 fast weights 理論上具無限 receptive field，但實務 capacity 受訓練 context length 限制，因此推論時可選擇性地以 periodic state resets 防止超長 horizon 的飄移。第二條為 short-term lossless 傳遞的 SWA：作者觀察到 TTT-only state passing 對 dense 3D 中鄰近影格的幾何一致性而言是有問題的，因此 sparsely 插入 SWA layer，使其同時 attend 前一個與當前 chunk 的 frame attention 輸出 $C_{m-1} \cup C_m$，建立一條把高保真特徵直接從前 chunk 推進當前 chunk 的 lossless 高速公路。重要的是，SWA 僅在相鄰 chunk 間運算且只放在四層深度，因此 compute 與 memory 維持在 bounded 範圍。兩條路徑互補：TTT 提供 scalable long-range memory、SWA 確保 fine-grained 鄰接幾何一致性。</p>
+<p>Block structure 段落把上述設計拆成單一 block 內的四步流水線，並標出對應方程式。slow weights $\theta$ 在推論時凍結；對 chunk $C_m$ 的 token 序列 $H_{C_m}$ 依序執行：(1) per-frame attention 以提取空間特徵 (Eq. 3)；(2) sparse SWA 跨 $C_{m-1}$ 與 $C_m$ 對齊鄰近 chunk (Eq. 4)；(3) chunk-wise TTT layer 以 apply-then-update 程序整合全域 context，先把當前記憶注入 token、再把當前 chunk 摘要寫入 $W$ (Eqs. 5, 6)，並用 pre-norm 穩定 long-horizon streaming；(4) chunk-wise bidirectional attention 在 chunk 內做強幾何推理 (Eq. 7)。block 末端的 prediction heads 沿用 π3 的 lightweight pointmap decoder 與 camera-pose decoder，輸出 dense pointmap 與 per-frame camera pose。</p>
+<p>§4.2 Learning Objectives 接續 π3 的訓練哲學，採三項 reference-view-free 損失：scale-invariant local pointmap loss $L_{local}$（用單一 per-sequence scale $s^<em>$ 對齊預測，並以深度 $z_{i,p}$ 正規化）、affine-invariant relative pose loss $L_{pose}$（rotation 用 $L_{rot}$、translation 用 Huber 損失並乘上 $s^</em>$）、與額外的 global pointmap loss $L_{global}$（在 world-coordinate pointmap 上監督，以 over-constrain 長序列訓練）。總損失為 $L = L_{local} + L_{pose} + \lambda_{global} L_{global}$，符號 $\Omega$、$\hat{x}_{i,p}$、$\hat{T}_i = [\hat{R}_i \mid \hat{t}_i]$、$\Pi(T, x)$ 等與標準 pointmap 訓練介面對齊。</p>
+<p>LoGeR* 是一個重要的 feedforward alignment 變體：在很長的串流中，預測誤差仍可能累積，因此於 chunk 邊界以 overlapping frame 估出剛體對齊 $A_m = \tilde{T}^{(m-1)}_k \bigl(\hat{T}^{(m)}_k\bigr)^{-1}$，並把當前 chunk 的所有 pose 變換為 $\tilde{T}^{(m)}_t = A_m \hat{T}^{(m)}_t$，作為訓練與推論時最終的 camera pose 預測。</p>
+<p>§4.3 Data and Curriculum 把資料側的「data wall」明確化：純架構改動不足以達成無限上下文重建，VGGT + FastVGGT 在僅以短上下文資料訓練時無法泛化到大尺度場景（Fig. 3），因此必須以 large-scale-scene 資料集（特別是 TartanAirV2）為主軸建構訓練混合。Curriculum 採三階段：48 frames / 4 chunks → 12 chunks（固定序列長度）→ 在 H200 上把 context length 提升到 128 frames、最多 20 chunks，迫使模型逐步把依賴從 SWA 移交到 TTT hidden state；LoGeR* 則自第一階段模型起初始化、加入 feedforward alignment 後完成剩餘 curriculum，兼顧訓練效率與最終效能，並為 §5.3 ablation 預留可比較的設計變因。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1100 words)</p>
+<p>§5 Experiments 以「實作設定 → 長序列評估 → 短序列評估 → ablation」四層展開，整體論證策略是先在最具挑戰的 long-horizon 設定上拉開差距，再回頭證明 LoGeR 在短序列上仍是 state-of-the-art，最後以 ablation 把每一個架構與資料決策的貢獻釘住。</p>
+<p>實作細節段落首先列出訓練資料（ARKitScenes、DL3DV、HyperSim、MegaDepth、ScanNet、ScanNet++、Spring、TartanAir、TartanAirV2、UnReal4K、Virtual KITTI 2、Waymo、OmniWorld-Game 子集），交代 AdamW、40k steps、batch size 32、32 張 H100 兩天 + 32 張 H200 兩天的訓練配置；patchifier、frame attention 與 chunk-wise bidirectional attention 由 π3 初始化；所有評估在單張 NVIDIA A100 40GB 上完成。這段把後續所有結果置於同一 hardware budget 之下，使表格之間可比。</p>
+<p>§5.1 Evaluation on Long Sequences 是全章重心。Benchmark 端選用 KITTI（最多 4,661 frames、5 km 軌跡）與重新整理的 VBR（7 條 8,815–18,846 frames、1.4–11.5 km 軌跡）。誤差指標統一採 Umeyama-aligned 後的 ATE，符合 Teed &amp; Deng、Lipson et al. 的標準。Baselines 同時涵蓋 optimization-based（DROID-SLAM、DPV-SLAM、VGGT-SLAM、VGGT-Long）與 feedforward（CUT3R、TTT3R、FastVGGT、InfiniteVGGT），並額外以 π3 衍生出 Pi3-Chunk（chunk-wise 處理 + SIM(3) 對齊）作為新 baseline；CUT3R 與 TTT3R 採 TTT3R 提出的 reset 算法以取得合理結果，LoGeR 則每五個 window 重置一次 fast weights，重置時亦套用 feedforward pose alignment。</p>
+<p>結果上，LoGeR 與 Pi3-Chunk 在 KITTI 上同時超越所有既有 feedforward 方法（Tab. 2），LoGeR* 平均 ATE 從 TTT3R 的 72.86 降到 18.65；LoGeR 的平均 ATE 25.44 甚至比最強 optimization-based 方法 VGGT-Long 高出 32.5%，且優勢主要來自 open-loop 軌跡（01、03、04、08、10），顯示其在無 loop closure 的條件下也能抑制累積飄移。VBR 端的故事更銳利：Pi3-Chunk 在約 1k frames 時略優，但其 SIM(3) 對齊依賴 local overlapping frames 估計 scale，誤差會在長距下指數累積；LoGeR 的 TTT 模組從架構上錨定 global scale，於 20k frames 仍維持 global scale consistency，最終取得 55.2% 相對改進（Fig. 4），質性軌跡圖（Fig. 5）也佐證 baseline 出現嚴重 scale drift 而 LoGeR 緊貼 ground truth。</p>
+<p>§5.2 Evaluation on Short Sequences 把評估擴充到最多 1k frames：7-Scenes 上的 3D point-cloud reconstruction（Figs. 6, 7）、ScanNetV2 與 TUM-Dynamics 上的 camera pose estimation（Figs. 8, 9），baseline 涵蓋 explicit-state（Point3R）、implicit state-space（CUT3R、TTT3R、StreamVGGT）與 bidirectional（VGGT、π3）。所有實驗統一採 chunk size 64、overlap 3。Pi3-Chunk 與 LoGeR 在所有對比上皆顯著勝出，並回應了「chunk-wise + bidirectional 不只贏在長序列」這條敘事線；雖然 Pi3-Chunk 在小尺度 TUM 上 pose 指標稍佔上風，但 LoGeR 重建出的 bookshelf、室內結構在視覺上明顯較少幾何扭曲。</p>
+<p>§5.3 Ablation 把架構、資料、curriculum 三項決策分別釘下。Architecture 端，分別 inference-time 關閉 SWA 與 TTT，並在 ScanNet 子集與 TUM-Dynamics 上比較 ATE（Tab. 3）：兩者皆下降，且 Fig. 10 的軌跡圖把分工釘得很清楚——TTT 維持 global consistency、SWA 維持 local smoothness，缺一即出現顯著飄移或幾何退化。Dataset 端，移除 TartanAir、TartanAirV2、Waymo、Virtual KITTI 2、OmniWorld-Game 五個 large-scale 資料集後性能顯著下降，驗證「data wall 必須以 large-scale navigation 資料破解」的假說。Curriculum 端，與不採 curriculum 的訓練 schedule 對照下，progressive 策略對 LoGeR 與 LoGeR* 兩者皆帶來一致改進，回應 §4.3 把 reliance 從 SWA 移交到 TTT hidden state 的訓練設計初衷。整章 §5 因此構成一條完整論證鏈：方法在 long-context 開出最大差距、在 short-context 仍是 SOTA、所有設計選擇都可由 ablation 個別解釋。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(290 words)</p>
+<p>§6 Conclusion 與其後的 Discussion and Future Work 段落把整篇論文收束於三條可延伸軸線。Conclusion 重申本文核心貢獻：以 SWA 與 TTT 互補的 hybrid 架構解決 feedforward 3D geometry 模型在長序列估測上的限制；在所提 VBR benchmark 上，LoGeR 不仰賴 optimization 即可處理 thousands of frames，並在多種記憶表徵（explicit memories、recurrent states、causal attention）的對手中取得最佳長序列重建結果。作者把該成果定位為 dynamic scenes、video understanding 與 robotics 等 long-context spatio-temporal reasoning 任務的新起點。</p>
+<p>Discussion and Future Work 則誠實點名兩項開放問題並暗示一條延伸方向。第一項是 TTT fast weights 的長度泛化：雖然其固定大小理論上允許無限 context，但實務上難以泛化到超出訓練 chunk 數的長度（引 Ruiz &amp; Gu, 2025），實際有效範圍受 hardware memory 限制；超過此範圍會累積 trajectory drift，目前只能以 periodic state resets 緩解，但代價是犧牲長期 context。作者明確期待未來 linear sequence model 解決此 length-generalization 瓶頸。第二項是「data wall」：高品質、長 horizon、夠多樣的訓練資料仍是關鍵瓶頸，呼籲社群投入長序列資料的 curation。第三項則為延伸：把 SWA + TTT 的 hybrid memory 推到幾何重建以外、需要同時兼顧長距全域一致性與強局部依賴的領域。</p>
+<p>整體而言，§6 把全文限制與 §4.3 的 data 哲學、§5.1 的 reset 策略與 §5.3 的 curriculum 結果連成一條可被後續工作延伸的軌道，避免把 LoGeR 推銷為終局解，而是把它定位為「在現行 hardware 與 dataset 限制下的可行混合策略」，並把長度泛化與資料策展兩個結構性問題交給社群。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(720 words)</p>
+<div class="card"><p>Introduction 採取「典範轉移－雙重瓶頸－設計取捨－混合記憶提案－基準與成效」五拍敘事。第一拍鋪陳大尺度 dense 3D reconstruction 在 holistic scene understanding 與 generative world-building 的核心地位，並對比 classical optimization frameworks 與 geometric foundation models（DUSt3R、MonST3R、VGGT、π3）的兩種典範：前者可重建整座城市但需離線且在 sparse / texture-less 輸入失靈；後者具強 feedforward 推論能力卻 confined to bounded scenes，從而界定本文要填補的空缺。</p></div>
+<div class="card"><p>第二拍將阻礙形式化為兩堵牆。Architectural 的 &quot;context wall&quot;：bidirectional attention 對學習複雜幾何先驗不可或缺，但其 quadratic complexity 限制其只能用於短上下文窗口。Data 的 &quot;data wall&quot;：現行模型訓練資料以 dozens to over a hundred frames 的「短上下文 bubbles」為主，缺乏整合 thousands to tens of thousands of frames 長距依賴的能力。FastVGGT 即便在記憶體上鬆綁，仍在 VBR 上失敗（Figs. 1 and 3），指認 inference-time heuristics 解不開 data wall。</p></div>
+<div class="card"><p>第三拍提出 end-to-end chunk-wise processing 為實用策略：分段確保 local inference 落在 in-distribution 範圍，並能直接複用 π3 等強 bidirectional baseline。然而此典範引入新問題——chunk 邊界的記憶與一致性管理。作者把 dense 3D reconstruction 所需的 coherence 拆成三層：intra-window details、uncompressed context for high-precision local alignment、global structural integrity。並指出既有 sequential models 無法同時兼顧：CUT3R 將時間 context 壓進單一 lossy hidden state，犧牲鄰近對齊所需的 dense 高精度資訊；naïve deterministic stitching 雖保留局部細節但缺乏防止 scale drift 的長距記憶。</p></div>
+<div class="card"><p>第四拍引出本文核心立論：單一 memory strategy 在本質上不足，必須走 hybrid memory module。Table 1 的對照表將 Full Attention、SWA、TTT/Linear Attention、Ours (Hybrid Memory) 在 compute cost、local context、global context 三軸並列，將「Lossless local + Compressed global + O(N)」定位為 LoGeR 的設計座標。具體做法是把 non-parametric SWA 用於 most recent chunks 的高保真鄰接傳遞、把 parametric TTT 用於壓縮全域上下文以錨定座標系，並明確主張兩者「decouple」——長程 parametric memory 防 scale drift、短程 non-parametric memory 保 high-precision transitions。</p></div>
+<div class="card"><p>第五拍同時鋪陳 benchmark 與成效。為了在前所未見的尺度上評估，作者基於 VBR 資料集打造長序列重建 benchmark，最高達 19k frames、11.5 km 軌跡。架構設計使模型能在 128 frames 訓練、推論時 generalize 到 1k frames，並在 periodic state resets 與 optional feedforward pose-alignment 加持下擴張到 19k frames。引言以兩個量化結果作為 §5 的下游 anchor：KITTI ATE 從 72.86 降到 18.65、VBR 上 55.2% 相對提升，把 §3 preliminary 與 §4 approach 的閱讀預期錨定在「兩堵牆同時被 hybrid memory 攻破」這條主線上。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(900 words)</p>
+<div class="card"><p>§2 Related Work 與 §3 Preliminary 共同承擔三項功能：定位本文於既有 visual SLAM 與 feedforward 3D reconstruction 兩條學術脈絡之中、把長序列重建現況收斂為三條失敗模式、為 §4 的 hybrid memory 模組提供必要的 TTT 數學介面。</p></div>
+<div class="card"><p>§2 先以四個子主題盤點先驗工作。Learning-based visual SLAM 將 DROID-SLAM、DPV-SLAM 與 VGGT-Long、VGGT-SLAM 並列為「以 backend 維持長距 coherence 的唯一可行路徑」，但同時點出其昂貴的 graph construction、loop closure、global optimization 後端，為本文「全 feedforward 也能贏」的論斷劃出對照組。Feedforward 3D reconstruction 一段把 DUSt3R、MASt3R、MonST3R、VGGT、π3 串成一條主線，並指出其共同弱點：受 global attention 的高記憶體成本所限、僅能處理 bounded scenes，從而無法滿足 robotics 與 autonomous driving 對 global consistency 的需求。Long sequence reconstruction 一段細分四種既有路線——external spatial memory（Spann3R、Long3R、Point3R、Stream3R）、RNN-style persistent state（CUT3R）、sparse / causal VGGT 變體（FastVGGT、InfiniteVGGT、Streaming 4D VGGT、LongStream），並把 TTT3R 的 frame-wise confidence-based update 點名為「缺乏多影格 reasoning expressivity」的代表，藉此把 LoGeR 的 chunk-wise + bidirectional + hybrid memory 與其區隔。</p></div>
+<div class="card"><p>第四個子主題 Memory for long-context modeling 把視野拉到 NLP 與通用 sequence modeling：state-space models（S4、Mamba）、linear attention（Katharopoulos et al.、Schlag et al.）、local attention（Longformer、BigBird）與 fast-weight 的 TTT。Table 1 的取捨被在此處正式化——個別機制都在 compute、local、global 三軸間有不可避免的折衷。作者也明確承認，語言模型常見的 hybrid 配方（Longformer、Jamba）會搭配 full global attention，但 dense vision 的 token density 讓此路徑在計算上不可行，因此 LoGeR 才必須採用嚴格 linear-in-N 的 SWA + TTT 組合。Dataset 段落則為 §4.3 的 &quot;data wall&quot; 預先列出可用訓練資源（ARKitScenes、DL3DV、MegaDepth、ScanNet、Waymo、HyperSim、Spring、TartanAir/V2、UnReal4K、Virtual KITTI 2、OmniWorld-Game），並指出既有 benchmark 的空間範疇限制，因而需採用 VBR 作為 8,815–18,846 frames、11.5 km 等級的長序列尺規。</p></div>
+<div class="card"><p>§3 Preliminary 為後續方法章節提供最小必要符號。第一段定義 3D reconstruction model 的輸入/輸出介面：給定 $N$ 張 multi-view 影像 $I = \{I_i\}_{i=1}^{N}$，每張 $I_i \in \mathbb{R}^{H \times W \times 3}$，bidirectional transformer 預測局部 pointmap $P_i \in \mathbb{R}^{H \times W \times 3}$ 與 camera pose $c_i \in \mathbb{R}^{4 \times 4}$。第二段引入 Test-Time Training：把 fast weights $W$ 與 slow weights 區分，對於 token 序列 $x = [x_1, \dots, x_N]$, $x_i \in \mathbb{R}^d$，標準 attention 投影為 $q_i, k_i, v_i$，TTT 把 $f_W(\cdot): \mathbb{R}^d \to \mathbb{R}^d$ 視為 fast-weight 參數化的神經網路，並列出兩個操作：</p></div>
+<div class="card"><p>$W \leftarrow W - \eta \nabla_W L\bigl(f_W(k), v\bigr)$</p></div>
+<div class="card"><p>$o = f_W(q)$</p></div>
+<div class="card"><p>並補充實作細節：fast weight 採 SwiGLU layer、優化器採 Muon，並承認 TTT 對長 context 的線性複雜度伴隨 lossy 壓縮。此節因此清楚把「TTT 提供 compressed global memory 但有 inherent lossiness」植入讀者腦中，為 §4 中以 SWA 補足 lossless local context 的必要性鋪軌。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>LoGeR 的核心動機是同時打破 feedforward 3D reconstruction 在長序列上面臨的兩堵牆: (i) 全域注意力的二次複雜度導致的 <em>context wall</em>,以及 (ii) 既有 short-context 訓練資料無法涵蓋分鐘級或公里級軌跡的 <em>data wall</em> (page 4, Sec. 4.1; page 6, Sec. 4.3)。為此,作者選擇 chunk-wise causal processing 作為基本範式: 將輸入視訊 $\mathcal{X}=\{I_t\}_{t=1}^T$ 切成 $M$ 個 chunks $\{\mathcal{C}^m\}_{m=1}^M$,僅以單一重疊 frame 連接相鄰 chunk (page 4),這既將每次 forward 的計算量限制在訓練資料分布之內,也保留了 bidirectional backbone (VGGT 或 $\pi^3$) 的強多 frame 推理能力。</p>
+<p>跨 chunk 的資訊傳遞由 <strong>hybrid memory</strong> 雙路徑承擔 (Fig. 2, page 4)。第一條路徑是 <em>Sliding Window Attention (SWA)</em>,僅在四個 layer 插入,讓當前 chunk $\mathcal{C}^m$ 的 tokens 直接 attend 到上一個 chunk $\mathcal{C}^{m-1}$ 的對應 layer 輸出 (Eq. 4),提供 lossless、bounded-cost 的鄰近幾何對齊。第二條路徑是 <em>Chunk-wise Test-Time Training (TTT)</em>,維護一組 fast weights $W^m$ 沿 chunk 軸線性遞推,在每個 chunk 內先以 <em>apply</em> 操作將歷史記憶注入 token (Eq. 5),再以 <em>update</em> 將當前 chunk 摘要寫回權重以得 $W^{m+1}$ (Eq. 6)。fast-weight module $f_W$ 採用 SwiGLU MLP 並以 Muon optimizer 執行 test-time 更新 (page 4, Sec. 3 結尾),具體規格採用 LaCT (Large-Chunk TTT, Zhang et al., 2025b),比逐 token TTT 更具計算效率 (page 4)。Block 內部在 SWA 與 TTT 之後仍保留 chunk-wise bidirectional attention (Eq. 7),確保 chunk 內 dense geometric reasoning 的完整性。</p>
+<p>訓練端用 progressive curriculum 三階段 (page 6, Sec. 4.3): (1) 48 frames / 4 chunks (12 frames/chunk) 的暖啟動;(2) 在固定 sequence length 下逐步加密到 12 chunks 以提升 chunk 邊界密度;(3) 切換到 H200 GPU,將 context 拉到 128 frames、漸進到 20 chunks。Loss 沿襲 $\pi^3$,組合 scale-invariant local pointmap loss $\mathcal{L}_{\mathrm{local}}$ (Eq. 8)、affine-invariant relative pose loss $\mathcal{L}_{\mathrm{pose}}$ (Eq. 9) 與 global pointmap loss $\mathcal{L}_{\mathrm{global}}$ (Eq. 10),總 loss 為 $\mathcal{L} = \mathcal{L}_{\mathrm{local}} + \mathcal{L}_{\mathrm{pose}} + \lambda_{\mathrm{global}} \mathcal{L}_{\mathrm{global}}$ (Eq. 11)。為了進一步壓制超長序列下的累積漂移,作者另外提出 LoGeR* 變體: 對每個 chunk 中的 overlapping frame $k$ 計算 SE(3) 剛體對齊 $A_m = \tilde{T}^{(m-1)}_k (\hat{T}^{(m)}_k)^{-1}$,並將 $A_m$ 套用到整個 $\mathcal{C}^m$ 的 raw poses (Eq. 12, page 5)。Inference 階段也可選擇每 5 個 window 對 fast weights 做 periodic state reset 以避免漂移 (page 4 結尾,page 7 Sec. 5.1)。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input video                  X = {I_t}_{t=1..T}                      [B, T, H, W, 3]
+
+            ── chunk partition with single-frame overlap ──            (page 4)
+Chunked input                C^m = { I^m_j }_{j=1..n}                [B, M, n, H, W, 3]
+                             (n varies per training stage; M = number of chunks)
+
+        ┌────────────── DINO Patchifier (per frame, shared) ──────────────┐
+        │   patch size p = ?,   embedding dim d = ?  (paper unspecified)  │
+        └─────────────────────────────────────────────────────────────────┘
+                                                                     (page 5 &quot;Block structure&quot;)
+
+Per-frame token grid         H^{C^m}_j                              [B, M, n, HW/p^2, d]
+Concatenated chunk tokens    H^{C^m}                                [B, M, n*HW/p^2, d]
+
+            ┌────────── Stack of L residual blocks (slow weights θ) ──────────┐
+            │ For each block ℓ = 1..L:                                        │
+            │                                                                 │
+            │ (1) Per-frame attention (Eq. 3)        [shape unchanged]        │
+            │     H^{C^m} ← H^{C^m} + Attn_frame(LN(H^{C^m}_i); θ),           │
+            │                                          for i = 1..n           │
+            │                                                                 │
+            │ (2) Sparse SWA  (Eq. 4)  — only 4 of L blocks insert this layer │
+            │     keys/values ∈ C^{m-1} ∪ C^m   (lossless cross-chunk highway)│
+            │     H^{C^m} ← H^{C^m} + Attn_swa([LN(H^{C^{m-1}}), LN(H^{C^m})]; θ)
+            │                                          [shape unchanged]      │
+            │     (skipped on the first chunk C^1: no predecessor)            │
+            │                                                                 │
+            │ (3) Chunk-wise TTT — Apply (Eq. 5) then Update (Eq. 6)          │
+            │     fast weights:    W^m                                  [d, d]│
+            │     Apply :  H̄^{C^m} = H^{C^m} + f_{W^m}(LN(H^{C^m}))           │
+            │                                          [shape unchanged]      │
+            │     Update:  W^{m+1} = U(W^m; H^{C^m})    (LaCT, SwiGLU + Muon) │
+            │     (on C^1: Apply skipped; Update bootstraps W^2)              │
+            │                                                                 │
+            │ (4) Chunk-wise bidirectional attention (Eq. 7)                  │
+            │     H^{C^m} ← H̄^{C^m} + BiAttn_chunk(LN(H̄^{C^m}); θ)             │
+            │                                          [shape unchanged]      │
+            └─────────────────────────────────────────────────────────────────┘
+                                                                     (page 5, Eqs. 3-7)
+
+Final per-frame token grid   H^{C^m,(L)}_j                          [B, M, n, HW/p^2, d]
+
+            ┌──────── Prediction heads (per frame, following π^3) ────────┐
+            │   Pointmap decoder      → P_i ∈ R^{H×W×3}  (local coords)    │
+            │   Camera-pose decoder   → c_i ∈ R^{4×4}    (global coords)   │
+            └──────────────────────────────────────────────────────────────┘
+                                                                     (page 5 &quot;Prediction heads&quot;)
+Per-frame pointmap           P                                       [B, T, H, W, 3]
+Per-frame pose               c                                       [B, T, 4, 4]
+
+            ── Optional: LoGeR* feedforward SE(3) alignment (Eq. 12) ──
+            A_m = T̃^{(m-1)}_k · (T̂^{(m)}_k)^{-1}                A_m ∈ SE(3)
+            T̃^{(m)}_t = A_m · T̂^{(m)}_t   for all t ∈ C^m       (page 5 bottom)</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>ARKitScenes / ARKitScenes HighRes (Baruch et al., 2021)</td><td>indoor RGB-D 3D scene</td><td>room-scale, 多序列</td><td>train (10.44% + 4.18%)</td></tr><tr><td>DL3DV (Ling et al., 2024)</td><td>real-world multi-scene 3D</td><td>多樣場景, 1k frames 等級</td><td>train (17.89%)</td></tr><tr><td>TartanAirV2 (Patel et al., 2025)</td><td>synthetic navigation</td><td>large-scale, 長軌跡</td><td>train (17.89%)</td></tr><tr><td>OmniWorld-Game subset (Zhou et al., 2025)</td><td>synthetic 4D world</td><td>5,000 sequences</td><td>train (17.89%)</td></tr><tr><td>TartanAir (Wang et al., 2020)</td><td>synthetic SLAM</td><td>large-scale</td><td>train (8.94%)</td></tr><tr><td>Waymo (Schwall et al., 2020)</td><td>autonomous driving</td><td>large-scale outdoor</td><td>train (6.71%)</td></tr><tr><td>MegaDepth (Li &amp; Snavely, 2018)</td><td>internet photo depth</td><td>scene-scale</td><td>train (4.18%)</td></tr><tr><td>ScanNet (Dai et al., 2017)</td><td>indoor 3D</td><td>room-scale</td><td>train (4.18%)</td></tr><tr><td>ScanNet++ (Yeshwanth et al., 2023)</td><td>high-fidelity indoor 3D</td><td>room-scale</td><td>train (3.13%)</td></tr><tr><td>Virtual KITTI 2 (Cabon et al., 2020)</td><td>synthetic driving</td><td>outdoor 軌跡</td><td>train (2.24%)</td></tr><tr><td>HyperSim (Roberts et al., 2021)</td><td>photorealistic synthetic indoor</td><td>room-scale</td><td>train (2.08%)</td></tr><tr><td>Spring (Mehl et al., 2023)</td><td>high-resolution synthetic flow/stereo</td><td>scene-scale</td><td>train (0.22%)</td></tr><tr><td>UnReal4K (Wang et al., 2023)</td><td>synthetic stereo</td><td>scene-scale</td><td>train (0.04%)</td></tr><tr><td>KITTI (Geiger et al., 2012)</td><td>outdoor driving 軌跡</td><td>11 sequences, up to 4,661 frames / 5km</td><td>test (long-sequence ATE)</td></tr><tr><td>VBR (Brizi et al., 2024)</td><td>Rome 大規模重建</td><td>7 sequences, 8,815–18,846 frames, 1.4–11.5km</td><td>test (extreme long-sequence ATE)</td></tr><tr><td>7-Scenes (Shotton et al., 2013)</td><td>indoor 3D 重建</td><td>50–1k frames</td><td>test (Chamfer)</td></tr><tr><td>ScanNetV2 (Dai et al., 2017)</td><td>indoor pose estimation</td><td>50–1k frames</td><td>test (ATE)</td></tr><tr><td>TUM-Dynamics (Sturm et al., 2012)</td><td>dynamic indoor pose</td><td>50–1k frames</td><td>test (ATE)</td></tr><tr><td>Bonn (Palazzolo et al., 2019)</td><td>dynamic RGB-D depth</td><td>up to 500 frames</td><td>test (Abs Rel, $\delta &lt; 1.25$)</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>ATE (Absolute Trajectory Error, m)</td><td>預測軌跡與 GT 在 Umeyama alignment 後的絕對誤差,用於 KITTI / VBR / ScanNet / TUM</td><td>yes</td></tr><tr><td>Chamfer Distance (m)</td><td>預測點雲與 GT 點雲的雙向最近點距離,用於 7-Scenes 重建</td><td>yes</td></tr><tr><td>Abs Rel</td><td>視訊深度的絕對相對誤差,用於 Bonn</td><td>no</td></tr><tr><td>$\delta &lt; 1.25$</td><td>深度估計的閾值準確率,用於 Bonn</td><td>no</td></tr><tr><td>Speed (FPS)</td><td>推論輸送量,500 frames on A100 40GB</td><td>no</td></tr><tr><td>Memory (GB)</td><td>推論峰值記憶體,500 frames on A100 40GB</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><ul><li><strong>Hardware</strong>: 前期 32 張 NVIDIA H100 約兩天,後接 32 張 NVIDIA H200 約兩天;所有評估在單張 NVIDIA A100 (40GB) 上進行。</li><li><strong>Batch size</strong>: 32。</li><li><strong>Optimizer</strong>: AdamW (Loshchilov &amp; Hutter, 2019),$\beta = (0.9, 0.999)$。</li><li><strong>Learning rate</strong>: decoupled — 新引入的 TTT 與 SWA 層為 $5 \times 10^{-4}$,unfrozen 的 base network 參數為 $1 \times 10^{-5}$;cosine decay 搭配 1,000 steps warmup (Appendix A.3)。</li><li><strong>Weight decay</strong>: 0.05,僅施加於 $\geq 2$ 維的參數張量(排除 bias 與 LayerNorm scale/shift)。</li><li><strong>Loss weights</strong>: $\lambda_r = 0.1$、$\lambda_t = 10$、$\lambda_{\text{global}} = 1$。</li><li><strong>Training steps</strong>: 共 40k steps;Stage 1 在 H100 訓練 25,000 steps,固定 48 frames,chunk size 從 12 線性降至 4、overlap 從 3 降至 1;Stage 2 在 H200 訓練 15,000 steps,將序列長度延伸至 128 frames,chunk size 從 12 降至 8、overlap 從 3 降至 2。</li><li><strong>Initialization</strong>: patchifier、frame attention、chunk-wise bidirectional attention 從 $\pi^3$ (Wang et al., 2026) 初始化;encoder 與 prediction heads 訓練時凍結。</li><li><strong>Architecture spec</strong> (Appendix A.2): 18 個 residual blocks,每個 block 都插入 TTT layer;SWA layer 僅插在第 6、10、14、18 個 block;TTT head dim = 512、expansion factor = 4;新增三個可學習的 positional embedding tokens 用以標示與前/後 chunk 的 overlap 狀態;base network 約 954M 參數,新增 TTT + SWA 層約 296M 參數。</li><li><strong>Efficiency tricks</strong>: gradient checkpointing,SWA 以 FlexAttention (Dong et al., 2024) 實作;推論時對 SWA 啟用 KV-cache。</li><li><strong>Inference settings</strong> (Appendix A.4): 短序列 LoGeR 與 LoGeR<em> 皆用 chunk size 64、overlap 3;長序列上 LoGeR</em> 維持此設定,LoGeR 在 KITTI 用 chunk size 32、在 VBR 用 chunk size 48;TTT fast weights 在每 5 個 window 後 reset 一次以避免錯誤累積,reset 時亦套用 feedforward pose alignment。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>KITTI 全 11 個序列平均 ATE (m,↓):</p>
+<table><thead><tr><th>Method</th><th>Avg. ATE (m)</th><th>Notes</th></tr></thead><tbody><tr><td>DROID-SLAM (Teed &amp; Deng, 2021)</td><td>100.28</td><td>optimization-based</td></tr><tr><td>DPV-SLAM (Lipson et al., 2024)</td><td>53.03</td><td>optimization-based</td></tr><tr><td>DPV-SLAM++ (Lipson et al., 2024)</td><td>25.75</td><td>optimization-based,當前最強 SLAM</td></tr><tr><td>VGGT-Long (Deng et al., 2025)</td><td>27.64</td><td>optimization-based</td></tr><tr><td>FastVGGT (Shen et al., 2026)</td><td>–</td><td>多序列 OOM,無法計算平均</td></tr><tr><td>InfiniteVGGT (Yuan et al., 2026)</td><td>206.78</td><td>feedforward</td></tr><tr><td>CUT3R (Wang et al., 2025b)</td><td>91.62</td><td>recurrent feedforward</td></tr><tr><td>TTT3R (Chen et al., 2026)</td><td>72.86</td><td>frame-wise TTT,先前 feedforward SoTA</td></tr><tr><td>Pi3-Chunk (paper baseline)</td><td>52.07</td><td>$\pi^3$ + SIM(3) stitching</td></tr><tr><td><strong>LoGeR (Ours)</strong></td><td><strong>25.44</strong></td><td>比 TTT3R 降 65.1%</td></tr><tr><td>**LoGeR\* (Ours)**</td><td><strong>18.65</strong></td><td>加入 feedforward pose alignment;比 TTT3R 降 74.4%,亦勝過所有 optimization-based 方法</td></tr></tbody></table>
+<p>長序列 VBR 7 序列平均 ATE (m,↓,Tab. 6):**LoGeR\* 31.75<strong>、</strong>LoGeR 36.16**,顯著優於 TTT3R (70.81)、CUT3R (71.59)、Pi3-Chunk (70.09)、InfiniteVGGT (102.96) 與 optimization-based 的 VGGT-SLAM (88.38) 與 VGGT-Long (91.23);Fig. 4 報告在 1k–19k frames 範圍上 55.2% 的相對提升。</p>
+<p>短序列補充:7-Scenes Chamfer Distance 上 LoGeR 比先前最佳降低 69.2% (Fig. 6);ScanNet 與 TUM-Dynamics 的 ATE 分別降低 80.0% 與 66.1% (Fig. 9);Bonn 的 video depth Abs Rel 在 500 frames 比 TTT3R 降 21.05% (Appendix B.2)。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>所有 ablation 在縮減 frame 數的設定下訓練,評估在 ScanNet 子集與 TUM-Dynamics 上,報告 500/1000 frames 的 ATE (Tab. 3)。</p>
+<ul><li><strong>w/o TTT (移除全域 fast-weight memory)</strong>:ScanNet 1000f 從 0.107 升至 0.162、TUM 1000f 從 0.050 升至 0.079;Fig. 10 顯示去掉 TTT 後在長視野出現嚴重 trajectory drift。這是 diagnostic 級別的測試,直接驗證「TTT 負責 global anchoring」的論點。</li><li><strong>w/o SWA (移除短期 lossless 對齊)</strong>:ScanNet 1000f 升至 0.143、TUM 1000f 升至 0.053;Fig. 10 顯示鄰接 chunk 的局部對齊出現可見錯位。同樣對應到「SWA 負責 local 高保真對齊」的設計動機,診斷性充分。</li><li><strong>w/o 5 large datasets (移除 TartanAir、TartanAirV2、Waymo、Virtual KITTI 2、OmniWorld-Game)</strong>:ScanNet 1000f 從 0.107 升至 0.156、TUM 1000f 從 0.050 升至 0.072,直接支持 §4.3 的「data wall」論點。</li><li><strong>w/o curriculum (LoGeR)</strong>:ScanNet 1000f 從 0.107 升至 0.133、TUM 1000f 從 0.050 升至 0.062,證明漸進式 curriculum 對 recurrent TTT 收斂的必要性。</li><li>**w/o curriculum (LoGeR\*)**:ScanNet 1000f 從 0.080 升至 0.093,但 TUM 500f 反而 0.029 &lt; 0.031;表示 curriculum 對 LoGeR* 的增益主要來自 ScanNet,在 TUM 短序列上效益不明顯。</li></ul>
+<p>整體來看,SWA / TTT 兩項屬於 component-level diagnostic ablation(配合 Fig. 10 的視覺證據可解釋失敗模式),而 dataset 與 curriculum 兩項則屬於 design-choice ablation;並未出現純粹「沒做這件事就更差」的 sanity check。<strong>缺口</strong>:沒有對 chunk size、overlap size、SWA 插入深度數量(只在 4 個 block)、TTT head dimension/expansion factor 等架構超參做敏感度分析,也沒有 ablate fast-weight 的 update rule 選擇 (Muon vs. 其他)。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline — 對比涵蓋當前 feedforward SoTA TTT3R、bidirectional 的 FastVGGT、autoregressive 的 InfiniteVGGT,以及 optimization-based 的 DPV-SLAM++、VGGT-Long、VGGT-SLAM (Tab. 2、Tab. 6)。</li><li>[covered] Has cross-task / cross-dataset evaluation — 軌跡 (KITTI、VBR、ScanNet、TUM-Dynamics)、3D 重建 (7-Scenes)、影片深度 (Bonn) 共 6 個 benchmark 涵蓋 pose / point cloud / depth 三項任務。</li><li>[covered] Has ablations that diagnose the new components — w/o TTT 與 w/o SWA 配合 Fig. 10 的 trajectory 視覺化分別對應到 global drift 與 local misalignment,屬 diagnostic 而非 sanity check;但仍缺架構超參敏感度分析。</li><li>[partial] Has a scaling study — VBR 上展示 1k–19k frames 的 ATE 曲線 (Fig. 4) 與 7-Scenes 100/500/1k frames 的擴展 (Fig. 12),屬序列長度的 scaling;沒有模型尺寸或 compute 的 scaling study。</li><li>[partial] Has an efficiency / wall-clock comparison — Tab. 5 報告自家在不同 chunk size 下的 FPS 與記憶體 (9.3–12.1 FPS、18.1–27.2 GB on A100 40GB),Fig. 12 提到比 VGGT 快 84.1%;但未與 TTT3R、CUT3R、FastVGGT 等主要 baseline 做同條件下的 wall-clock 對照表。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 全文所有數值皆為單次結果,未報告 std 或多 seed 平均;the paper does not specify seed protocol。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 提供 project webpage <code>https://LoGeR-project.github.io/</code>,並在 Appendix A 詳列訓練/推論超參與資料權重;但正文未明確聲明 code、checkpoint 或 VBR 評估 split 的釋出狀態,the paper does not specify。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>TTT fast weights 雖名義上具無限 receptive field，實際上難以 generalize 超過訓練時看過的 chunk 數，因此超過約 $1{,}000$ frame 後仍會累積 drift，必須靠 periodic state reset 補救，而 reset 本身就「sacrifice long-term context」（Discussion，p. 9）。</li><li>大規模、長 horizon、且兼具品質與多樣性的訓練資料仍是瓶頸，作者明言「the availability of expansive, high-quality training data remains a significant bottleneck」並把 data wall 列為公開問題（Discussion，p. 9；Sec. 4.3，p. 6）。</li><li>推論期效率仍有改進空間：作者承認可進一步 prune TTT 層或對 SWA 做 strided sampling，但「leave these system-level optimizations for future work」（Appendix A.4，p. 14）。</li><li>在大尺度場景時，base LoGeR 比 LoGeR$^{*}$ 更易 drift，需手動把 KITTI 的 chunk size 從 $64$ 降到 $32$、VBR 降到 $48$ 才能拿到合理結果（Appendix A.4，p. 14），實質暴露 TTT memory 對 chunk size 的敏感性。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>架構上沒有任何 loop closure 機制，因此在 KITTI 含 loop 的長序列（00、05、06）上仍輸給 optimization-based 方法：LoGeR$^{*}$ 在 00 是 $30.47$ vs DPV-SLAM++ 的 $8.30$、VGGT-Long 的 $8.67$；05 是 $26.34$ vs $5.74$ / $8.31$（Tab. 2，p. 7），而論文僅在「open-loop trajectories」上強調勝出，回避了這個結構限制。</li><li>LoGeR$^{*}$（即多加一個 feedforward SE(3) alignment）幾乎在所有 benchmark 都比 base LoGeR 好（KITTI $25.44 \to 18.65$、VBR $36.16 \to 31.75$、ScanNet/TUM 短序列也是，Tab. 2、Tab. 6、Tab. 3），這暗示 TTT 全域 memory 並沒有真正錨定座標，最後一公里仍是 deterministic alignment 在做，削弱了「parametric memory anchors the global coordinate frame」這項核心論述。</li><li>VBR 為單一城市（Rome）的 LiDAR-derived benchmark，所有 7 條序列同分布、同 sensor，論文用它代表「unprecedented horizons」但完全沒有跨城市或跨領域的 long-horizon 測試，generalization 未驗證（Sec. 5.1，p. 7；Tab. 6，p. 15）。</li><li>「infinite context」與「trained on 128 frame, generalize to 19k frame」的敘事被自家 inference protocol 削弱：每 $5$ chunk 就要 reset TTT fast weights，且 reset 時又要靠 feedforward alignment 維持連貫（Sec. 5.1 Baselines，p. 7），這代表實際長距 memory 視窗大約只有 $5$ chunks，遠短於宣稱的 horizon。</li><li>推論吞吐量在 A100 40GB、$500$ frame、chunk size $64$ 時僅 $9.3$ FPS（Tab. 5，p. 14），低於即時 SLAM，且論文未報告 $19$k frame 級別的 wall-clock，feedforward 對 SLAM 的「速度優勢」在此 regime 是否仍成立，未被檢驗。</li><li>新引入的 TTT + SWA 帶來 $296$M 額外參數（佔 base $954$M 的 $\sim 31\%$，Appendix A.2，p. 13），但論文的效率比較全程只看 attention 複雜度與 OOM，沒有把這 $\sim 1.25$B 規模對 baseline 重新做 parameter-matched 對照，因此「hybrid memory 帶來的提升」與「單純 scale-up」混在一起難以分離。</li><li>ScanNet 與 TUM-Dynamics 在 $200$–$500$ frame 區段，Pi3-Chunk 與 LoGeR 表現相當接近（Fig. 9，p. 8），且 TUM 短序列上 Pi3-Chunk 的 pose 指標甚至略好（Fig. 8 caption，p. 8），這暗示在中短序列、小尺度場景下 hybrid memory 的邊際效益可能小於額外參數成本。</li><li>關鍵 ablation 是在「縮短訓練 frame、子集評測」設定下做的（Sec. 5.3 與 Tab. 3，p. 9），SWA 與 TTT 的相對貢獻在最終 $128$ frame、完整資料、$19$k frame inference 的 regime 下並未重新驗證，無法保證 ablation 結論對最終 deployment 設定有效。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1.「Hybrid memory（SWA + TTT）能同時維持 lossless 局部對齊與 compressed 全域一致性」</strong> Partially supported。Tab. 3 的 ablation（p. 9）與 Fig. 10（p. 9）的 trajectory 視覺化確實顯示拿掉 SWA 會造成局部 misalignment、拿掉 TTT 會造成 trajectory drift，符合定性敘述；但在最終長序列 inference 時，全域 anchoring 大量依賴 LoGeR$^{*}$ 的 SE(3) alignment 與 $5$-chunk reset（Tab. 2、Tab. 6），TTT 單獨的 anchoring 強度未被獨立量化。</li><li><strong>C2.「Trained on 128 frames, generalize to 19k frames」</strong> Partially supported。Fig. 4（p. 7）與 Tab. 6（p. 15）確實顯示模型可以一路推到 $\sim 19$k frame 並仍是 SOTA，但 inference 時要靠 periodic state reset 與 feedforward alignment（Sec. 5.1，p. 7；Appendix A.4，p. 14），所以「generalization」其實是「在重置策略下保持可用」，而非 TTT 自身的 length generalization。</li><li><strong>C3.「KITTI ATE 比前一代 feedforward 降低逾 $74\%$」</strong> Supported。Tab. 2（p. 7）的 $72.86 \to 18.65$ 計算正確，且 baseline 設定（TTT3R、CUT3R、FastVGGT 等）涵蓋當前主要 feedforward family；但平均值受 KITTI 01（無 loop、$2.5$ km）這類 baseline 嚴重失敗的 case 拉動，per-sequence 上對比 optimization-based 的 DPV-SLAM++ 在含 loop 序列上仍輸。</li><li><strong>C4.「Curriculum + 大尺度資料是必要條件」</strong> Supported。Tab. 3（p. 9）的 dataset ablation 與 curriculum ablation 在兩個 dataset、兩個序列長度下一致顯示退化，且 Fig. 3（p. 5）的 FastVGGT 在 VBR 上完全失敗的對照，把 data wall 的論點以視覺化形式展示。</li><li><strong>C5.「Pi3-Chunk 是一個強 baseline，hybrid memory 在其上 stacking 仍有顯著 gain」</strong> Supported on long sequences, weakly supported on short ones。Fig. 4（p. 7）與 Tab. 6（p. 15）顯示在 $\geq 4$k frame 區段 LoGeR 顯著勝過 Pi3-Chunk；但在短序列（TUM-Dynamics、$\sim 200$–$500$ frame）的 Fig. 9（p. 8）兩者差距很小，C5 在中短序列上是 weak 的。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>沒有任何 loop closure 機制。</strong> Chunk-causal pipeline 加上 TTT 是純粹的 forward 累積結構，當相機回到舊位置時，沒有任何模組會觸發跨大時間距離的特徵 re-association。即使 fast weight 已經把先前訪問編碼進記憶，它的更新規則（梯度式、單向）也只能把新 chunk 的資訊寫入，不會在「偵測到 revisit」時把當前 pose 拉回舊座標。這在 KITTI 含 loop 序列（00、05、06）上以數量級的差距表現出來：DPV-SLAM++ $8.30$/$5.74$/$11.60$ 對 LoGeR$^{*}$ $30.47$/$26.34$/$6.60$（Tab. 2，p. 7）。在此架構下，再多訓練資料也無法補上這個缺口。</p>
+<p><strong>TTT memory 的「無限 context」是名義的、不是實效的。</strong> 因為 fast weight 的訓練 chunk 數有限（curriculum 最高到 $20$ chunks），inference 超過後 length generalization 直接失敗（Discussion，p. 9 引用 Ruiz &amp; Gu, 2025），必須每 $5$ window reset。Reset 等於丟棄全部累積的全域記憶，所以對 $19$k frame 序列而言，模型實際擁有的「全域 anchoring」只是當下一段約 $5$ chunk 的 TTT 狀態加上 deterministic SE(3) alignment 的鏈式傳遞，與一個強化版的 sliding stitcher 結構本質類似。這個限制不是 LoGeR 獨有的工程取捨，而是現階段所有 fast-weight memory 的共同瓶頸。</p>
+<p><strong>全域座標的 anchoring 實質上由 feedforward alignment 完成。</strong> LoGeR$^{<em>}$ 在幾乎所有 benchmark 都優於 base LoGeR（Tab. 2、Tab. 6、Tab. 3），而 LoGeR$^{</em>}$ 與 base 的唯一差異是把 chunk 間 overlap frame 用 SE(3) 解析對齊。換言之，論文宣稱的「parametric long-range memory anchors the global coordinate frame」在實作上需要一個 closed-form 對齊作為兜底。這意味著 hybrid memory 的真正功能更像「讓 chunk 間的 dense feature 不要漂移得太離譜，方便對齊」，而不是「自身就完成全域對齊」，這與架構敘事有微妙落差。</p>
+<p><strong>Dense vision token 密度使 hybrid 方案無法照搬 LM 經驗。</strong> 論文自己在相關工作中指出 Jamba/Longformer 之所以可以混用 full attention + 線性方案，是因為 LM token 數可控；dense vision 一張 $504\times 280$ 圖就有大量 patch，所以 LoGeR 完全放棄了 long-range 的 full attention（連 sparse global 都沒有）。這帶來一個結構性 ceiling：任何需要「跨整個影片做 dense token 比對」的 task（例如真正的 dense loop closure、跨大時間 view synthesis）都無法在此架構下表達。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>π3 (Wang et al., 2026)</strong>：LoGeR 的 backbone、loss、decoder 全部來自 π3，理解 LoGeR 等於 「π3 + chunk + hybrid memory」，所以必須先掌握 π3 的 permutation-equivariant 雙向幾何學設計，才能判斷 LoGeR 的增益是來自 memory 還是 backbone。</li><li>**LaCT (Zhang et al., 2025b, <em>Test-Time Training Done Right</em>)**：本文的 chunk-wise TTT 是 LaCT 的直接調用，所有對 fast-weight 的 update/apply 行為、Muon optimizer 選擇、SwiGLU 設計都奠基於此；想要評估 TTT memory 容量、reset 必要性的根因，必讀此文。</li><li><strong>TTT3R (Chen et al., 2026)</strong>：concurrent 的 frame-wise TTT 3D 重建，是 LoGeR 最直接的對照組，理解兩者「frame-wise 線性 vs chunk-wise hybrid」的差異，可以判斷 hybrid memory 額外好處的來源是「chunk-wise」還是「+SWA」。</li><li><strong>VBR dataset (Brizi et al., 2024)</strong>：本文新建 long-context benchmark 的資料來源，包含 LiDAR ground truth 與 bundle-adjusted poses 的細節決定了評測的公平性與可重現性，要重做此實驗必先理解 VBR 原始協議。</li><li>**Ruiz &amp; Gu, 2025, *Understanding and improving length generalization in recurrent models***：作者明確引用此文作為「TTT 在超出訓練 chunk 數後 fail」與「需要 periodic reset」的依據（Discussion，p. 9），是判斷 LoGeR 真實 long-horizon 上限的理論參照。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 若拿掉 LoGeR$^{*}$ 的 SE(3) feedforward alignment，但保留 hybrid memory，KITTI 與 VBR 的 ATE 退化幅度是多少？這直接決定 TTT 全域 anchoring 的實效強度。</li><li>[ ] Periodic state reset 的頻率（目前固定 $5$ windows）對最終 ATE 的影響曲線長什麼樣？是否存在一個 reset 間隔讓 base LoGeR 在不需要 LoGeR$^{*}$ alignment 的情況下達到相同效能？</li><li>[ ] 把 LoGeR 的 backbone+memory 做 parameter-matched 對照（例如把 π3 直接放大到 $\sim 1.25$B 後再做 chunk-stitch），hybrid memory 的純架構增益還有多少？</li><li>[ ] VBR 之外、跨城市或非結構化戶外（如自然森林、海岸）長序列上，LoGeR 是否仍能保持 $19$k frame 的穩定？目前所有 long-horizon evidence 都來自 Rome 同分布序列。</li><li>[ ] TTT fast weight 是否能透過 retrieval-style 機制重新讀取 reset 前的歷史（例如把舊 fast weight 序列化為 KV cache），以解除 $5$-chunk 的硬截斷？</li><li>[ ] 在含 loop 的 KITTI 序列上，把 SWA 的 window 從「相鄰 chunk」擴張到「位置最相近的舊 chunk」（feature-similarity 索引），是否能在不引入 backend optimization 的前提下取得隱式 loop closure？</li><li>[ ] 推論時 chunk size 對長序列敏感（KITTI 須降到 $32$、VBR 須降到 $48$），這個敏感性的根因是 TTT 的容量、SWA 的記憶連續性、還是訓練 chunk 分布？目前論文未拆解。</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>Feature-similarity-driven SWA 取代純鄰接 SWA。</strong> 目前 SWA 只看 $C^{m-1} \cup C^{m}$，這是時間鄰接而非空間鄰接。若在 SWA 內把候選 key 池擴張為「最近的 $k$ 個 + 與當前 query 在 DINO embedding 上最相似的 $k&#x27;$ 個 chunk」，等於在 feedforward pipeline 內塞入弱化版 loop closure，且仍維持 $O(N)$。這是 KITTI 含 loop 序列上輸給 DPV-SLAM++ 的最直接補救路徑（基於 7.2 第一段的結構性缺口）。</li><li><strong>Multi-rate TTT（hierarchical fast weights）。</strong> 並行維護兩組 fast weight：一組 reset 間隔 $5$ window 維持高精度局部全域、一組 reset 間隔 $20$+ window 用更激進的低 learning rate 與 weight decay 維持 coarse global scale。這直接呼應 7.2 第二段提到的 length generalization 瓶頸：用 timescale 分離取代單一 fast weight，理論上能讓 $19$k frame 不再依賴 reset 與 SE(3) alignment。</li><li>**把 LoGeR$^{*}$ 的 SE(3) alignment 改為 learned residual。** 既然實驗顯示 LoGeR$^{*}$ 幾乎一律優於 base LoGeR，與其在 inference 時做 closed-form alignment，不如把它做成一個 chunk-level residual transformation head，讓 TTT 的 update rule 直接學習 anchoring 殘差。這能把目前外掛、解析的對齊整合進端到端訓練，緩解 7.1-C1 的「hybrid memory 並未真正 anchor」問題。</li><li><strong>Parameter-matched 與 Pi3-Chunk-with-extra-params 的 ablation。</strong> 現有比較未控制總參數量。最便宜的補強是訓練一個和 LoGeR 等大（$\sim 1.25$B）的 Pi3-Chunk 變體，把參數放到 BiAttn/decoder 上，驗證 hybrid memory 的增益不是來自「多了 $296$M 參數」。這不需要新架構，純粹補實驗，但對外界可信度提升大。</li><li><strong>Cross-domain long-horizon benchmark（非 Rome）。</strong> VBR 的 generalization 範圍未驗證（4.2.2 第三點）。建議再加上至少一個 non-Rome long sequence（例如 KITTI-360 全鎮、Waymo 的最長 city-scale 軌跡、或 OmniWorld-Game 的長序列）作為 holdout，以確認「19k frame」不是只在訓練分布外推上有效。這純粹是評測擴增、無需改動架構，feasibility 最高。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(290 words)</p>
+<div class="card"><p>§6 Conclusion 與其後的 Discussion and Future Work 段落把整篇論文收束於三條可延伸軸線。Conclusion 重申本文核心貢獻：以 SWA 與 TTT 互補的 hybrid 架構解決 feedforward 3D geometry 模型在長序列估測上的限制；在所提 VBR benchmark 上，LoGeR 不仰賴 optimization 即可處理 thousands of frames，並在多種記憶表徵（explicit memories、recurrent states、causal attention）的對手中取得最佳長序列重建結果。作者把該成果定位為 dynamic scenes、video understanding 與 robotics 等 long-context spatio-temporal reasoning 任務的新起點。</p></div>
+<div class="card"><p>Discussion and Future Work 則誠實點名兩項開放問題並暗示一條延伸方向。第一項是 TTT fast weights 的長度泛化：雖然其固定大小理論上允許無限 context，但實務上難以泛化到超出訓練 chunk 數的長度（引 Ruiz &amp; Gu, 2025），實際有效範圍受 hardware memory 限制；超過此範圍會累積 trajectory drift，目前只能以 periodic state resets 緩解，但代價是犧牲長期 context。作者明確期待未來 linear sequence model 解決此 length-generalization 瓶頸。第二項是「data wall」：高品質、長 horizon、夠多樣的訓練資料仍是關鍵瓶頸，呼籲社群投入長序列資料的 curation。第三項則為延伸：把 SWA + TTT 的 hybrid memory 推到幾何重建以外、需要同時兼顧長距全域一致性與強局部依賴的領域。</p></div>
+<div class="card"><p>整體而言，§6 把全文限制與 §4.3 的 data 哲學、§5.1 的 reset 策略與 §5.3 的 curriculum 結果連成一條可被後續工作延伸的軌道，避免把 LoGeR 推銷為終局解，而是把它定位為「在現行 hardware 與 dataset 限制下的可行混合策略」，並把長度泛化與資料策展兩個結構性問題交給社群。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

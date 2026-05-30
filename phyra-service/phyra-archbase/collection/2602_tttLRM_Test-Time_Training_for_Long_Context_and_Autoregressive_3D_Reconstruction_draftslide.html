@@ -1,0 +1,502 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>tttLRM: Test-Time Training for Long Context and Autoregressive 3D Reconstruction</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">tttLRM: Test-Time Training for Long Context and Autoregressive 3D Reconstruction</h1>
+          <p class="cover-meta">Chen Wang, Hao Tan, Wang Yifan, Zhiqin Chen, Yuheng Liu, Kalyan Sunkavalli, Sai Bi, Lingjie Liu, Yiwei Hu</p>
+          <p class="cover-meta">2602.20160 · CVPR 2026 (Highlight) · 2026-03-02</p>
+          <div class="cover-tagline"><p>本論文聚焦於從多視角影像進行高解析度、長上下文且支援串流輸入的前饋式 3D 重建,並產生可即時渲染的顯式表示(如 3D Gaussian Splatting)。傳統 NeRF/3DGS 需逐場景優化,而既有的 Large Reconstruction Models(如 LRM、GS-LRM)受限於注意力的平方複雜度,僅能處理少量輸入視角;Long-LRM 雖延伸到 32 視角,仍依賴雙向注意力,難以處理串流且持續擴張的觀測序列。研究主題在於:如何用線性複雜度的序列模型,將多視角觀測壓縮為一個可被查詢的隱式 3D 記憶,並能解碼為 3DGS 或 triplane NeRF 等多種顯式格式,進而支援自迴歸(線上、因果)的逐步重建與精煉,並引入序列平行以擴展到更大規模的場景級資料(DL3DV-10K、Tanks&amp;Temples)與物件級資料(Objaverse、GSO)。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本論文聚焦於從多視角影像進行高解析度、長上下文且支援串流輸入的前饋式 3D 重建,並產生可即時渲染的顯式表示(如 3D Gaussian Splatting)。傳統 NeRF/3DGS 需逐場景優化,而既有的 Large Reconstruction Models(如 LRM、GS-LRM)受限於注意力的平方複雜度,僅能處理少量輸入視角;Long-LRM 雖延伸到 32 視角,仍依賴雙向注意力,難以處理串流且持續擴張的觀測序列。研究主題在於:如何用線性複雜度的序列模型,將多視角觀測壓縮為一個可被查詢的隱式 3D 記憶,並能解碼為 3DGS 或 triplane NeRF 等多種顯式格式,進而支援自迴歸(線上、因果)的逐步重建與精煉,並引入序列平行以擴展到更大規模的場景級資料(DL3DV-10K、Tanks&amp;Temples)與物件級資料(Objaverse、GSO)。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者指出,現有 LRM 與 3DGS 重建管線無法同時兼顧高品質、長上下文與串流可擴展性的根本原因在於:它們以全域雙向注意力對所有輸入視角做一次性融合,計算量隨視角數平方成長,且不存在可隨時間更新的場景內部狀態,因此既無法處理 32 張以上的輸入,也無法支援觀測逐步抵達的線上重建。另一方面,純隱式 latent-space 模型雖具備優異的視角合成品質,卻需重複網路推論才能渲染,缺乏可控性與即時性,不適合下游應用。基於此診斷,作者主張正確的解法是把「壓縮觀測」與「表示 3D」分開:用 Test-Time Training 的快權重(fast weights)作為線性複雜度的隱式 3D 記憶,讓每個輸入 token 透過 Muon 優化器以 chunk-wise 方式更新快權重,再以一組虛擬 token(虛擬視角或可學的 triplane 特徵)作為查詢,把記憶解碼為顯式 3DGS 或 NeRF。此設計在邏輯上是必要的,因為:(1) LaCT 的線性更新允許序列在 GPU 之間切片並用 DDP 同步梯度,自然支援序列平行;(2) 將更新與查詢設為因果,模型即可化為 RNN 式的線上推論,逐步輸出 G(b);(3) 由於架構幾乎與 TTT-LVSM 對齊,可直接繼承大型 NVS 模型的預訓練知識,把隱式表示蒸餾為顯式 3DGS,兼得渲染速度與品質。實驗驗證此論點:在物件級可訓 8 視角而泛化到 24 視角,場景級可在 64 視角下超越 Long-LRM,且推理速度約為注意力模型的兩倍。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>在 GSO object-level 評測上,8 input views、$512 \times 512$ 解析度時 PSNR 達 34.02,比 GS-LRM 的 32.83 高出 1.19 dB,且推理時間從 0.7s 降到 0.3s (Table 1, p.7)。</li><li>同一模型用 8 views 訓練,可直接外推到 16 / 24 views 並維持 PSNR 34.67 / 34.80,顯示 fast-weight 隨序列增長持續精煉的特性 (Table 1 末兩列,p.7)。</li><li>在 DL3DV-140 上 64 views 設定下,non-AR 版本 PSNR 25.95 / SSIM 0.844,顯著超越 Long-LRM 的 24.63 / 0.799,並逼近耗時 13–16 分鐘的 optimization-based 3D GS / Mip-Splatting / Scaffold-GS (Table 2, p.7)。</li><li>提出 LaCT-based 線性序列模型,並指出由於 fast-weight 更新具線性,可直接套用 PyTorch DDP 達成 sequence parallelism,讓 input tokens 沿序列維度切片到多 GPU 上同步梯度 (Figure 3, §3.4, p.4–5)。</li><li>將 fast weight 視為「可解碼的隱式 3D memory」,以 virtual views 查詢出 3DGS、或以 learnable triplane tokens 查詢出 NeRF triplane,顯示同一架構支援多種顯式 3D 輸出 (Figure 6, §3.2, p.7)。</li><li>提供 RNN-style autoregressive 推理:每來一個 mini-batch 觀測就更新 $W$ 並輸出 $G_{(b)}$,在 64 views 下 AR 模型仍達 PSNR 24.81,優於 Long-LRM 64v 的 24.63 (Algorithm 1, Table 2, p.4 / p.7)。</li><li>從 TTT-LVSM checkpoint 初始化能加速收斂並提升最終品質:GS 從 32.77 → 33.14 PSNR、Triplane 從 26.40 → 27.87 PSNR,顯示 NVS pretraining 可作為顯式 3D 重建的 inductive bias (Table 3, Figure 7, p.8)。</li><li>在 Tanks &amp; Temples 上,單一模型於 32 views 達 PSNR 19.22 / LPIPS 0.305,跨資料集泛化能力優於 Long-LRM 的 18.38 / 0.363 (Table 2, p.7)。</li><li>補充材料中以 distributed training 將模型 finetune 到 128 input views (&gt;1M tokens) 可達 PSNR 26.80,且 Figure 8 顯示在 2M tokens 時 24-layer LaCT 已比 3-layer attention 快 (p.12)。</li><li>後處理可選:加 3-step / 10-step post-optim 後 64 views 下 PSNR 從 25.95 → 26.97 → 27.65,在同樣優化預算下持續優於 Long-LRM (Table 7, p.13)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(170 words)</p>
+<p>標題 &quot;tttLRM: Test-Time Training for Long Context and Autoregressive 3D Reconstruction&quot; 把三個關鍵承諾壓在一起：以 TTT 為核心、能處理 long-context、且支援 autoregressive 的 3D 重建。Abstract 第一句立刻把這三點重新陳述為一個技術主張：以 TTT layer 換到 linear computational complexity，藉此把模型能力進一步 scale。這定下了論文的競爭軸——不是只追求新表示法，而是針對現有 LRM 系列「視角數受 quadratic attention 限制」這個結構性瓶頸提出解法。</p>
+<p>接下來 Abstract 給出方法骨架：把多張影像觀測「壓縮」到 TTT layer 的 fast weights 裡，形成 latent-space 的隱式 3D 表示，再 decode 到 Gaussian Splats 等各種顯式格式。這同時回答了兩個問題——為什麼能 scale（fast weights 是固定大小的 neural memory），以及為什麼結果還能即時渲染（最終輸出仍是顯式 GS）。online learning variant 一句帶出 autoregressive 應用，與 streaming 的動機呼應。</p>
+<p>最後兩句佈下後續實驗的伏筆：pretraining on novel view synthesis 能 transfer 到顯式 3D modeling、加速收斂並提升品質；以及在 object 與 scene 兩個層級的 feedforward GS reconstruction 上都超越 SOTA。讀者由此預期 §1 會把「為什麼 long-context streaming 重要、為什麼現有方法做不到」展開，並把 TTT 引入作為解答。</p>
+<h3>3.2 Introduction</h3>
+<p>(620 words)</p>
+<p>Introduction 以一個擬人化的目標起頭：人類觀察連續視覺串流、建立內部抽象表示、僅在需要時 decode 到顯式 3D。這個比喻把論文要解的問題定義為「long-context, autoregressive reconstruction of explicit 3D from streaming visual input」，並暗示既有的兩大陣營都做不到這件事。</p>
+<p>接下來作者把競爭領域分成三塊一一拆解。第一塊是傳統 NeRF 與 3DGS：渲染品質高，但要嘛需要 per-scene 慢速優化，要嘛 feedforward 變體在輸入視角數上 scale 不上去。第二塊是 LRM 家族：GS-LRM 與 MeshLRM 等 transformer-based 模型雖然 feedforward 又快，但 quadratic attention 把輸入視角壓在約 4 張左右；Long-LRM 把上限推到 32 張卻仍依賴 bidirectional attention，無法處理更長且 streamed 的 context。第三塊是 implicit latent-space 模型（LVSM 等）：novel view synthesis 品質好，但反覆 network inference 讓渲染慢，又缺乏可控與可解釋性，downstream 應用受限。三塊一起構成「要 long-context、要 streaming、要顯式輸出、要快」這個尚未被同時滿足的需求空白。</p>
+<p>論文的提案就嵌在這個空白上：tttLRM 用神經架構與從 pretrained implicit latent-space 3D 模型蒸餾來的知識，decode 到顯式 3D；如此既享有 long-context 與 autoregressive 建模能力，又保留顯式表示的即時渲染。技術上的核心承諾有兩點。其一，模型基於 TTT 與 LaCT block，因此整體只有 linear complexity，這直接針對 attention 瓶頸；其二，把 TTT 的 fast weights $W$ 重新詮釋為「latent-space 的隱式 3D 表示」，並設計 virtual tokens 作為 query 去取出不同顯式格式——3DGS 用一組 virtual view planes，NeRF 則用 triplane feature grid。這個重新詮釋是論文最有野心的概念跳躍，因為它把「在 inference 時更新權重」這個原本屬於序列建模的機制，直接對應到「壓縮多視角觀測為 3D 場景表示」。</p>
+<p>作者也預告了支援 autoregressive 的關鍵改動——重新設計 fast-weight 的 update 與 query 機制，使其能逐批吸收 streaming 輸入；以及為了 scale 到更多視角而引入的 sequence parallelism。最後條列三項 contributions：第一個用 TTT 同時處理 feedforward long-context 與 autoregressive 的 LRM、可觀測可控的顯式 3D 表示框架、以及在 object 與 scene 兩級資料集上的 SOTA 表現。</p>
+<p>這一節同時設定了論文後續的論證順序：先在 §2 展開既有方法的限制，§3 給出 TTT/LaCT preliminary 與架構細節，§4 用 object 與 scene 兩條實驗線驗證上述四項承諾。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(950 words)</p>
+<p>§2 Related Work 與 §3.1 Preliminary 合在一起，先把 tttLRM 放入既有研究地圖，再交代讀懂方法所需的最小技術背景。</p>
+<p>Related Work 第一段「Multi-view 3D Reconstruction」從傳統 SfM、MVS 一路梳理到 learning-based MVS（DUSt3R、MASt3R、VGGT、Fast3R 等），並點名 Test3R 與 concurrent work TTT3R 也用 test-time 更新，但結尾刻意切割：「none of these methods can produce photo-realistic novel view synthesis」。這一刀讓 tttLRM 與 point cloud / depth 重建路線脫鉤，把它定位在「需要高品質渲染」的軸上。第二段轉向 neural representations：NeRF 衍生的 voxel/hash grid/triplane 變體、以及 3DGS 與 large-scale 場景版本。論文承認 3DGS 是 SOTA neural scene representation，但同時指出它仍需 per-scene 從零優化、需要數分鐘；tttLRM 則在數秒內 feedforward 完成。</p>
+<p>第二大段「Learning-based Feedforward 3D Reconstruction」是論文最直接的競爭場域。作者沿時間線排列：早期 CNN 預測 multi-plane image / point / voxel，到 LRM 用 transformer + triplane 預測 3D 物件、GS-LRM 把輸出換成 pixel-aligned 3DGS、再到 pixelSplat、MVSplat、LGM、DepthSplat 等延伸；Mamba-based 的 Gamba、MVGamba 嘗試降低 attention 複雜度但仍受限於少數輸入視角。最後把 Long-LRM 標為 long-sequence GS 重建的 SOTA，但同時點出它仍卡在 32 視角且仰賴額外 attention layer。這段建立了 tttLRM 的最直接 baseline 順序：GS-LRM 與 Long-LRM。</p>
+<p>第三大段「Linear Attention and State Space Models」轉到序列建模文獻，為方法選型作辯護。Linear attention 的 linearized feature map 雖達到 linear 複雜度，但對歷史 KV 的 uniform compression 會降低 long-sequence 的能力上限；SSM（S4、Mamba 系列）以 state variable 與 attenuation factor 換取 linear scaling，但仍不及 transformer 的 long-context 推理。Jamba 走 hybrid mamba-attention 路線。最後一段把 TTT、Titans、DeltaNet、MesaNet 描述成「把序列建模轉化為 online learning」的家族，並宣告本文把這個家族首次引入 3D 重建，使長序列 NVS 能在 linear complexity 下達成。</p>
+<p>§3.1 Preliminary 為後文鋪設記號與機制基礎。給定長度為 $L$ 的 token 序列 $[x_1, \dots, x_L]$，每個 $x_i \in \mathbb{R}^d$。在標準 attention 中每個 token 投影為 $q_i, k_i, v_i$ 並彼此 dot-product，因此複雜度對序列長度為 quadratic。TTT 改為學一組 fast weights $W$，把 input token 的 $(k_i, v_i)$ 視為 inference 期的訓練資料，用 MSE 更新</p>
+<p>$W \leftarrow W - \eta \nabla \mathcal{L}_{\text{MSE}}(f_W(k), v),$</p>
+<p>再把 query 套入 $o = f_W(q)$ 取得輸出。fast weights 因此扮演把 KV cache 壓進固定大小 neural memory 的角色——這正是論文後續用來作為「implicit 3D representation」的關鍵物件。</p>
+<p>接著作者點出原始 TTT 的實作問題：fast weights 用 16 token 的小 minibatch 更新，GPU FLOP 利用率低、長序列吃力。LaCT 改以 large chunk（最高 1M tokens）一次更新，計算 chunk 內所有 key-value 的 summed loss 之梯度，作為實務上可 scale 的版本，並成為 tttLRM 的基礎 block。</p>
+<p>整節讀完，讀者已經知道 tttLRM 的競爭對手、為什麼選 TTT/LaCT 而非 attention 或 Mamba，以及 fast weights 將如何在下一節被當成「可被多種 query 探詢的 3D memory」使用，自然銜接到 §3.2 的架構展開。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1000 words)</p>
+<p>§3.2–3.5 一起組成方法章節，論證脈絡是「先把架構與 fast weights 詮釋為 3D memory（§3.2），再說明它如何被改造為 streaming/autoregressive 變體（§3.3），接著解決長序列的 scale 問題（§3.4），最後交代訓練如何在沒有顯式 3D 監督下完成（§3.5）」。</p>
+<p>§3.2 從輸入端鋪設記號：給定 $N$ 張 posed image $\{I_i \in \mathbb{R}^{H \times W \times 3}\}$，與其 ray embedding $\{R_i \in \mathbb{R}^{H \times W \times 9}\}$ channel-wise 串接後切成 $p \times p$ patch，再經一層 linear tokenizer 變成 visual token 序列 $\{T_{i,j}\}$。tttLRM 由 $L$ 個 LaCT block 堆疊，每個 block 包含 window attention（捕捉單一視角內的 local 關係）、fast weight $W$ 的 update 與 apply 三步，分別記為</p>
+<p>$$T_i = T_i + \text{WinAttn}(T_i),\quad W = \text{Update}(\{T_i\}_{i=1}^N),\quad T_i = \text{Apply}(W, T_i).$$</p>
+<p>Update 與 Apply 對序列長度都是 linear 複雜度，且採用 Muon 優化器。fast weights $W$ 在這裡被明確詮釋為「latent-space 的隱式 3D 表示」。</p>
+<p>要把這個隱式 memory decode 成可用的 3D 格式，作者引入一組 virtual tokens 作為 query：3DGS 對應的是一組 virtual view $\{I^v_i\}$，會被 patchify 為 $\{T^v_{i,j}\}$；triplane NeRF 對應的則是可學習的 triplane feature。virtual token 只走 Apply、不參與 Update：$T^v_i = \text{Apply}(W, T^v_i)$。隨後一個 linear token decoder 把它們轉成顯式 3D 參數——3DGS 的每個 patch 直接預測 RGB、scale、rotation、opacity，位置則先預測 per-pixel depth、再由 object-centric 或 linear range function 換算實際深度，最後與已知 ray 結合得到 Gaussian 中心位置。這個「同一份 fast weights 可被不同 virtual token 詢問成不同表示」的設計，是論文 generality 的主要支點。</p>
+<p>§3.3 把上述機制改造為 autoregressive。Algorithm 1 描述：給初始 fast weights $W_0$ 與分批 $\{(I_{(b)}, I^v_{(b)})\}_{b=1}^B$，每個 mini-batch（如四張）依序先 Update 再 Apply、立即 decode 出當前的 GS $G_{(b)}$。整個推論變成 RNN-like：fast weights 是隨觀測流入而演化的內部 state，因此能 online 重建並隨新視角累積細節。文中也預告 supplemental 中的 selective update——以 Fisher 資訊與 EMA anchor 對 fast weights 做 elastic regularization 以抑制 drift。</p>
+<p>§3.4 處理長序列 scale。當輸入視角多、解析度高，token 數隨之爆炸；既有方法多在單卡內處理所有視角。tttLRM 把 tokenized 輸入沿 sequence 維切片，分散到各 GPU：每張卡先以 synchronized fast weights 預測自己負責 virtual view 的 pixel-aligned Gaussian、把全部裝置的 Gaussian gather 成完整場景、再由各卡分別 render 不同 novel view 並計算 photometric loss。由於 LaCT 的 fast-weight 更新是線性的，跨 GPU 的 fast-weight 梯度可直接透過 PyTorch DDP 同步，確保全局最佳化一致；inference 時也能透過增加 GPU 線性加速。</p>
+<p>§3.5 釐清訓練目標：tttLRM 不需要顯式 3D 監督，僅在 target view 上渲染重建出的 GS 並做監督。RGB loss 是 MSE 加上 VGG-19 perceptual loss，</p>
+<p>$$\mathcal{L}_{\text{RGB}} = \text{MSE}(I_{\text{pred}}, I_{\text{gt}}) + \lambda\,\text{Perceptual}(I_{\text{pred}}, I_{\text{gt}}).$$</p>
+<p>非 autoregressive 訓練隨機抽 unordered input–target pair；autoregressive 變體則抽 ordered sequence 以模擬 streaming。場景級資料另加 scale-invariant depth 正則（沿 z 軸對齊偽 ground-truth depth，pseudo-GT 由 monocular estimator MoGe 提供，作者觀察到 VGGT 等 feedforward MVS 雖 multi-view 一致但細節較差）以及 opacity 正則以削減 Gaussian 數量，總 loss 為</p>
+<p>$$\mathcal{L} = \mathcal{L}_{\text{RGB}} + \lambda_{\text{depth}} \mathcal{L}_{\text{depth}} + \lambda_{\text{opacity}} \mathcal{L}_{\text{opacity}}.$$</p>
+<p>整個方法章節因此把「fast weights 作為可被多種 query 探詢的 3D memory」這條主線、從架構、autoregressive 化、跨卡 scale、到訓練目標一路推到實驗章可以驗證的形式。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1500 words)</p>
+<p>實驗章 §4.1–4.5 沿著「先交代設定、再 object 與 scene 兩條主線驗證主張、最後用 ablation 鎖定各設計貢獻」的順序鋪陳，目的是同時證明三件事：linear complexity 帶來的速度與長序列優勢、TTT pretraining 的可遷移性、以及 fast weights 框架對不同 3D 表示的通用性。</p>
+<p>§4.1 給出模型尺寸：24 層 LaCT block、hidden dim 768、window attention 每 head 64 維並加 QK-normalization；FFN 是 expansion ratio 4 的兩層 MLP；patch size $8 \times 8$。架構與 TTT-LVSM 共享 parameterization（除了 decoding 模組），這讓論文可以直接把 TTT-LVSM 的 pretrained 權重作為強初始化——這個選擇之後會在 §4.5 的 ablation 被獨立驗證。</p>
+<p>§4.2 鋪陳兩條訓練與評估線。Object 級在 Objaverse 上訓練，每個 object 標準化到 $[-1,1]$ box、隨機渲染 32 views（解析度 512、距離 $[1.5,2.8]$、730K 物件），評估則用 Google Scanned Objects 取 100 個物件，固定 8 個隨機 view 為測試集。Scene 級在 DL3DV-10K（10,510 段高解析度影片，COLMAP camera pose）上訓練，沿用 Long-LRM 的測試切分（DL3DV-140，每場景每 8 view 取一張作 test、輸入用 K-means 在相機位置與方向上聚類），並另外在 Tanks&amp;Temples 上做 cross-dataset 評估。這個設定刻意對齊 Long-LRM 以利公平比較。</p>
+<p>§4.3 把 baseline 分層：object 級主要對手是 GS-LRM（attention-based），同樣 8 view 訓練、相同 iteration 數；scene 級因為 GS-LRM 無法擴到長序列，由 Long-LRM 擔任唯一的 feedforward baseline，再加上三個 optimization-based 方法 3DGS、Mip-Splatting、Scaffold-GS。所有結果以 PSNR、SSIM、LPIPS 三項指標報告。</p>
+<p>§4.4 把主結果分四線展開。第一線是 object 級（Table 1）：在 256/512 解析度與 8/16/24 view 設定下 tttLRM 全面優於 GS-LRM，在 $512\times 512$ 上速度約是 GS-LRM 的兩倍且 PSNR 高出 1 dB 以上；同時展示了泛化性——以 8 view 訓練的單一模型直接套到 16/24 view 仍越級進步。更關鍵的是它能 scale 到 $1024 \times 1024$ 而 GS-LRM 因 OOM 無法訓練；圖 5 進一步把它接上 multi-view diffusion，做 single-image-to-3D 並還原毛髮、文字等細節，這條線負責支撐「高解析度與長序列可行」的承諾。</p>
+<p>第二線是 scene 級（Table 2）：在 16 與 32 view 設定下 tttLRM 全面超越 optimization-based baseline，在 64 view 仍具競爭力，且比優化方法快上百倍。同一個 tttLRM 模型可橫跨不同序列長度，相對 Long-LRM 為每個視角數另訓練一個專門模型，泛化性的訊號更強。直接對 Long-LRM 比較時，tttLRM 在各視角數上都帶來約 1 dB PSNR 增益；即使把 Long-LRM 加上 post-optimization，tttLRM 仍持續勝出（更詳細的 post-optimization 對比放在 supplemental Table 7）。Figure 4 的視覺對比補上幾何更銳利、artifact 更少的結論，紅框處刻意指向細節差異。</p>
+<p>第三線是 autoregressive 重建：Table 2 同時列出 AR 變體的數字，Figure 1 的第二列示意 4→8→32 view 漸進累積過程中 Gaussian 場景同時在「覆蓋率」與「品質」上演進。AR 模型相對 Long-LRM 仍勝、且大致能與 optimization-based baseline 比肩，這支援了 §3.3 提出的 streaming 設計確實可用。</p>
+<p>第四線是「同一架構 decode 到不同 3D 格式」的 generality 驗證：把 virtual token 換成 triplane token、加 rendering loss 微調，模型即可重建 triplane-based NeRF；Figure 6 同時展示 triplane、深度與渲染結果，呼應方法章節 fast weights 是通用 3D memory 的主張。</p>
+<p>§4.5 的 ablation 目的不在追加新功能，而是把方法章每個關鍵決策獨立量化。第一組（Table 3、Figure 7）驗證以 TTT-LVSM 預訓練初始化的效益：GS 與 triplane 兩種表示都得到「更快收斂 + 更高最終品質」，把 NVS 預訓練的知識描述為「3D 重建的 inductive bias」。第二組（Table 4）對比 autoregressive 中的「Predict &amp; Merge」捷徑與本文的完整重建：merge 雖更省算力，但會累積誤差，PSNR 落後完整重建約 2 dB，論證 §3.3 採用「每步重新 decode」的選擇是必要的。第三組（Table 5）以 32 view、$256 \times 144$ 設定切開 Muon optimizer 與 depth+opacity 正則的貢獻：Muon 提升所有指標，正則化不僅小幅增進品質，更把 opacity &gt; 0.001 的 Gaussian 比例從 96–97% 壓到 47%，間接證明了訓練目標中加入 opacity loss 的削減效果。</p>
+<p>整章讀完，三條主張——linear complexity 帶來的速度與長序列優勢、TTT-LVSM pretraining 的可遷移性、fast weights 作為通用 3D memory——都各自有一個或多個具體實驗為其背書，並把後續討論的限制與 trade-off 自然交給下一節。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(280 words)</p>
+<p>§4.6 Discussions and Limitations 與 §5 Conclusion 雖然篇幅短，卻把整篇論文的承諾與保留條件一次收斂。</p>
+<p>Limitations 的第一個重點是 fast-weight memory 容量固定。作者直接承認，當輸入視角極多、場景非常複雜時，固定大小的 neural memory 可能無法承載所有觀測。這個結構性限制與 §3.2 把 fast weights 詮釋為「壓縮 KV cache 的固定大小記憶」的設計一脈相承——同一個換取 linear complexity 的決策，自然帶來上限。supplemental 進一步用 DL3DV scene label 量化這個現象：outdoor 比 indoor 差（PSNR 24.45 vs 24.96）、高頻場景比低頻差（24.20 vs 25.97），且越早輸入的視角會隨序列加長而被逐步遺忘；這些都不是訓練 bug，而是固定容量 memory 的本質後果。</p>
+<p>第二個保留條件是與 pretrained LVSM 之間的 quality–usability trade-off：fine-tune 之後 tttLRM 的視覺品質相較原始 LVSM 略有下降，但換來大幅更快的渲染速度與顯式 3D 表示，因此在 downstream 應用上更靈活。作者把這一點解讀為 implicit 與 explicit 表示之間的內在 trade-off，而非單純的工程退步。Future Work 因此被定位在三條方向：設計更好的 memory 機制以鬆動容量上限、進一步縮小與 implicit 模型的品質差距、以及加速 inference 以支援即時高品質的 streaming 重建。supplemental 也提供 selective update（以 Fisher 資訊近似與 EMA anchor 抑制 drift）與 sequence parallelism scale 到 128 view（PSNR 26.80）兩個雛形，作為未來改良的起點。</p>
+<p>§5 Conclusion 把整體貢獻濃縮為一句：tttLRM 在 TTT 框架下同時支援 feedforward long-context 與 autoregressive 3D 建模，將 implicit fast-weight 表示轉換為 GS 或 triplane 等顯式格式，以兼顧重建品質、scalability 與接近顯式表示的渲染速度，藉此縮短 neural rendering 與 real-time explicit 3D 系統之間的距離。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(620 words)</p>
+<div class="card"><p>Introduction 以一個擬人化的目標起頭：人類觀察連續視覺串流、建立內部抽象表示、僅在需要時 decode 到顯式 3D。這個比喻把論文要解的問題定義為「long-context, autoregressive reconstruction of explicit 3D from streaming visual input」，並暗示既有的兩大陣營都做不到這件事。</p></div>
+<div class="card"><p>接下來作者把競爭領域分成三塊一一拆解。第一塊是傳統 NeRF 與 3DGS：渲染品質高，但要嘛需要 per-scene 慢速優化，要嘛 feedforward 變體在輸入視角數上 scale 不上去。第二塊是 LRM 家族：GS-LRM 與 MeshLRM 等 transformer-based 模型雖然 feedforward 又快，但 quadratic attention 把輸入視角壓在約 4 張左右；Long-LRM 把上限推到 32 張卻仍依賴 bidirectional attention，無法處理更長且 streamed 的 context。第三塊是 implicit latent-space 模型（LVSM 等）：novel view synthesis 品質好，但反覆 network inference 讓渲染慢，又缺乏可控與可解釋性，downstream 應用受限。三塊一起構成「要 long-context、要 streaming、要顯式輸出、要快」這個尚未被同時滿足的需求空白。</p></div>
+<div class="card"><p>論文的提案就嵌在這個空白上：tttLRM 用神經架構與從 pretrained implicit latent-space 3D 模型蒸餾來的知識，decode 到顯式 3D；如此既享有 long-context 與 autoregressive 建模能力，又保留顯式表示的即時渲染。技術上的核心承諾有兩點。其一，模型基於 TTT 與 LaCT block，因此整體只有 linear complexity，這直接針對 attention 瓶頸；其二，把 TTT 的 fast weights $W$ 重新詮釋為「latent-space 的隱式 3D 表示」，並設計 virtual tokens 作為 query 去取出不同顯式格式——3DGS 用一組 virtual view planes，NeRF 則用 triplane feature grid。這個重新詮釋是論文最有野心的概念跳躍，因為它把「在 inference 時更新權重」這個原本屬於序列建模的機制，直接對應到「壓縮多視角觀測為 3D 場景表示」。</p></div>
+<div class="card"><p>作者也預告了支援 autoregressive 的關鍵改動——重新設計 fast-weight 的 update 與 query 機制，使其能逐批吸收 streaming 輸入；以及為了 scale 到更多視角而引入的 sequence parallelism。最後條列三項 contributions：第一個用 TTT 同時處理 feedforward long-context 與 autoregressive 的 LRM、可觀測可控的顯式 3D 表示框架、以及在 object 與 scene 兩級資料集上的 SOTA 表現。</p></div>
+<div class="card"><p>這一節同時設定了論文後續的論證順序：先在 §2 展開既有方法的限制，§3 給出 TTT/LaCT preliminary 與架構細節，§4 用 object 與 scene 兩條實驗線驗證上述四項承諾。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(950 words)</p>
+<div class="card"><p>§2 Related Work 與 §3.1 Preliminary 合在一起，先把 tttLRM 放入既有研究地圖，再交代讀懂方法所需的最小技術背景。</p></div>
+<div class="card"><p>Related Work 第一段「Multi-view 3D Reconstruction」從傳統 SfM、MVS 一路梳理到 learning-based MVS（DUSt3R、MASt3R、VGGT、Fast3R 等），並點名 Test3R 與 concurrent work TTT3R 也用 test-time 更新，但結尾刻意切割：「none of these methods can produce photo-realistic novel view synthesis」。這一刀讓 tttLRM 與 point cloud / depth 重建路線脫鉤，把它定位在「需要高品質渲染」的軸上。第二段轉向 neural representations：NeRF 衍生的 voxel/hash grid/triplane 變體、以及 3DGS 與 large-scale 場景版本。論文承認 3DGS 是 SOTA neural scene representation，但同時指出它仍需 per-scene 從零優化、需要數分鐘；tttLRM 則在數秒內 feedforward 完成。</p></div>
+<div class="card"><p>第二大段「Learning-based Feedforward 3D Reconstruction」是論文最直接的競爭場域。作者沿時間線排列：早期 CNN 預測 multi-plane image / point / voxel，到 LRM 用 transformer + triplane 預測 3D 物件、GS-LRM 把輸出換成 pixel-aligned 3DGS、再到 pixelSplat、MVSplat、LGM、DepthSplat 等延伸；Mamba-based 的 Gamba、MVGamba 嘗試降低 attention 複雜度但仍受限於少數輸入視角。最後把 Long-LRM 標為 long-sequence GS 重建的 SOTA，但同時點出它仍卡在 32 視角且仰賴額外 attention layer。這段建立了 tttLRM 的最直接 baseline 順序：GS-LRM 與 Long-LRM。</p></div>
+<div class="card"><p>第三大段「Linear Attention and State Space Models」轉到序列建模文獻，為方法選型作辯護。Linear attention 的 linearized feature map 雖達到 linear 複雜度，但對歷史 KV 的 uniform compression 會降低 long-sequence 的能力上限；SSM（S4、Mamba 系列）以 state variable 與 attenuation factor 換取 linear scaling，但仍不及 transformer 的 long-context 推理。Jamba 走 hybrid mamba-attention 路線。最後一段把 TTT、Titans、DeltaNet、MesaNet 描述成「把序列建模轉化為 online learning」的家族，並宣告本文把這個家族首次引入 3D 重建，使長序列 NVS 能在 linear complexity 下達成。</p></div>
+<div class="card"><p>§3.1 Preliminary 為後文鋪設記號與機制基礎。給定長度為 $L$ 的 token 序列 $[x_1, \dots, x_L]$，每個 $x_i \in \mathbb{R}^d$。在標準 attention 中每個 token 投影為 $q_i, k_i, v_i$ 並彼此 dot-product，因此複雜度對序列長度為 quadratic。TTT 改為學一組 fast weights $W$，把 input token 的 $(k_i, v_i)$ 視為 inference 期的訓練資料，用 MSE 更新</p></div>
+<div class="card"><p>$W \leftarrow W - \eta \nabla \mathcal{L}_{\text{MSE}}(f_W(k), v),$</p></div>
+<div class="card"><p>再把 query 套入 $o = f_W(q)$ 取得輸出。fast weights 因此扮演把 KV cache 壓進固定大小 neural memory 的角色——這正是論文後續用來作為「implicit 3D representation」的關鍵物件。</p></div>
+<div class="card"><p>接著作者點出原始 TTT 的實作問題：fast weights 用 16 token 的小 minibatch 更新，GPU FLOP 利用率低、長序列吃力。LaCT 改以 large chunk（最高 1M tokens）一次更新，計算 chunk 內所有 key-value 的 summed loss 之梯度，作為實務上可 scale 的版本，並成為 tttLRM 的基礎 block。</p></div>
+<div class="card"><p>整節讀完，讀者已經知道 tttLRM 的競爭對手、為什麼選 TTT/LaCT 而非 attention 或 Mamba，以及 fast weights 將如何在下一節被當成「可被多種 query 探詢的 3D memory」使用，自然銜接到 §3.2 的架構展開。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>tttLRM 的核心觀點是把「壓縮多視角觀測」與「解碼為顯式 3D」明確分離,並用 Test-Time Training (TTT) 框架把多視角觀測壓縮為一組可被查詢的 <em>fast weights</em> 隱式 3D 記憶。具體做法是堆疊 $L=24$ 層 LaCT (Large Chunk Test-Time Training) block,以 chunk-wise 方式用 Muon 優化器在推理時根據輸入 token 的 key–value 配對更新 fast weights $W$,並用 <em>virtual tokens</em> 對 $W$ 發起查詢以解碼為顯式 3D 表示。整體計算複雜度在序列長度上為線性 $O(Nd^2)$,使模型能夠擴展到 64 視角以上的長上下文場景重建,同時透過幾乎與 TTT-LVSM 對齊的架構繼承大型 NVS 模型的預訓練權重。</p>
+<p>輸入端,給定一組帶位姿的影像 $\{I_i \in \mathbb{R}^{H \times W \times 3}\}_{i=1}^{N}$ 和對應的 9 維 ray embedding $\{R_i \in \mathbb{R}^{H \times W \times 9}\}_{i=1}^{N}$,通道維串接後以 $p \times p = 8 \times 8$ 的 patch 切片,經輕量線性層投影為長度為 $S = N \cdot HW/p^2$、維度為 $d=768$ 的 token 序列。每個 LaCT block 包含三個操作:窗口注意力 (Window Attention) 捕捉視角內的局部關係;Update 操作以 Muon 優化器最小化 MSE 損失 $\mathcal{L}_{\text{MSE}}(f_W(k), v)$ 來更新 fast weights;Apply 操作將 fast weights 應用於 query 得到輸出。<code>feedforward</code> 層為兩層 MLP,擴展比為 $4$。</p>
+<p>輸出端,模型引入一組 <em>virtual tokens</em> 作為查詢:對於 3DGS 重建,virtual tokens 為虛擬視角 $\{I^v_i \in \mathbb{R}^{H \times W \times 3}\}_{i=1}^{M}$ 經 patchify 後的 token;對於 NeRF 重建,則為可學習的 triplane 特徵。virtual tokens 只進行 Apply 而不更新 fast weights (見公式 4),確保查詢與壓縮過程因果分離。最終 linear decoder 將 query token 解碼為每像素一個的 pixel-aligned 3D Gaussian 參數 (深度、RGB、scale、rotation、opacity)。這套設計天然支援兩個關鍵擴展:(1) 將 update/apply 改為因果版本即可化為 RNN 式自迴歸推理,逐步輸出 $G_{(b)}$;(2) LaCT 的線性更新允許輸入 token 在 GPU 之間沿序列維度切片,並用 PyTorch DDP 同步 fast weights 梯度,實現序列平行訓練與推理。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input: 
+  posed images   {I_i}_{i=1..N}        shape [B, N, H, W, 3]
+  ray embeddings {R_i}_{i=1..N}        shape [B, N, H, W, 9]
+   │
+   ├→ Channel-wise concat: [B, N, H, W, 12]
+   │
+   ├→ Patchify (p×p, p=8) + flatten patches:
+   │      [B, N, H/p, W/p, 12·p² = 768]
+   │   →  [B, S, 768]  where S = N · (H/p) · (W/p)
+   │
+   ├→ Linear tokenizer (768 → d, d=768):
+   │      input tokens T ∈ [B, S, d]
+   │
+   ├─────────────────────────────────────────────────────────┐
+   │  Repeat L = 24 LaCT blocks:                             │
+   │                                                         │
+   │   T ← T + WindowAttention(T)                            │
+   │       (per-view local window; head_dim = 64; QK-norm)   │
+   │       T ∈ [B, S, d]                                     │
+   │                                                         │
+   │   k = k_proj(T), v = v_proj(T), q = q_proj(T)           │
+   │       k, v, q ∈ [B, S, d]                               │
+   │                                                         │
+   │   Update fast weights via Muon over chunk:              │
+   │       W ← W − η · ∇_W L_MSE(f_W(k), v)                  │
+   │       fast weights f_W: R^d → R^d  (state size ?)       │
+   │                                                         │
+   │   T ← T + Apply(W, q) = T + f_W(q)                      │
+   │                                                         │
+   │   T ← T + FFN(T)   (2-layer MLP, hidden = 4·d = 3072)   │
+   │                                                         │
+   └─────────────────────────────────────────────────────────┘
+       (after L blocks, fast weights W contain compressed
+        3D memory of the N input views)
+   │
+   │   Virtual tokens (queries):
+   │     Tv ← Linear(Patchify([{I^v_i}, {R^v_i}]))
+   │     Tv ∈ [B, M · (H/p) · (W/p), d]
+   │
+   ├→ Apply(W, Tv) only (no W update on virtual tokens):
+   │     Tv ∈ [B, M · (H/p) · (W/p), d]
+   │
+   ├→ Linear decoder + Unpatchify:
+   │     per token (dim d) → p² pixels × 12 channels
+   │     output features ∈ [B, M, H, W, 12]
+   │       split into:
+   │         depth   ∈ [B, M, H, W, 1]
+   │         RGB     ∈ [B, M, H, W, 3]
+   │         scale   ∈ [B, M, H, W, 3]
+   │         rot     ∈ [B, M, H, W, 4]
+   │         opacity ∈ [B, M, H, W, 1]
+   │
+   └→ Convert depth → 3D position via known ray (origin, dir)
+        via range function (object-centric / linear for scenes)
+        → pixel-aligned 3D Gaussians  G ∈ [B, M·H·W, 14]</code></pre>
+<p>&gt; 註:fast weights $W$ 的具體狀態大小為 LaCT 內部超參數,本文未明確披露,故標記為 <code>?</code>,詳見 §5.3.2。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Input Tokenization (Patchify &amp;amp; Linear)"><h2 class="slide-title">Method — 5.3.1 Input Tokenization (Patchify &amp;amp; Linear)</h2><div class="card"><p><strong>Function:</strong> 將多視角影像與其對應 ray embedding 串接後切片為非重疊 patch,並投影為固定維度的 token 序列,作為 LaCT block 的輸入。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\{I_i\}_{i=1}^{N}$, $\{R_i\}_{i=1}^{N}$</li><li>Shape: $[B, N, H, W, 3]$ 與 $[B, N, H, W, 9]$</li><li>Source: 資料載入端 (posed images + 預計算 ray embedding)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: input tokens $T$</li><li>Shape: $[B, S, d]$,其中 $S = N \cdot (H/p) \cdot (W/p)$,$d = 768$</li><li>Consumer: 第一層 LaCT block</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>沿通道軸串接 RGB 與 ray embedding:$[B, N, H, W, 3] \oplus [B, N, H, W, 9] \to [B, N, H, W, 12]$</li><li>以 $p \times p = 8 \times 8$ 的 patch 切片並展平 patch 內像素:$[B, N, H/p, W/p, 12 \cdot p^2 = 768]$</li><li>攤平視角與 patch 維度為 token 序列:$[B, N \cdot HW/p^2, 768]$</li><li>線性層投影至 $d = 768$:輸出 $T \in [B, S, d]$ (對應論文公式 <code>Tokenize(Patchify(...))</code>)</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \{T_{i,j}\}_{i=1}^{N}{}_{j=1}^{HW/p^2} = \mathrm{Tokenize}\big(\mathrm{Patchify}([\{I_i\}, \{R_i\}])\big) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>patch size $p = 8$ (物件級設定,場景級在低解析度階段使用相同 patch size,具體 ray embedding 維度 9 的構造方式論文未明確說明)</li><li>物件級訓練在 $512 \times 512$ 解析度下,8 視角產生 $S = 8 \cdot 64 \cdot 64 = 32768$ tokens</li><li>線性層參數量極小 ($768 \times 768 \approx 0.6$M),採用 TTT-LVSM 預訓練權重初始化</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.2 LaCT Block (Window Attention + Fast-Weight Update + Apply + FFN)"><h2 class="slide-title">Method — 5.3.2 LaCT Block (Window Attention + Fast-Weight Update + Apply + FFN)</h2><div class="card"><p><strong>Function:</strong> 用 chunk-wise Muon 優化器以輸入 token 的 key–value 配對更新 fast weights $W$,並對 token 應用 fast weights 做查詢,構成線性複雜度的序列建模單元。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: token 序列 $T$</li><li>Shape: $[B, S, d]$</li><li>Source: 上一層 LaCT block 或 tokenizer</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 更新後的 token 序列 $T$ 與 fast weights $W$</li><li>Shape: $T \in [B, S, d]$;$W$ 的內部狀態大小論文未明確披露,標記為 $W \in \mathbb{R}^{? \times d}$</li><li>Consumer: 下一層 LaCT block;最後一層的 $W$ 被 §5.3.3 的虛擬 token 查詢</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>殘差式窗口注意力:每個視角內以局部窗口 (具體窗口大小論文未明列) 計算 attention,head_dim = 64,並啟用 QK-normalization 以提升訓練穩定性。$T \leftarrow T + \mathrm{WinAttn}(T)$ (對應論文公式 1)</li><li>從 $T$ 投影出 $k, v, q \in [B, S, d]$</li><li><strong>Update</strong> (公式 2): 將 $\{T_i\}_{i=1}^{N}$ 視為一個 chunk (LaCT 容許達到 1M token 的大 chunk),用 Muon 優化器以一步 (或少數幾步) 梯度下降最小化 chunk 上的累計 MSE 損失,更新 fast weights $W$。具體 Muon 步數與學習率 $\eta$ 論文未細列,僅在 ablation Table 5 中驗證 Muon 比一般 SGD 在低解析度下也能帶來 +0.24 dB PSNR</li><li><strong>Apply</strong> (公式 3): 對 $q$ 應用更新後的 $W$ 得 $f_W(q)$,殘差加回 $T$:$T \leftarrow T + f_W(q)$</li><li>Feedforward 殘差:$T \leftarrow T + \mathrm{FFN}(T)$,FFN 為兩層 MLP,中間維度 $4d = 3072$</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>更新規則 (chunk-wise):</p>
+<p>$$ W \leftarrow W - \eta \cdot \nabla_W \,\mathcal{L}_{\text{MSE}}\!\left(f_W(k), v\right) $$</p>
+<p>逐 token 應用:輸出為 $o = f_W(q)$,其中 $f_W$ 將 $\mathbb{R}^d$ 映射到 $\mathbb{R}^d$。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$L = 24$ 層 LaCT block,$d = 768$</li><li>Window Attention:head_dim 64,啟用 QK-norm</li><li>FFN:兩層 MLP,擴展比 4 (中間維度 3072),保持與 TTT-LVSM 一致以利預訓練遷移</li><li>Update 採 Muon 優化器,理由為其穩定性與穩健性 (Table 5 顯示在更長序列下 Muon 益處更明顯)</li><li>chunk 大小:LaCT 預設可達 1M token;tttLRM 在物件級 (32768 tokens) 與場景級 (數十萬 token 級別) 設定下皆作為一個 chunk 處理</li><li>fast weights $f_W$ 的具體網路結構 (例如是否為兩層 MLP、隱藏維度) 與初始化策略,論文未明確,需參照 LaCT 原文 [70]</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.3 Virtual Token Query &amp;amp; Linear Decoder"><h2 class="slide-title">Method — 5.3.3 Virtual Token Query &amp;amp; Linear Decoder</h2><div class="card"><p><strong>Function:</strong> 用一組虛擬 token (虛擬視角或可學的 triplane) 對最後一層的 fast weights 發起查詢,並透過 linear decoder + unpatchify 解碼為顯式 3DGS 或 NeRF 參數。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 虛擬 token $T^v$</li><li>Shape: $[B, M \cdot HW/p^2, d]$,其中 $M$ 為虛擬視角數量 (3DGS) 或可學特徵組數 (triplane)</li><li>Source: 對虛擬視角影像與其 ray 進行 patchify+linear (與 §5.3.1 共用 tokenizer);triplane 版本則為可學參數</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 顯式 3D 表示 (以 3DGS 為例)</li><li>Shape: $G \in [B, M \cdot H \cdot W, 14]$ (per-pixel one Gaussian: position 3 + RGB 3 + scale 3 + rotation 4 + opacity 1)</li><li>Consumer: 可微分 splatting renderer,計算渲染 loss</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>虛擬 token 經 $L$ 層 LaCT block 中<strong>僅執行 Apply</strong> 而<strong>不更新</strong> fast weights:$T^v_i \leftarrow \mathrm{Apply}(W, T^v_i)$ (公式 4)</li><li>Linear decoder 將每個 token (dim $d=768$) 解碼為 $p^2 = 64$ 個像素的 12 通道參數,共 $64 \times 12 = 768$ 個輸出</li><li>Unpatchify 還原為 $[B, M, H, W, 12]$,拆分為 depth、RGB、scale、rotation、opacity</li><li>對 depth 套用 range function (物件級為 object-centric,場景級為線性) 轉為實際深度</li><li>結合已知的 ray 原點與方向,從 depth 計算 3D 位置:$\mathbf{p} = \mathbf{o} + d \cdot \mathbf{r}$</li><li>得到 pixel-aligned 3DGS 高斯基元 $\{G_k\}$</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$T^v_i \leftarrow \mathrm{Apply}(W, T^v_i)$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>物件級訓練 8 視角 + 8 虛擬視角;在 16 / 24 視角推理時使用 10 個虛擬視角即可達 SOTA (Table 1)</li><li>對於 triplane NeRF,虛擬 token 為可學 triplane 特徵 (具體解析度與通道數論文未列),解碼後在 $512 \times 512$ 解析度下渲染 (Figure 6)</li><li>訓練無需顯式 3D 監督,僅以 RGB 渲染 loss + 場景級的深度與 opacity 正則化監督</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.4 Autoregressive Reconstruction"><h2 class="slide-title">Method — 5.3.4 Autoregressive Reconstruction</h2><div class="card"><p><strong>Function:</strong> 將 update/apply 改為因果版本,使模型在串流輸入下可逐批增量更新 fast weights 並即時輸出當前的 3DGS,實現 RNN 式線上重建。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 串流輸入批次 $\{(I_{(b)}, I^v_{(b)})\}_{b=1}^{B}$ 與初始 fast weights $W_0$</li><li>Shape: 每批 $I_{(b)}$ 通常為 4 個視角 (論文 Algorithm 1)</li><li>Source: 串流影像來源</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 每批的 3DGS $G_{(b)}$ 與當前 fast weights $W$</li><li>Shape: 同 §5.3.3</li><li>Consumer: 渲染器或下游應用 (即時 NVS、互動式 3D scanning)</li></ul>
+<p><strong>Processing (Algorithm 1):</strong></p>
+<ol><li>初始化 $W \leftarrow W_0$</li><li>for $b = 1$ to $B$:</li></ol>
+<ul><li>$\_, W \leftarrow F(W, I_{(b)})$:用第 $b$ 批輸入視角因果地更新 fast weights</li><li>$G_{(b)}, \_ \leftarrow F(W, I^v_{(b)})$:用更新後的 $W$ 對虛擬視角查詢,輸出當前 3DGS</li></ul>
+<ol><li>回傳 $G_{(B)}$ (或在每步即時回傳 $G_{(b)}$ 用於漸進式重建)</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>更新與查詢都改為因果版本,$F$ 表 tttLRM 模型,$W_0$ 為預訓練 fast weights 初值。論文亦提到可考慮歷史梯度與歷史 fast weights 來緩解 drifting (詳見 supplementary)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>訓練時:採用有序輸入序列以模擬串流情境 (與 feedforward 變體的隨機無序採樣不同)</li><li>推理時:每批通常為 4 個視角;可選擇 <em>full reconstruction</em> (每步重新預測整體 GS) 或 <em>Predict &amp; Merge</em> (合併歷史 GS),但 ablation Table 4 顯示前者品質更佳 (PSNR +2.13 dB)</li><li>AR 模型在場景級 32 視角設定下 PSNR 24.31 dB,接近 feedforward 版本 25.07 dB,顯示因果限制的代價可控 (Table 2)</li><li>supplementary 中還討論 selective update via Fisher information EMA 來抑制 drifting (Table 6 顯示 +0.14 dB 提升)</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.5 Distributed Sequence Parallelism"><h2 class="slide-title">Method — 5.3.5 Distributed Sequence Parallelism</h2><div class="card"><p><strong>Function:</strong> 在訓練 feedforward 變體時將 token 沿序列維度切片到多個 GPU 上,各 GPU 局部更新 fast weights、預測局部高斯,並用 DDP 同步梯度,實現對長上下文輸入 (&gt;32 視角) 的可擴展訓練;推理時亦可線性加速。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 切片後的 token 子集 $T_{\text{shard}_g}$ (GPU $g$)</li><li>Shape: $[B, S/G, d]$,其中 $G$ 為 GPU 數量</li><li>Source: 沿 $S$ 維度的均勻切片</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 每 GPU 預測的局部高斯 $G_g$,以及匯總後的全場景 $G$</li><li>Shape: 全場景 $G \in [B, M \cdot H \cdot W, 14]$</li><li>Consumer: 渲染器與梯度回傳</li></ul>
+<p><strong>Processing (Figure 3):</strong></p>
+<ol><li><strong>Shard</strong>:tokens 沿序列維度均勻切片到 $G$ 張 GPU,每 GPU 持有 $1/G$ 的 token</li><li><strong>Per-GPU 預測</strong>:在 fast weights 同步後,各 GPU 對其分配的虛擬視角預測 pixel-aligned 高斯 (圖 3 第一列)</li><li><strong>Gather</strong>:All-gather 各 GPU 的高斯,組合為完整場景 $G$ (圖 3 第二列)</li><li><strong>渲染與 loss</strong>:每 GPU 渲染其分配的 novel view 並計算 photometric loss (圖 3 第三列)</li><li><strong>All-reduce 梯度</strong>:利用 LaCT fast-weight 更新的線性性質,梯度可透過 PyTorch DDP 跨 GPU 全 reduce,確保全域一致的優化</li></ol>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>線性更新天然支援梯度跨 GPU 線性疊加,這是 sequence parallelism 可行的關鍵</li><li>推理時亦可分散到多 GPU 加速;Table 2 中報告的時間為單張 A100 的結果</li><li>在 supplementary 中提到,以 128 input views (&gt;1M tokens) finetune 可達 26.80 PSNR,展示了序列平行的擴展潛力</li><li>與 attention-based 模型對比 (Figure 8):2M token 處 24-layer LaCT 已比 3-layer attention 更快,凸顯線性複雜度在長序列下的優勢</li></ul></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>Objaverse</td><td>Object-level 3DGS reconstruction</td><td>730K objects, 32 views/object @ 512×512</td><td>Train</td></tr><tr><td>Google Scanned Objects (GSO)</td><td>Object-level NVS evaluation</td><td>100 objects, 8 random test views</td><td>Test</td></tr><tr><td>DL3DV-10K</td><td>Scene-level 3DGS reconstruction</td><td>10,510 high-resolution videos, up to 500 keyframes/scene with COLMAP poses</td><td>Train</td></tr><tr><td>DL3DV-140</td><td>Scene-level NVS evaluation</td><td>140 test scenes; test views every 8 frames (~40/scene); inputs via K-means clustering</td><td>Test</td></tr><tr><td>Tanks &amp; Temples</td><td>Cross-dataset scene-level NVS evaluation</td><td>Standard benchmark scenes</td><td>Test (zero-shot generalization)</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>PSNR</td><td>Peak Signal-to-Noise Ratio between rendered and ground-truth novel views; higher is better</td><td>yes</td></tr><tr><td>SSIM</td><td>Structural similarity index between rendered and ground-truth novel views; higher is better</td><td>no</td></tr><tr><td>LPIPS</td><td>Learned Perceptual Image Patch Similarity (via deep features); lower is better</td><td>no</td></tr><tr><td>Inference Time (s)</td><td>Wall-clock time for feedforward 3D reconstruction on a single A100 80GB GPU</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p><strong>Architecture (Sec. 4.1):</strong> 24 LaCT blocks, hidden dim 768, head dim 64 with QK-normalization, 2-layer MLP with expansion ratio 4, image tokenizer patch size $8 \times 8$. Initialized from TTT-LVSM pretrained weights (sharing parameterization except the decoding module).</p>
+<p><strong>Hardware:</strong> Scene-level training uses 64× NVIDIA A100 80GB GPUs (App. B.1). Inference timing reported on 1× A100 80GB.</p>
+<p><strong>Optimizer:</strong> AdamW with $\beta = (0.9, 0.95)$ and weight decay $0.05$ for the outer model; Muon optimizer for the TTT fast-weight inner update (Sec. 3.2, ablated in Table 5).</p>
+<p><strong>Loss (Sec. 3.5):</strong> $L = L_{\text{RGB}} + \lambda_{\text{depth}} L_{\text{depth}} + \lambda_{\text{opacity}} L_{\text{opacity}}$, where $L_{\text{RGB}} = \text{MSE} + \lambda \cdot \text{Perceptual(VGG-19)}$. Scene-level uses scale-invariant depth loss with MoGe pseudo-GT depth plus opacity regularization. The paper does not specify the numerical values of $\lambda$, $\lambda_{\text{depth}}$, $\lambda_{\text{opacity}}$.</p>
+<p><strong>Scene-level curriculum (App. B.1):</strong> three stages — (i) $144 \times 256$, batch 128, peak LR $3\text{e-}4$, 2K warmup + cosine decay, 80K steps (~0.3T tokens); (ii) $288 \times 512$, batch 64, peak LR $5\text{e-}5$, 6K steps; (iii) $540 \times 960$ with depth + opacity losses, batch 64, peak LR $1\text{e-}5$, 5K steps at 32 views, then 1K more steps with 16–64 views. AR finetune: 3K iterations, peak LR $1\text{e-}4$, batch 64, 8–64 input views. Each scene samples a continuous range of 128–512 frames, then 124 frames within it. Gaussian pruning: 70% smallest-opacity for 64 views, 60% otherwise.</p>
+<p><strong>Object-level (App. B.2):</strong> GS model uses 8 input + 8 supervision views (sampled from a pool of 15 of 32 renderings) with patch size $16 \times 16$; trained $256 \times 256$ batch 512 for 80K iters @ LR $4\text{e-}4$, finetuned $512 \times 512$ batch 128 for 10K iters @ LR $5\text{e-}5$, finetuned $1024 \times 1024$ batch 64 for 4K iters @ LR $5\text{e-}5$. Triplane variant: 4+4 views, $256 \times 256$ batch 256 for 60K iters, finetuned $512 \times 512$ batch 64 for 20K iters.</p>
+<p><strong>Engineering (App. B.1):</strong> gsplat library, <code>torch.compile</code> (~30% iter speedup), gradient checkpointing, mixed-precision BFloat16, deferred backpropagation for Gaussian rendering, gradient-norm-skipping at threshold 5.0.</p>
+<p><strong>Inference:</strong> Single-pass feedforward for the offline variant; for the AR variant, mini-batches of (e.g.) 4 views are streamed into Algorithm 1, with fast weights updated incrementally. Sequence parallelism (Sec. 3.4) allows linear acceleration with more GPUs.</p></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p><strong>Object-level on GSO (Table 1, single-image-to-3D via multi-view input):</strong></p>
+<table><thead><tr><th>Method</th><th>Resolution</th><th>Views</th><th>Time (s) ↓</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th></tr></thead><tbody><tr><td>GS-LRM</td><td>256×256</td><td>8</td><td>0.1</td><td>31.55</td><td>0.964</td><td>0.028</td></tr><tr><td><strong>Ours</strong></td><td><strong>256×256</strong></td><td><strong>8</strong></td><td><strong>0.1</strong></td><td><strong>33.14</strong></td><td><strong>0.972</strong></td><td><strong>0.024</strong></td></tr><tr><td>GS-LRM</td><td>512×512</td><td>8</td><td>0.7</td><td>32.83</td><td>0.969</td><td>0.029</td></tr><tr><td><strong>Ours</strong></td><td><strong>512×512</strong></td><td><strong>8</strong></td><td><strong>0.3</strong></td><td><strong>34.02</strong></td><td><strong>0.974</strong></td><td><strong>0.025</strong></td></tr><tr><td>GS-LRM</td><td>512×512</td><td>16</td><td>2.5</td><td>33.55</td><td>0.976</td><td>0.023</td></tr><tr><td><strong>Ours</strong></td><td><strong>512×512</strong></td><td><strong>16 (10 V.)</strong></td><td><strong>0.8</strong></td><td><strong>34.67</strong></td><td><strong>0.978</strong></td><td><strong>0.022</strong></td></tr><tr><td>GS-LRM</td><td>512×512</td><td>24</td><td>5.5</td><td>33.26</td><td>0.976</td><td>0.022</td></tr><tr><td><strong>Ours</strong></td><td><strong>512×512</strong></td><td><strong>24 (10 V.)</strong></td><td><strong>1.1</strong></td><td><strong>34.80</strong></td><td><strong>0.979</strong></td><td><strong>0.022</strong></td></tr></tbody></table>
+<p><strong>Scene-level on DL3DV-140 / Tanks&amp;Temples (Table 2, headline numbers; 32 views shown; full table also reports 16 and 64 views):</strong></p>
+<table><thead><tr><th>Method</th><th>Time ↓</th><th>DL3DV PSNR ↑</th><th>DL3DV SSIM ↑</th><th>DL3DV LPIPS ↓</th><th>T&amp;T PSNR ↑</th><th>T&amp;T SSIM ↑</th><th>T&amp;T LPIPS ↓</th></tr></thead><tbody><tr><td>3D GS (30k iters)</td><td>13 m</td><td>23.60</td><td>0.779</td><td>0.213</td><td>18.10</td><td>0.688</td><td>0.269</td></tr><tr><td>Mip-Splatting (30k)</td><td>13 m</td><td>23.32</td><td>0.784</td><td>0.217</td><td>18.39</td><td>0.700</td><td>0.262</td></tr><tr><td>Scaffold-GS (30k)</td><td>16 m</td><td>24.77</td><td>0.805</td><td>0.205</td><td>18.41</td><td>0.691</td><td>0.290</td></tr><tr><td>Long-LRM (32v model)</td><td>1 s</td><td>24.10</td><td>0.783</td><td>0.254</td><td>18.38</td><td>0.601</td><td>0.363</td></tr><tr><td>Long-LRM (32v + optim)</td><td>12 s</td><td>24.99</td><td>0.809</td><td>0.243</td><td>18.69</td><td>0.623</td><td>0.360</td></tr><tr><td>Ours (single model, AR)</td><td>7.5 s</td><td>24.31</td><td>0.803</td><td>0.237</td><td>18.96</td><td>0.653</td><td>0.322</td></tr><tr><td><strong>Ours (single model)</strong></td><td><strong>7.2 s</strong></td><td><strong>25.07</strong></td><td><strong>0.822</strong></td><td><strong>0.215</strong></td><td><strong>19.22</strong></td><td><strong>0.662</strong></td><td><strong>0.305</strong></td></tr></tbody></table>
+<p>Headline takeaways stated in §4.4: at 64 input views, tttLRM achieves 25.95 PSNR on DL3DV-140 and 20.31 on Tanks&amp;Temples, beating Long-LRM by ~1 dB across all view counts; with 3-step post-optimization (App. C, Table 7) tttLRM reaches 25.86/26.97 PSNR on DL3DV-140 at 32/64 views, surpassing optimization-based 3DGS, Mip-Splatting, and Scaffold-GS while being orders of magnitude faster (seconds vs. 13–16 minutes). Scaling note (App. A): finetuning on 128 input views (&gt;1M tokens) reaches 26.80 PSNR.</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><ul><li><strong>Pretraining from TTT-LVSM (Fig. 7, Table 3, diagnostic).</strong> With LVSM pretrain, GS reconstruction PSNR rises from 32.77 → 33.14 and triplane PSNR from 26.40 → 27.87 at $256 \times 256$. Beyond final-quality gains, Fig. 7 shows substantially faster convergence in early training. This directly tests the paper&#x27;s claim that &quot;NVS pretraining transfers to explicit 3D modeling&quot; — diagnostic, not a sanity check.</li></ul>
+<ul><li><strong>Autoregressive strategy: Predict &amp; Merge vs. full re-prediction (Table 4, diagnostic).</strong> Replacing per-step full reconstruction with a Predict-&amp;-Merge variant that reuses prior Gaussians drops PSNR from 23.63 → 21.50 and LPIPS from 0.259 → 0.318 at 32 views (1K iters finetune). This isolates whether re-decoding from current fast weights is necessary to correct accumulated drift — answers the right question.</li></ul>
+<ul><li><strong>Optimizer &amp; regularization (Table 5, partial diagnostic).</strong> On 32-view $256 \times 144$, Muon vs. baseline: 20.44 → 20.68 PSNR; adding opacity + depth regularization: 20.68 → 20.76 PSNR. The headline value is the <strong>drop in opaque-Gaussian fraction from 96% → 47%</strong> (regularization actually controls Gaussian count, with PSNR roughly preserved); the PSNR delta alone would look like a sanity check. Reading the count side, this is diagnostic for the regularization design choice.</li></ul>
+<ul><li><strong>Selective fast-weight update via Fisher-EMA (App. A, Table 6, exploratory).</strong> Training-free elastic regularization of fast weights for the AR model: 24.81 → 24.95 PSNR. Marginal gain (+0.14 dB) on a single setting — closer to a sanity check / motivation for future work than a load-bearing ablation.</li></ul>
+<ul><li><strong>Scene-complexity stratification (App. A, descriptive, not a true ablation).</strong> Outdoor 24.45 vs. indoor 24.96 PSNR; high-frequency 24.20 vs. low-frequency 25.97. Useful as a limitations diagnostic for fixed-size fast-weight memory rather than a component-level ablation.</li></ul>
+<ul><li><strong>Attention-vs-LaCT scaling micro-study (App. A, Fig. 8, diagnostic for complexity claim).</strong> A 3-layer attention-only stack (with token merging) becomes slower than the full 24-layer LaCT model beyond ~2M tokens (256 views) — substantiates the linear-vs-quadratic complexity argument.</li></ul>
+<ul><li><strong>Missing diagnostics.</strong> No ablation isolates the <strong>window-attention sub-module inside the LaCT block</strong>, the <strong>Muon update rule vs. SGD/Adam at the inner-loop level on long sequences</strong>, the <strong>virtual-view count $M$</strong> decoupled from input count, or the <strong>patch size</strong>. Number-of-views generalization (8→16→24 in Table 1) is reported but not framed as an ablation. Sequence-parallelism (Sec. 3.4) has no scaling-vs-GPU-count plot.</li></ul></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — Long-LRM is explicitly named as the SoTA long-sequence feedforward GS reconstructor (§2, Table 2); GS-LRM covers the few-view SoTA (Table 1); Scaffold-GS / Mip-Splatting / 3DGS cover optimization-based SoTA.</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — Object-level (GSO trained on Objaverse) and scene-level (DL3DV-140) are both evaluated, plus zero-shot Tanks&amp;Temples (Table 2), and the framework is shown decoding into both 3DGS and triplane-NeRF (Fig. 6, Table 3).</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — Pretraining transfer (Table 3), AR strategy (Table 4), and the attention-vs-LaCT timing study (Fig. 8) are diagnostic; however, the LaCT window-attention, virtual-view count, patch size, and Muon-vs-other inner optimizers on long sequences are not isolated.</li><li>[partial] Has a scaling study (size, length, or compute) — Sequence-length scaling is shown (8/16/24 object views; 16/32/64 scene views; 128 views in App. A reaches 26.80 PSNR; Fig. 8 token-count sweep up to 8M); model-size and compute-axis scaling are not reported.</li><li>[covered] Has an efficiency / wall-clock comparison — Per-method inference time on a single A100 is reported throughout Tables 1, 2, and 7 (e.g., 7.2 s vs. 13 min for 30k-iter optimization baselines), and Fig. 8 plots time vs. token count.</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — All numbers in Tables 1, 2, 3, 4, 5, 6, 7 are single-run point estimates; no error bars, std, or seed-averaged results are reported.</li><li>[partial] Releases code / weights / data sufficient for reproducibility — A project page (<code>https://cwchenwang.github.io/tttLRM</code>) is referenced for video results, and training datasets (Objaverse, DL3DV-10K, GSO, Tanks&amp;Temples) are public; the paper does not specify a code or model-weight release, and several hyperparameters ($\lambda$ values for the loss terms) are unspecified.</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>Fast-weight memory 容量固定,面對極大量輸入視角的高度複雜場景會受限,且越早抵達的 token 在 AR 設定下會逐漸被遺忘 (§4.6, Supplemental §A, p.8 / p.12)。</li><li>與 pretrained TTT-LVSM 隱式模型相比,蒸餾為顯式 3DGS 後品質「略為下降」,作者承認這是 implicit/explicit representation 的 inherent trade-off (§4.6, p.8)。</li><li>場景複雜度會顯著影響重建品質:supplemental 中 outdoor vs. indoor 為 24.45 vs. 24.96 PSNR、high- vs. low-frequency 為 24.20 vs. 25.97 PSNR,對困難場景退化達近 1.8 dB (Supplemental §A, p.12)。</li><li>AR 模式存在 drift,作者僅以 training-free 的 selective update (Fisher EMA) 將 PSNR 從 24.81 提升到 24.95,並將真正納入訓練的方案留作 future work (Table 6, p.12)。</li><li>在更高解析度 ($960 \times 540$) 下即便載入 LVSM checkpoint,模型開頭仍無法輸出合理 Gaussians,需採 144→288→540 三階段 curriculum 才能訓練 (Supplemental §B.1, p.12–13)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>「品質略降」的代價沒有量化:作者在正文與 ablation 中皆未給出 tttLRM vs. TTT-LVSM 的 PSNR/SSIM 對比數字,讀者無從判斷 explicit 化付出多少品質,也無法和「直接渲染 LVSM」的速度差互換比較 (§4.6, p.8)。</li><li>「single model across all input views」與訓練流程不一致:Supplemental §B.1 指出最終階段是分別針對 16–64 views 額外 finetune,Long-LRM 被批評「每個視角數訓一個模型」,但本作其實也對特定 view-count 段落做了專屬 finetune,Table 2 的「unfair model count」描述需打折扣 (Table 2 footnote vs. Supplemental B.1, p.7 / p.13)。</li><li>在 64 views 下 non-AR 推理需 14.8s、AR 需 15.2s,反而比 Long-LRM (3.7s) 慢 4×;論文 abstract 與 §1 強調「twice as fast as attention」實際只成立於 object-level $512 \times 512$,scene-level 並未複現此速度優勢 (Table 2, p.7)。</li><li>depth 監督取自 monocular estimator MoGe [53] 的 pseudo GT,作者承認 VGGT 多視一致性更好但「細節較差」,卻未做兩者交叉驗證,也未報告 depth metric;這直接影響 scene-level 結果可信度 (§3.5, p.5)。</li><li>pretraining 的增益難以歸因:GS 模型與 TTT-LVSM 共享參數化、又繼承其 weights,Table 3 顯示 from-scratch 也能到 PSNR 32.77,僅差 0.37 dB,因此「TTT 架構本身」與「LVSM 預訓練」對最終表現的相對貢獻沒有被解耦 (Table 3, p.8)。</li><li>triplane NeRF 路線僅提供 4-view、$512 \times 512$ 的定性圖與一個 pretrain ablation,缺乏對 Instant-NGP / triplane NeRF baselines 的定量比較,「flexible representation」的論點僅有半套證據 (Figure 6, Table 3 下半, p.7–8)。</li><li>sequence parallelism 的「parallelism」實質上是 DDP 全 reduce + 各 GPU 分攤虛擬視角的 Gaussian 預測;每張 GPU 仍需保留同一份 fast weight,所謂線性加速只在 virtual-view rendering 段成立,並非整體 token 序列被切分 (Figure 3, §3.4, p.4–5)。</li><li>AR drift 的量化僅停留在 32 views (24.31 vs. 25.07 non-AR) 與 64 views (24.81 vs. 25.95);沒有提供 view 數隨時間增長的 PSNR 衰退曲線,也沒測「先看 4v → 之後再看 60v」這類 streaming 真實場景下的長期記憶保留率 (§4.4 / Table 2, p.6–7)。</li><li>訓練成本驚人 (64× A100 80GB,scene-level 約 0.3T tokens 在 stage 1) 且未討論小規模 reproducibility,使社群難以驗證或微調 (Supplemental §B.1, p.12–13)。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: 首個將 TTT 用於 long-context + autoregressive 3D 重建,並具線性複雜度的 LRM。</strong> <strong>Supported.</strong> Algorithm 1、§3.3 與 Table 2 的 64-view AR 結果共同支撐此 claim;Figure 8 也顯示在 2M tokens 時 LaCT 比 3-layer attention 快,線性複雜度有實證 (Algorithm 1, Table 2, Figure 8)。</li><li><strong>C2: 統一框架可把 fast weight 解碼為多種顯式表示 (3DGS、triplane NeRF)。</strong> <strong>Partially supported.</strong> 3DGS 線有完整定量比較,triplane 線僅有 Figure 6 定性圖與 Table 3 的 pretrain ablation,沒有對 NeRF baselines 的定量 head-to-head,因此「unified framework」的多格式 claim 只證了一半 (Figure 6, Table 3)。</li><li><strong>C3: 在 object 與 scene 級資料皆達 SOTA,並兼具品質與效率。</strong> <strong>Partially supported / mildly overclaimed.</strong> Object-level 全面贏過 GS-LRM (Table 1);scene-level 在 16/32 views 確實贏 Long-LRM 與多數 optim 法,但 64 views 下 PSNR 25.95 仍低於 Scaffold-GS 的 27.07,且推理 14.8s 比 Long-LRM 的 3.7s 慢約 4×,「兼具效率」需限定於 object-level 與 attention-baseline 對比 (Table 1, Table 2)。</li><li><strong>C4: NVS pretraining 能有效遷移到顯式 3D 建模。</strong> <strong>Supported.</strong> Table 3 與 Figure 7 顯示 GS 與 Triplane 兩種輸出格式皆受益,Triplane 的提升 (+1.47 dB) 尤為顯著 (Table 3, Figure 7)。</li><li><strong>C5: 設計支援 sequence parallelism 以擴展訓練。</strong> <strong>Partially supported.</strong> §3.4 與 Figure 3 證明 LaCT 的線性更新可由 DDP 同步;但實際的 parallelism 範圍只涵蓋虛擬視角的 Gaussian 預測與 loss back-prop,fast weight 本體仍在每張 GPU 上完整持有,並非真正沿序列維度切片計算更新,所以「seq-parallel」的字面意義被弱化 (§3.4, Figure 3)。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>固定容量 fast weight 與長序列遺忘。</strong> Fast weight $W$ 的維度由架構決定,輸入 token 增加時記憶不會擴張,作者也在 §4.6 與 Supplemental §A 承認 outdoor / high-frequency 場景退化近 1.8 dB,且 AR 設定下早期 token 會被新觀測「覆寫」。在沒有顯式檢索或外部 KV 儲存的情況下,任何 chunk-wise 線性更新本質上都是有損壓縮,scaling input views 所獲品質會在某一點開始飽和甚至倒退。</p>
+<p><strong>AR 模式的 drift 與 non-AR 之間的結構性 gap。</strong> Table 2 中 32 views AR 24.31 vs. non-AR 25.07、64 views AR 24.81 vs. non-AR 25.95,差距約 1 dB 且不會因更多視角而縮小。Supplemental 的 selective update (Fisher + EMA anchor) 只把 24.81 拉到 24.95,證明 drift 並非單靠 inference-time 正則就能解;若不在訓練階段引入時間一致性 loss 或顯式 history 回放,因果版本永遠次於非因果版本。</p>
+<p><strong>pretraining-架構耦合過深,難以獨立論證 TTT 的價值。</strong> 模型與 TTT-LVSM 共享 parameterization,只把 decoder 換成 GS / triplane head,且 ablation 顯示 from-scratch 的 GS PSNR 仍達 32.77 (僅落後 0.37 dB)。這代表大部分品質紅利可能來自「巨量多視角預訓練 + 線性序列模型」的一般組合,而非 TTT-style fast weight 本身的獨特能力;在沒有「同樣 pretraining、改用其他線性 backbone (Mamba / DeltaNet / RWKV)」的對照下,fast-weight-as-3D-memory 的因果 claim 難以證實。</p>
+<p><strong>explicit-vs-implicit 不可同時兼得的本質。</strong> 作者明白指出顯式化後品質低於 LVSM 教師,但實驗未量化此差距,使得「兼得渲染速度與品質」的論述只剩工程層面合理。任何把連續 latent 場壓回每個 patch 一個 Gaussian (或固定 triplane 解析度) 的解碼器,都會把高頻細節丟給有限參數;這是一個表示能力上限而非訓練問題,需要可變密度的 Gaussian 生成或階層式表示才能突破。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>LaCT [70] (Zhang et al., 2025).</strong> 本作直接複用其 large-chunk fast-weight update 與 Muon optimizer;讀懂 LaCT 的 chunk-wise gradient 與 GPU FLOP 利用率才能判斷 tttLRM 在效率 claim 上的可信度。</li><li><strong>TTT [47] (Sun et al., 2024).</strong> 提供「fast weights 即 inference-time 學到的記憶」的核心抽象,理解 mini-batch vs. large-chunk 的差異有助於評估 AR drift 來源。</li><li><strong>Long-LRM [71] (Ziwen et al., 2025).</strong> 全文最重要的 scene-level baseline,且 DL3DV 的 input/target split 也沿用其設定;若要重現或擴展 tttLRM 的 scene 結果必須先讀懂 Long-LRM。</li><li><strong>LVSM [18] (Jin et al., 2024) 與 TTT-LVSM (within [70]).</strong> tttLRM 的 pretraining 來源,Table 3 顯示 pretrain 為核心增益之一;讀者需要這兩篇來判斷 tttLRM 的「貢獻」其實有多少是 LVSM 既有能力的下游展開。</li><li><strong>Muon [19] (Jordan et al., 2024).</strong> Table 5 顯示換掉 Muon 會直接掉 PSNR;這個尚未廣泛被視覺社群採納的 optimizer 對未來 TTT-style 視覺模型的訓練穩定性可能是關鍵。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] tttLRM 與 TTT-LVSM 在相同 input views / 相同視角下的 PSNR / SSIM 差距究竟是多少?「品質略降」的代價需被量化才能與渲染速度互換比較。</li><li>[ ] 在嚴格 streaming 設定 (例如先看 4 views,1000 step 後再看新 60 views) 下,fast weight 對最早觀測的保留率有多少?Table 2 的 AR 數字並未隔離長期記憶。</li><li>[ ] 若把 LaCT backbone 換成 Mamba-2 或 DeltaNet 並從同一 LVSM checkpoint 啟動,品質與速度差異多少?這是分離「TTT 架構」與「pretrain 知識」的關鍵 ablation。</li><li>[ ] virtual views 的數量與位置是如何選的?Table 1 出現「16 (10 V.)」、「24 (10 V.)」的 setting 暗示存在採樣策略,但正文未描述對 PSNR 的敏感度。</li><li>[ ] depth 監督從 MoGe pseudo GT 改為 VGGT 或真值 (在 DL3DV 子集) 後,scene-level PSNR 變化多少?這直接影響「不需顯式 3D supervision」的 claim 強度。</li><li>[ ] 對 dynamic scenes (含移動物體) 的 fast weight 行為如何?目前所有實驗都是 static scenes,AR 的 RNN-like 推理是否能拒絕舊觀測中已過時的內容?</li><li>[ ] Table 7 顯示 post-optim 10 步後 tttLRM 比 Long-LRM 高 0.93 dB;若 base feedforward 結果近似 (Long-LRM 64v 24.63 vs. Ours 25.95),這個 gap 是否來自更好的 Gaussian 初始化?需要一個「以 Long-LRM 輸出當初始化 + 同樣 10 步」的對照才能釐清。</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>將 selective update (Fisher + EMA) 內化到訓練。</strong> Supplemental 已示 training-free 版本 +0.14 dB;若改在 AR 訓練 loss 中加入「不重要參數對 anchor 的彈性正則」,理論上可同時減少 drift 與避免 Muon 在新 chunk 上覆寫過多歷史方向,且不增推理成本。</li><li><strong>解耦 pretraining 來源以做 backbone ablation。</strong> 用同一 LVSM 預訓練配方換成 Mamba-2 / GLA / DeltaNet 各跑一個 24-layer baseline,即可從 Table 3 的單一對照升級為「線性序列模型族對 3D memory 任務的相對適應性」研究,直接強化 C1 的因果論述。</li><li><strong>層級式或可擴張 fast weight。</strong> 既然固定容量是品質瓶頸,可嘗試 multi-resolution fast weight (粗層長序壓縮 / 細層短序保真),類似 hierarchical state space;由於更新仍是線性的,DDP 同步性質可保留。</li><li><strong>virtual-view scheduling 的 learning-based 化。</strong> 目前 virtual views = input views 是手調最佳,但 object-level Table 1 顯示 24 views 配 10 V. 也能贏 baseline;若引入一個輕量 policy 動態選擇查詢視角,有機會把 64-view scene 的推理時間從 14.8s 降下來,改善目前對 Long-LRM 的速度劣勢。</li><li><strong>加入 LVSM-style implicit head 作為輔助 loss。</strong> 既然作者承認 explicit 化會掉品質,可在訓練時保留一個 implicit branch (與 explicit GS 共用 fast weight) 並讓兩者互蒸餾;explicit 仍是部署目標,但 implicit branch 在訓練時可注入更高頻監督。</li><li><strong>顯式 quantify scene-complexity 的 capacity gap。</strong> 把 supplemental §A 的 outdoor / high-freq 退化擴成完整 capacity vs. complexity 曲線 (固定 fast weight 維度,掃 token 數 / 場景熵),即可給社群一個可重現的 capacity scaling law,並指出何時該切換到 hierarchical memory。</li><li><strong>dynamic / pose-noisy 評測。</strong> 將 AR 路徑套到含動態物件或 COLMAP pose 不準的資料,可檢驗「RNN-like 內部 state」是否真的具有遺忘新近過時觀測的能力——這也是 streaming 真實應用的最終門檻。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(280 words)</p>
+<div class="card"><p>§4.6 Discussions and Limitations 與 §5 Conclusion 雖然篇幅短，卻把整篇論文的承諾與保留條件一次收斂。</p></div>
+<div class="card"><p>Limitations 的第一個重點是 fast-weight memory 容量固定。作者直接承認，當輸入視角極多、場景非常複雜時，固定大小的 neural memory 可能無法承載所有觀測。這個結構性限制與 §3.2 把 fast weights 詮釋為「壓縮 KV cache 的固定大小記憶」的設計一脈相承——同一個換取 linear complexity 的決策，自然帶來上限。supplemental 進一步用 DL3DV scene label 量化這個現象：outdoor 比 indoor 差（PSNR 24.45 vs 24.96）、高頻場景比低頻差（24.20 vs 25.97），且越早輸入的視角會隨序列加長而被逐步遺忘；這些都不是訓練 bug，而是固定容量 memory 的本質後果。</p></div>
+<div class="card"><p>第二個保留條件是與 pretrained LVSM 之間的 quality–usability trade-off：fine-tune 之後 tttLRM 的視覺品質相較原始 LVSM 略有下降，但換來大幅更快的渲染速度與顯式 3D 表示，因此在 downstream 應用上更靈活。作者把這一點解讀為 implicit 與 explicit 表示之間的內在 trade-off，而非單純的工程退步。Future Work 因此被定位在三條方向：設計更好的 memory 機制以鬆動容量上限、進一步縮小與 implicit 模型的品質差距、以及加速 inference 以支援即時高品質的 streaming 重建。supplemental 也提供 selective update（以 Fisher 資訊近似與 EMA anchor 抑制 drift）與 sequence parallelism scale 到 128 view（PSNR 26.80）兩個雛形，作為未來改良的起點。</p></div>
+<div class="card"><p>§5 Conclusion 把整體貢獻濃縮為一句：tttLRM 在 TTT 框架下同時支援 feedforward long-context 與 autoregressive 3D 建模，將 implicit fast-weight 表示轉換為 GS 或 triplane 等顯式格式，以兼顧重建品質、scalability 與接近顯式表示的渲染速度，藉此縮短 neural rendering 與 real-time explicit 3D 系統之間的距離。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

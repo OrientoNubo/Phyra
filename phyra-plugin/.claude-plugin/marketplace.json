@@ -1,0 +1,19 @@
+{
+  "name": "phyra",
+  "owner": {
+    "name": "OrientoNubo",
+    "email": "d11922023@csie.ntu.edu.tw"
+  },
+  "metadata": {
+    "description": "Phyra academic research plugin for Claude Code",
+    "version": "0.9.1"
+  },
+  "plugins": [
+    {
+      "name": "phyra",
+      "source": "./",
+      "description": "Academic research plugin with multi-agent pipelines for paper reading, paper translation, peer review, literature survey, citation graph analysis, and paper writing.",
+      "version": "0.9.1"
+    }
+  ]
+}

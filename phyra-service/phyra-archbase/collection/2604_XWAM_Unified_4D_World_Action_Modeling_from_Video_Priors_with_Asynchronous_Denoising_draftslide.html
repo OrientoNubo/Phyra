@@ -1,0 +1,471 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Unified 4D World Action Modeling from Video Priors with Asynchronous Denoising</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">Unified 4D World Action Modeling from Video Priors with Asynchronous Denoising</h1>
+          <p class="cover-meta">Jun Guo, Qiwei Li, Peiyan Li, Zilong Chen, Nan Sun, Yifei Su, Heyun Wang, Yuan Zhang, Xinghang Li, Huaping Liu</p>
+          <p class="cover-meta">2604.26694 · arXiv preprint · 2026-05-07</p>
+          <div class="cover-tagline"><p>本論文提出 X-WAM,一個統一的 4D 世界動作模型 (Unified 4D World Action Model),旨在於單一架構中同時完成高保真影片生成、3D 空間重建、機器人策略執行與高效率動作解碼四項目標。研究焦點是把現有侷限於 2D 像素空間的統一世界動作模型 (如 UWM、Motus) 推進至具備顯式 3D 幾何感知的 4D 動態模擬器,並解決影片與動作兩種模態在去雜訊步數需求上的本質落差。作者在預訓練影片擴散模型 Wan2.2-5B 的基礎上,引入輕量化深度適配模組 (複製 DiT 末端 blocks 形成深度分支) 與 Asynchronous Noise Sampling (ANS) 機制,使單一模型能在 RoboCasa、RoboTwin 2.0 與真實雙臂耳機包裝任務上同時取得高成功率與高品質 4D 重建/生成,屬於 Embodied AI、機器人基礎模型與影片生成模型交會領域的核心議題。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本論文提出 X-WAM,一個統一的 4D 世界動作模型 (Unified 4D World Action Model),旨在於單一架構中同時完成高保真影片生成、3D 空間重建、機器人策略執行與高效率動作解碼四項目標。研究焦點是把現有侷限於 2D 像素空間的統一世界動作模型 (如 UWM、Motus) 推進至具備顯式 3D 幾何感知的 4D 動態模擬器,並解決影片與動作兩種模態在去雜訊步數需求上的本質落差。作者在預訓練影片擴散模型 Wan2.2-5B 的基礎上,引入輕量化深度適配模組 (複製 DiT 末端 blocks 形成深度分支) 與 Asynchronous Noise Sampling (ANS) 機制,使單一模型能在 RoboCasa、RoboTwin 2.0 與真實雙臂耳機包裝任務上同時取得高成功率與高品質 4D 重建/生成,屬於 Embodied AI、機器人基礎模型與影片生成模型交會領域的核心議題。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張當前統一世界動作模型 (Unified WAM) 仍受困於兩個根本瓶頸:其一,所有現有統一框架皆停留在 2D 像素空間預測,缺乏顯式的 3D 幾何結構,使得模型容易產生違反物理的未來幻覺,也無法支援忠實的 3D 重建;其二,影片與動作天然具有不同的去雜訊步數需求 (高維影片需大量步數、低維動作只需少數步數即可恢復),先前作品雖試圖在推論時解耦兩者時間步以加速動作輸出,但訓練時仍對兩模態做獨立隨機取樣,造成訓練分佈包含 $t_O &lt; t_a$ 等推論時根本不會出現的配置,實際上浪費了訓練資源並降低非同步去雜訊的有效性。基於此,X-WAM 必然要做兩件事:(1) 在不破壞預訓練視覺先驗、不讓序列長度倍增的前提下注入 3D 感知,因此採用「複製 DiT 最後 $M$ 個 block 形成深度分支 + 單向 cross-attention」的輕量結構適配,以 unilateral attention 嚴格保留主分支權重的完整性,深度分支可在推論時隨意開關;(2) 嚴格對齊訓練/推論的雜訊分佈,因此提出 ANS,將 $(t_O, t_a)$ 從聯合分佈中採樣 (以 Beta(1.5,1) 偏向 $t_O \geq t_a$),在推論時先用 $T_a$ 步快速解出可立即派發給機器人的乾淨動作,再以剩餘 $T_O - T_a$ 步繼續精煉影片。這兩個設計在邏輯上互為必要——前者提供幾何監督讓策略與重建同時受益,後者讓「同一個模型既是高保真生成器又是即時策略」在計算上可行——共同支撐論文的核心宣稱:單一統一框架可同時最佳化策略執行、影片生成與空間重建。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>在 RoboCasa 24 個任務上達到 79.2% 平均成功率,超越最強 WAM baseline Cosmos Policy 的 67.1% 達 12.1 個百分點 (Table 1, p.8)。</li><li>在 RoboTwin 2.0 的 50 個雙臂任務上,Clean/Randomized 設定分別取得 89.8%/90.7%,超越前作 Motus 的 88.7%/87.0%,且在 Randomized 設定上的優勢 (+3.7pp) 大於 Clean (+1.1pp),顯示對域隨機化的強健性 (Table 2, p.8)。</li><li>提出 lightweight depth adaptation:複製預訓練 DiT 末端 $M=10$ 個 block 作為深度分支,經由 unilateral cross-attention 嚴格保留主分支權重,推論時可隨意關閉,使 action latency 維持在 1033 ms (與無深度版本相同),而 sequence concatenation 則需 1888 ms (Table 4a, p.9)。</li><li>提出 Asynchronous Noise Sampling (ANS),從聯合分佈 $(t_O, t_a)$ 取樣並以 $\mathrm{Beta}(1.5, 1)$ 偏向 $t_O \geq t_a$,在 25→5 步異步推論下實現 4.5× 動作解碼加速 (4665 ms → 1033 ms),且成功率優於 Decoupled-Async 變體 (67.8% vs. 67.2%) (Table 4b, p.9)。</li><li>4D 重建上,end-to-end 聯合建模相對 DreamZero+DA3 的兩階段管線將 PSNR 從 21.12 提升至 23.46 dB,並把 Chamfer Distance 從 0.0680 大幅降至 0.0049 (約 14× 改善) (Table 3, p.8)。</li><li>替換 X-WAM 內建深度分支為 Depth Anything 3 (X-WAM w/o depth + DA3) 後 AbsRel 從 0.0349 惡化至 0.1045、CD 從 0.0049 升至 0.0401,證明整合式深度分支提供的幾何品質優於通用單目估計器 (Table 3, p.8)。</li><li>在 1.49M episodes、5,874 小時跨真實/模擬機器人資料上預訓練,涵蓋 AgibotWorld-Beta、DROID、InternA1、RoboCasa MimicGen 與 RoboTwin 2.0 (Table 5, p.16)。</li><li>真實雙臂耳機包裝任務上,X-WAM 在 pack-2-earphones 設定達到 93.8% 進度 (45/48),顯著高於 XR-0 的 79.1%;π0.5 在同樣資料規模下完全無法完成單一完整 episode (Table 8, p.21)。</li><li>深度監督對策略本身有實質貢獻:消融顯示移除深度分支會使 RoboCasa SR 從 67.8% 掉至 63.0% (Table 4a, p.9),支持作者「3D 感知對 manipulation 有幫助」的核心宣稱。</li><li>雙視角相機處理採用 end-effector 姿態 $T_{ee}$ 加上手眼校正矩陣 $T_{h2e}$ 推導腕部相機位姿 $T_{wrist} = T_{ee} \cdot T_{h2e}$,避免顯式編碼相機外參即可在多視角間融合點雲 (Eq. 2, p.5)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(290 words)</p>
+<p>論文標題以兩個關鍵字宣告主軸:「Unified 4D World Action Modeling」(統一架構的野心) 與「Asynchronous Denoising」(推論時的關鍵機制),同時暗示這篇論文不是又一個 VLA 或 world model,而是試圖把兩者融合進一個能感知 4D 空間的單一框架。Abstract 開場就點出技術缺口:過去的 unified world model (例如 UWM) 只在 2D pixel-space 內運作,無法兼顧 action 執行效率與 world modeling 品質。作者隨即把 X-WAM 定位為一個同時瞄準四項目標的統一框架:即時 action 執行、高保真 video 生成、3D 重建、以及高 policy success rate。Abstract 中預告了兩個技術槓桿:(1) lightweight depth branch,透過複製預訓 DiT 最後幾個 block 來建立 depth 預測支路,既保留 pretrained 視覺先驗也不會讓 sequence length 翻倍;(2) Asynchronous Noise Sampling (ANS),一種把 training 與 inference 分布耦合起來的取樣策略,讓 action 在少量步數內快速解碼,同時保留足夠步數讓 video 維持生成品質。Abstract 收尾把具體數字直接搬出來:RoboCasa 上 79.2%、RoboTwin 2.0 上 90.7% 平均 success rate,並宣稱 4D 重建品質在視覺與幾何指標上同時超越既有方法。這段佈局直接設定了 introduction 的任務:必須先論證「2D-only 的 unified model 為何不夠」,再分別動機化兩個技術選擇,並承諾後續實驗會在三條軸線上 (policy、4D 生成、ablation) 同時驗證四目標宣稱。</p>
+<h3>3.2 Introduction</h3>
+<p>(950 words)</p>
+<p>Introduction 把整個 embodied AI 領域切成兩個對立陣營:VLA policy model 雖能輸出馬達指令但缺乏實體世界的幾何直覺,World Model 能模擬未來但無法直接產生可執行 action。緊接著作者把近期的 unified world action model (UWM、Motus、VideoVLA、Cosmos Policy) 抬出來作為過渡型解法,但隨即指出這些模型仍有兩大缺陷:其一,全部停留在 2D pixel-space,因此會幻想出物理上不合理的未來、無法做幾何上忠實的 3D 重建;其二,把高維 video 與低維 action 同步去噪會造成效率與品質難以兼顧。X-WAM 因此被定位為「下一步」,把 unified WAM 從 2D pixel predictor 升級為 4D dynamics simulator,單一架構同時負責生成、重建、policy 執行與執行效率。</p>
+<p>接下來作者用兩個明確的「技術挑戰」鋪陳方法章節。第一個挑戰是:如何把 3D 感知注入模型而不破壞 pretrained 知識也不付出過大計算代價。把 depth 沿 sequence 維度 concatenate 會讓 attention 成本平方成長;沿 channel 維度 fuse 又會讓輸入分布偏離 pretrained manifold,使學習變難。作者提出的回應是 lightweight 結構性改動:把 DiT 的最後 $M$ 個 block 複製出來形成一個專屬的 depth 預測支路,主幹結構不動、pretrained weights 不被破壞,還能在不需要時關掉以節省成本。</p>
+<p>第二個挑戰是 modality 不對等:高保真 video 需要很多 denoising step,但低維 action 在極高 noise 下也能被準確還原,因此理應只需少量 step。作者順著這個直覺提出 Asynchronous Noise Sampling (ANS),inference 時 action 在最開始的少量 step 內就解碼完畢並立刻派發給 robot,後續 step 則繼續讓 video 達到高保真。為了讓這套 inference schedule 真正有效,training 階段必須避免讓 video 與 action 的 noise timestep 各自獨立取樣 (這會在 training 時看到 inference 永遠不會出現的 $t_O &lt; t_a$ 配置),而是改用 <em>joint</em> 分布耦合取樣,使 training 分布忠實對齊 inference 分布。這是把過往 decoupled approaches 的盲點直接點名並修補。</p>
+<p>最後作者把貢獻整理為三點:(i) X-WAM 這個 unified 4D WAM 連同其 lightweight depth 結構性改動;(ii) ANS 訓練/推論協同的 noise scheduling 機制;(iii) 在 RoboCasa、RoboTwin 2.0 與真機 earphone packing 上全面超越 baseline,並在 4D 重建的視覺與幾何指標上同樣領先。Introduction 因此順勢把 abstract 的「四目標、兩技術槓桿」承諾轉換成具體可驗證的論點清單,直接接到 §2 Related Work 對前人路線進行細部定位。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(720 words)</p>
+<p>§2.1 Unified World Action Modeling 把 lineage 講清楚:Policy model (VLA) 與 world model 一開始是兩條獨立路線,試圖橋接的工作大致分兩類,一邊是給 world model 加 inverse dynamics 或抽中介表示,使其能規劃 action;另一邊是給 VLA 加 future-prediction 輔助任務,以注入動態知覺。但作者認為這些方法只是「鬆耦合」並非真正的 unified。隨後 §2.1 點名近期把 video 與 action 同時放進單一架構去噪的代表作:UWM、Motus 把問題形式化為 unified world model;VideoVLA、Cosmos Policy 直接把 action token 串到 video sequence;另一系列 (Mixture of Transformer 類) 為每個 modality 用獨立參數與獨立 timestep;DreamZero、LingBot-VA、GigaWorld-Policy 則用 causal mask 與 KV cache 來壓低推論延遲。作者引述 survey 結論說 unified 路線比傳統 VLA 泛化更好,但隨即點出這條路線殘留的兩個關鍵問題:全部仍困於 2D pixel-space,以及 training 時的獨立 noise sampling 與 inference 的 asynchronous 行為之間有分布錯配。這兩點正是 §3.2 的 depth branch 與 §3.3 的 ANS 要回應的目標。</p>
+<p>§2.2 3D Modeling in Embodied Models 為 4D 那一面鋪設背景。作者先承認:因為 2D 資料豐富易得,主流 embodied model 都在 2D 空間做感知與預測,但這在需要空間理解或 OOD 泛化的任務上會遇到瓶頸。接下來作者把現有把 3D 注入 embodied model 的工作分兩條線:VLA 端,要嘛把 3D 特徵當預測或監督目標,要嘛直接以 3D 表示作輸入並原生於 3D 空間預測;world model 端,有些工作在 video generation 過程中加 3D 監督以強化 multi-view 一致性與空間推理 (Tesseract、FlowDreamer、EnerVerse、Robot4DGen 等),也有 ManiGaussian、GWM 等以 3D Gaussian Splatting 為核心建立純 3D 世界模型。作者強調當前開源 robot dataset 多為 2D video,因此既有 3D 方法常依賴預訓 feed-forward 重建模型 (DUSt3R、VGGT、Video Depth Anything、Depth Anything 3) 來提取空間監督,這正是本文 pretraining 階段的設計依據。</p>
+<p>§2 收尾的句子是整篇 Related Work 的承重論述:作者宣稱據其所知,沒有任何先前工作把「明確的空間資訊」注入「unified world action modeling 範式」,也沒有任何 unified model 同時扮演 high-fidelity video generator、3D 重建系統與高效 policy 三種角色。這一句把 §1 提出的四目標宣稱與 §3 即將鋪陳的兩個技術設計緊密扣連:depth branch 解決「unified 範式中沒有顯式 3D」問題,ANS 解決「unified 範式中 modality 不平衡」問題,而兩者合起來才是論文宣稱的學術新穎性所在。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1600 words)</p>
+<p>§3 開場以一句總攬式的承諾把四個目標 (video 生成、3D 空間重建、policy 成功率、action 執行效率) 與兩個核心設計 (lightweight depth adaptation、ANS) 連起來,並預告 §3.1 講整體架構、§3.4 講資料處理與訓練流程,把方法章節的章節結構交代得乾淨利索。</p>
+<p>§3.1 Model Architecture 先把 I/O 契約講清楚:輸入是語言指令 $c$、初始 proprioceptive state $s_0$、以及 multi-view 初始 RGB observation $O_0$;輸出是未來 RGB video $O_{1:H}$、depth video $D_{1:H}$、未來 state $s_{1:H}$、以及 action $a_{1:K}$。具體形狀:$H=8$ 個 video/state frame、$K=32$ 個 action,動作頻率刻意設成 video 的 4 倍,因為 action 需要更高控制頻率才能讓 robot 動作平順,而 video 與 state 用較低頻率即可滿足生成與 4D 重建需求。Backbone 從 Wan2.2-TI2V-5B fine-tune 而來;RGB 走 causal VAE,state 與 action 走可學的 MLP。三模態被拼接為單一 denoising sequence $Z = [z_{O_0}, z_{O_{1:H}}, z_{s_0}, z_{s_{1:H}}, z_{a_{1:K}}]$,並以 bidirectional full attention 處理,其中 $z_{O_0}$ 與 $z_{s_0}$ 整段流程被視為 clean ($t=0$)。Multi-view 透過為每個 viewpoint 加上可學的 view embedding 來區分,而不去動 pretrained 的 3D RoPE,以保留位置編碼的先驗。對於相機外參,作者刻意避開預測 camera extrinsics 或 ray map 的做法,而是利用機器手臂結構的幾何性質:靜態相機外參固定,腕部相機透過末端效應器姿態與固定 hand-eye calibration 矩陣相乘 ($T_{wrist} = T_{ee} \cdot T_{h2e}$) 即可推得,讓多視角融合於同一個 3D 座標。</p>
+<p>§3.2 Lightweight Depth Adaptation 給出 3D 注入挑戰的結構性答案。Depth map 先沿 channel 複製為 pseudo-RGB 三通道,再經同一 causal VAE 編碼,使其與 RGB 共享 latent manifold。關鍵架構選擇是:不沿 sequence 維度串接 (會讓 attention 成本翻倍),也不沿 channel 維度融合 (會偏離 pretrained 分布),而是把 DiT 的最後 $M$ 個 block 複製出來形成 interleaved 的 depth branch。共享前 $N-M$ 個 block 產生 hidden state $H$ 後,depth branch 與 main branch 都以 $H$ 為起點,depth branch 在每一層透過 unilateral cross-attention 從 main branch 的同層輸入讀取資訊,但 main branch 不受 depth token 影響。這種非對稱連接使 pretrained 權重的完整性嚴格保留,inference 時還能依需求關閉 depth branch 以節省 rollout 成本,並用 inverse depth 的 MSE loss 提供空間結構監督。</p>
+<p>§3.3 Asynchronous Noise Sampling 處理 modality 不平衡。Inference 階段:action 與 state 共用 $T_a$ 個 denoising step,video 用 $T_O &gt; T_a$ 個 step;雙方從純噪聲出發,各自以 $\frac{1}{T_a}$ 與 $\frac{1}{T_O}$ 的步長前進。$T_a$ 步後 action 已乾淨,可立即派發給機器人執行;接著 video 自行繼續剩下的 $T_O - T_a$ 個 step,此時 action 反而成為 conditioning,模型自動退化為 action-conditioned world model。Training 階段為了讓這個 schedule 在分布上有意義,作者拒絕讓 $t_O$ 與 $t_a$ 各自獨立 (這會出現 $t_O &lt; t_a$ 的 inference 永遠不會出現的配置),而是從 joint mixture 取樣:以機率 $p$ 取 action-conditioned 模式 $t_a=0,\ t_O \sim U(0,1)$;以機率 $1-p$ 取 $t_a \sim U(0,1)$ 並令 $t_O = t_a + (1-t_a)\cdot b$,其中 $b \sim \text{Beta}(1.5, 1)$,使 $t_O$ 偏向高噪聲端 (反映 video 需要更多 step 去噪的事實)。這個設計確保 training 分布完全包含 inference 會看到的所有 $(t_O, t_a)$ 組合。</p>
+<p>§3.4 Training Details 把 loss 與資料合在一起講。模型沿用 Wan2.2 的 flow matching 範式預測 velocity field,對每個 modality $m$ 寫成 $L_m = \|f^m_\theta(z_m^{t_m}, t_m) - (\epsilon_m - z_m^0)\|^2$,其中 $t_O$ 與 $t_a$ 由 ANS 取樣、$t_s = t_a$;depth branch 用 inverse depth 的直接 MSE 監督,總 loss 為 $L_{total} = L_O + \lambda_s L_s + \lambda_a L_a + \lambda_D L_{depth}$。資料端,作者在超過 5,800 小時的真機與模擬資料上 pretrain,並透過「dual-arm end-effector pose + gripper」的通用介面把異構 dataset 統一表示;單臂機器人視為左臂、右臂不監督。Inference 採 UniPC multistep scheduler,並為 video 與 state/action 各自維護獨立的 step size,完整實作 §3.3 的 asynchronous schedule。整段方法章節因此把 §1 承諾的四目標與 §2 點名的兩缺口逐一對應到具體機制,直接設定 §4 必須沿三條軸線同時驗證的實驗任務。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1100 words)</p>
+<p>§4 把實驗組織成三條互補軸線,精確對應 §1 的四目標宣稱:policy execution (§4.1)、4D reconstruction &amp; generation (§4.2)、以及同時觀察兩者的 ablation (§4.3),另把真機 earphone packing 推到 Appendix D。這個安排確保每個目標都有獨立的量化證據,而 ablation 又能驗證兩個技術槓桿是否真的各自必要。</p>
+<p>§4.1 Policy Evaluation 用兩個 manipulation benchmark。RoboCasa 共 24 個 kitchen task,VLA baseline 為 $\pi_0$ 與 GR00T-N1.5,WAM baseline 為 UWM、DreamZero、Cosmos Policy。RoboTwin 2.0 共 50 個 dual-arm 任務,有 Clean 與 Randomized 兩種設定 (後者隨機化 object pose、外觀與 distractor 以測穩健性);VLA baseline 為 $\pi_0$ 與 $\pi_{0.5}$,WAM baseline 為 UWM、GigaWorld-Policy、Motus。重要數字:RoboCasa 上 X-WAM 達 79.2% 平均 SR,比最強 baseline Cosmos Policy (67.1%) 高 12.1 個百分點;RoboTwin 2.0 上 Clean 89.8%、Randomized 90.7%,雙設定都超過先前 SOTA Motus (88.7% / 87.0%)。作者把這兩組數字解釋為「明確 3D 空間意識 + 大規模 pretraining」的綜合效果,直接呼應 §1 的兩個技術槓桿。</p>
+<p>§4.2 4D Reconstruction and Generation 把 X-WAM 作為 4D 生成器與 3D 重建系統來評估。作者在 RoboCasa 上執行 policy,把生成的 multi-view RGB-D 與模擬器渲染的 ground truth 對照,用三類 metric:visual fidelity (PSNR、SSIM、LPIPS)、depth 品質 (AbsRel、$\delta_1$)、以及點雲一致性 (Chamfer Distance)。Pixel-level metric 只在兩個 static camera 上計算,因為 wrist camera 會因 end-effector 預測誤差造成 pixel 對位偏差;而 CD 反而能間接驗證多視角一致性、static camera 外參估計、以及 wrist camera 的 proprioceptive 預測品質,因為它要求把各視角 depth lift 到同一 3D 座標再融合。Baseline 包含兩階段流水線 DreamZero + Depth Anything 3、幾何感知的 Robot4DGen,以及 ablation 變體 X-WAM-w/o-depth + DA3。X-WAM 在所有 metric 上勝出,例如比兩階段 baseline PSNR 高 2.34 dB,CD 由 0.0680 降到 0.0049;這證明了「end-to-end 聯合建模」明顯優於「先生 video 再 post-hoc 估深度」的拼接式做法,而把內建 depth branch 換成 DA3 雖能保留 RGB 品質但 depth 與點雲品質都退步,進一步證明 depth branch 在幾何一致性上比通用單目估計器更好。</p>
+<p>§4.3 Ablation Studies 為了控制成本,所有 ablation 變體都直接從 Wan2.2-TI2V-5B 在 benchmark 資料上 fine-tune,跳過大規模 pretraining;因此絕對 SR 偏低,但相對比較仍合理。第一組 ablation (depth 架構): no depth (63.0%、1033 ms)、sequence concatenation (品質最佳但 1888 ms,將近兩倍延遲)、channel concatenation (1266 ms、64.2%,因為偏離 pretrained manifold 損及 SR)、interleaved branch (67.8%、1033 ms,Pareto 最佳,因為 depth branch 在 action decoding 階段可關閉)。沒有 depth 監督讓 SR 從 67.8% 降到 63.0%,證實顯式空間建模不只對重建有利、對 policy 也有正向幫助。第二組 ablation (noise scheduling):synchronous train+infer 與 decoupled train + sync infer 都得付 4665 ms 延遲;decoupled train + async infer 雖 SR 競爭力可 (67.2%),但因 video 在「action 已乾淨」這個 training 從未見過的 regime 下繼續去噪,重建品質明顯惡化 (PSNR 降到 22.60、AbsRel 升到 0.0430);ANS train + async infer 在同一 1033 ms 延遲下既達最高 SR (67.8%) 也拿下最佳 depth metric。這個對照直接支持 §3.3 的核心論點:讓 training 分布忠實覆蓋 asynchronous inference regime 不是邊際 trick,而是同時維持 4.5× 速度提升、policy 品質與 4D 重建品質的關鍵,並把 §1 所宣稱的四目標統一可達性具體化為一張 Pareto 表。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(110 words)</p>
+<p>§5 是一段精簡的收束,它把整篇論文的「兩槓桿一願景」再敘述一次:X-WAM 把 unified world action modeling 從 2D pixel space 推進到能感知空間的 4D dynamics simulation,這呼應 §1 把過往 unified WAM 定位為「2D 受困者」的鋪陳。Lightweight depth adaptation 被歸功於兩件事,能在不增加 sequence length、不破壞 pretrained 視覺先驗的條件下取得高品質空間重建。Asynchronous Noise Sampling 則被歸功於對齊 training 與 inference 的 noise 分布,使 action 解碼能快速進行同時不犧牲 video 生成品質。實驗總結指向 RoboCasa 與 RoboTwin 2.0 兩個 benchmark,用「policy success rate 與 4D 重建品質都超越所有 baseline」來支持「單一框架可同時最佳化 policy 執行、視覺生成、空間重建」的核心宣稱。</p>
+<p>值得注意的是,本文 §5 並未獨立列出 Limitations 或 Future Work 段落:作者沒有在正文中討論失敗模式、計算上限或資料偏差,真實機器人部署、baseline 重現與設計選擇都被推到 Appendix。這是 arXiv 預印本常見的書寫策略,以宣告性語氣鞏固「one framework, four objectives, two designs」的 contribution narrative,把潛在的限制留給讀者從實驗細節自行推論 (例如 ablation 因算力限制省去大規模 pretraining、$T_a$ 與 $T_O$ 的步數選擇是經驗式而非推導、pretraining 階段 depth label 多倚賴 Video Depth Anything 偽標籤等)。Conclusion 的敘事任務因此是「在進入附錄前把貢獻綁緊」,而非「打開未來方向」。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(950 words)</p>
+<div class="card"><p>Introduction 把整個 embodied AI 領域切成兩個對立陣營:VLA policy model 雖能輸出馬達指令但缺乏實體世界的幾何直覺,World Model 能模擬未來但無法直接產生可執行 action。緊接著作者把近期的 unified world action model (UWM、Motus、VideoVLA、Cosmos Policy) 抬出來作為過渡型解法,但隨即指出這些模型仍有兩大缺陷:其一,全部停留在 2D pixel-space,因此會幻想出物理上不合理的未來、無法做幾何上忠實的 3D 重建;其二,把高維 video 與低維 action 同步去噪會造成效率與品質難以兼顧。X-WAM 因此被定位為「下一步」,把 unified WAM 從 2D pixel predictor 升級為 4D dynamics simulator,單一架構同時負責生成、重建、policy 執行與執行效率。</p></div>
+<div class="card"><p>接下來作者用兩個明確的「技術挑戰」鋪陳方法章節。第一個挑戰是:如何把 3D 感知注入模型而不破壞 pretrained 知識也不付出過大計算代價。把 depth 沿 sequence 維度 concatenate 會讓 attention 成本平方成長;沿 channel 維度 fuse 又會讓輸入分布偏離 pretrained manifold,使學習變難。作者提出的回應是 lightweight 結構性改動:把 DiT 的最後 $M$ 個 block 複製出來形成一個專屬的 depth 預測支路,主幹結構不動、pretrained weights 不被破壞,還能在不需要時關掉以節省成本。</p></div>
+<div class="card"><p>第二個挑戰是 modality 不對等:高保真 video 需要很多 denoising step,但低維 action 在極高 noise 下也能被準確還原,因此理應只需少量 step。作者順著這個直覺提出 Asynchronous Noise Sampling (ANS),inference 時 action 在最開始的少量 step 內就解碼完畢並立刻派發給 robot,後續 step 則繼續讓 video 達到高保真。為了讓這套 inference schedule 真正有效,training 階段必須避免讓 video 與 action 的 noise timestep 各自獨立取樣 (這會在 training 時看到 inference 永遠不會出現的 $t_O &lt; t_a$ 配置),而是改用 <em>joint</em> 分布耦合取樣,使 training 分布忠實對齊 inference 分布。這是把過往 decoupled approaches 的盲點直接點名並修補。</p></div>
+<div class="card"><p>最後作者把貢獻整理為三點:(i) X-WAM 這個 unified 4D WAM 連同其 lightweight depth 結構性改動;(ii) ANS 訓練/推論協同的 noise scheduling 機制;(iii) 在 RoboCasa、RoboTwin 2.0 與真機 earphone packing 上全面超越 baseline,並在 4D 重建的視覺與幾何指標上同樣領先。Introduction 因此順勢把 abstract 的「四目標、兩技術槓桿」承諾轉換成具體可驗證的論點清單,直接接到 §2 Related Work 對前人路線進行細部定位。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(720 words)</p>
+<div class="card"><p>§2.1 Unified World Action Modeling 把 lineage 講清楚:Policy model (VLA) 與 world model 一開始是兩條獨立路線,試圖橋接的工作大致分兩類,一邊是給 world model 加 inverse dynamics 或抽中介表示,使其能規劃 action;另一邊是給 VLA 加 future-prediction 輔助任務,以注入動態知覺。但作者認為這些方法只是「鬆耦合」並非真正的 unified。隨後 §2.1 點名近期把 video 與 action 同時放進單一架構去噪的代表作:UWM、Motus 把問題形式化為 unified world model;VideoVLA、Cosmos Policy 直接把 action token 串到 video sequence;另一系列 (Mixture of Transformer 類) 為每個 modality 用獨立參數與獨立 timestep;DreamZero、LingBot-VA、GigaWorld-Policy 則用 causal mask 與 KV cache 來壓低推論延遲。作者引述 survey 結論說 unified 路線比傳統 VLA 泛化更好,但隨即點出這條路線殘留的兩個關鍵問題:全部仍困於 2D pixel-space,以及 training 時的獨立 noise sampling 與 inference 的 asynchronous 行為之間有分布錯配。這兩點正是 §3.2 的 depth branch 與 §3.3 的 ANS 要回應的目標。</p></div>
+<div class="card"><p>§2.2 3D Modeling in Embodied Models 為 4D 那一面鋪設背景。作者先承認:因為 2D 資料豐富易得,主流 embodied model 都在 2D 空間做感知與預測,但這在需要空間理解或 OOD 泛化的任務上會遇到瓶頸。接下來作者把現有把 3D 注入 embodied model 的工作分兩條線:VLA 端,要嘛把 3D 特徵當預測或監督目標,要嘛直接以 3D 表示作輸入並原生於 3D 空間預測;world model 端,有些工作在 video generation 過程中加 3D 監督以強化 multi-view 一致性與空間推理 (Tesseract、FlowDreamer、EnerVerse、Robot4DGen 等),也有 ManiGaussian、GWM 等以 3D Gaussian Splatting 為核心建立純 3D 世界模型。作者強調當前開源 robot dataset 多為 2D video,因此既有 3D 方法常依賴預訓 feed-forward 重建模型 (DUSt3R、VGGT、Video Depth Anything、Depth Anything 3) 來提取空間監督,這正是本文 pretraining 階段的設計依據。</p></div>
+<div class="card"><p>§2 收尾的句子是整篇 Related Work 的承重論述:作者宣稱據其所知,沒有任何先前工作把「明確的空間資訊」注入「unified world action modeling 範式」,也沒有任何 unified model 同時扮演 high-fidelity video generator、3D 重建系統與高效 policy 三種角色。這一句把 §1 提出的四目標宣稱與 §3 即將鋪陳的兩個技術設計緊密扣連:depth branch 解決「unified 範式中沒有顯式 3D」問題,ANS 解決「unified 範式中 modality 不平衡」問題,而兩者合起來才是論文宣稱的學術新穎性所在。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>X-WAM is a single Diffusion Transformer (DiT) initialised from the pretrained text-image-to-video model Wan2.2-TI2V-5B that jointly denoises four heterogeneous streams: multi-view RGB videos $O_{1:H}$, multi-view inverse-depth videos $D_{1:H}$, proprioceptive states $s_{1:H}$, and robot actions $a_{1:K}$. Conditioning consists of a language instruction $c$, the initial multi-view RGB observation $O_0$, and the initial state $s_0$, both pinned with noise timestep $t=0$ throughout denoising. Concretely, $H=8$ future RGB frames and states are predicted at the video frame rate, while $K=32$ actions are produced at $K/H=4\times$ that rate to match control bandwidth. RGB frames pass through the original causal VAE encoder $\mathcal{E}$; states and actions are lifted into the same latent space by learnable MLPs (<code>MLPs</code>, <code>MLPa</code>); decoding back to physical space uses symmetric MLPs (<code>MLPdec_s</code>, <code>MLPdec_a</code>). The three modalities are concatenated into a unified sequence $Z = [z_{O_0}, z_{O_{1:H}}, z_{s_0}, z_{s_{1:H}}, z_{a_{1:K}}]$ and processed with bidirectional full attention. Multi-view compatibility is achieved by adding learnable view embeddings on top of the original 3D RoPE (so pretrained positional priors are preserved); states and actions reuse the temporal RoPE so the model can infer time alignment with video frames through positional proximity.</p>
+<p>The two core architectural contributions sit on top of this backbone. First, a <strong>lightweight depth adaptation</strong> module replicates the final $M$ blocks of the $N$-block DiT into a parallel depth branch. After the shared first $N-M$ blocks emit hidden states $H$, the main branch and depth branch are initialised with $Z_m^{(0)} = Z_D^{(0)} = H$ and run interleaved: $Z_D^{(j)} = \mathrm{DepthBlock}_j(Z_D^{(j-1)} \mid Z_m^{(j-1)})$ uses cross-attention to read the main branch&#x27;s hidden state at the same depth, while the main branch never reads from the depth branch (&quot;unilateral attention&quot;). This preserves pretrained weights, avoids doubling the sequence length (cf. token concatenation) and avoids channel-axis fusion that would shift the input distribution. The depth branch can be toggled off at inference, matching the no-depth latency. Second, <strong>Asynchronous Noise Sampling (ANS)</strong> aligns training and inference noise distributions: at inference, actions are decoded in $T_a$ steps and dispatched immediately while video continues for the remaining $T_O - T_a$ steps; during training, $(t_O, t_a)$ is drawn from a coupled joint distribution (Eq. 4) that enforces $t_O \geq t_a$, eliminating wasted training on configurations that never arise at test time. The Beta(1.5, 1) component biases video towards higher noise levels conditioned on the action level, faithfully matching the asynchronous inference regime.</p>
+<p>Training uses the flow-matching objective inherited from Wan2.2-5B: per modality $m \in \{O, s, a\}$ with timestep $t_m$, the velocity loss is $\mathcal{L}_m = \lVert f^m_\theta(z^{t_m}_m, t_m) - (\epsilon_m - z^0_m) \rVert^2$ where $t_s = t_a$ and $(t_O, t_a)$ comes from ANS; the depth branch adds an MSE inverse-depth regression loss $\mathcal{L}_{\text{depth}} = \lVert \hat{D} - D^* \rVert^2$. The total objective $\mathcal{L}_{\text{total}} = \mathcal{L}_O + \lambda_s \mathcal{L}_s + \lambda_a \mathcal{L}_a + \lambda_D \mathcal{L}_{\text{depth}}$ is optimised on over 5,800 hours of unified real-robot and simulation data, with separate UniPC schedulers per modality at inference to realise the $T_O / T_a$ split. End-effector poses $T_{ee} \in SE(3)$ are predicted directly and the wrist camera pose is derived deterministically as $T_{\text{wrist}} = T_{ee} \cdot T_{h2e}$ using the fixed hand-to-eye calibration matrix, removing the need for explicit camera-pose tokens.</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Inputs
+├─ Instruction c                                  [B, L_c, ?]
+├─ Initial state s_0                              [B, d_s]
+├─ Initial multi-view RGB O_0                     [B, V, 3, H_img, W_img]    (V=3 typical, H_img/W_img=?)
+├─ Noisy future RGB latents (denoised target)     [B, V, F, 3, H_img, W_img] (F=H=8 frames)
+├─ Noisy future states  (denoised target)         [B, H, d_s]                (H=8)
+└─ Noisy future actions (denoised target)         [B, K, d_a]                (K=32)
+
+Encoders
+├─ Causal VAE E:    O → z_O                       [B, V, F&#x27;, C_z, h, w]      (F&#x27;=temporal-compressed; C_z,h,w=?)
+├─ MLPs:           s → z_s                        [B, H, D]                  (D = DiT hidden dim, ?)
+└─ MLPa:           a → z_a                        [B, K, D]
+
+View / Position Embeddings
+└─ z_O += view_emb[v], z_O,s,a += 3D-RoPE         [shape unchanged]
+
+Token Concatenation                               (Eq. 1)
+   Z = [z_O0, z_O1:H, z_s0, z_s1:H, z_a1:K]       [B, L, D]
+   where L = V·(1+F&#x27;)·h·w + (1+H) + K
+
+Per-modality noise timesteps via ANS              (Eq. 4)
+   (t_O, t_a) ~ joint;  t_s = t_a                 [B,]; [B,]
+
+Diffusion Transformer (initialised from Wan2.2-TI2V-5B, N total blocks)
+  Shared Blocks × (N - M)                         [B, L, D]
+        │
+        ├─ Main Branch:                           [B, L, D]
+        │     DiTBlock_{N-M+j}, j=1..M
+        │     (bidirectional full attention)
+        │
+        └─ Depth Branch (interleaved, copied init)
+              DepthBlock_j attends to Z_m^{(j-1)} via cross-attention   [B, L_O, D]
+              (unilateral; main branch unchanged)
+
+Outputs (per-step velocity / depth)
+├─ Main branch heads
+│     ├─ ẑ_O    → VAE Decoder D̄ → Ô_{1:H}        [B, V, F, 3, H_img, W_img]
+│     ├─ ẑ_s    → MLPdec_s     → ŝ_{1:H}          [B, H, d_s]   (includes T_ee for wrist pose)
+│     └─ ẑ_a    → MLPdec_a     → â_{1:K}          [B, K, d_a]   (K=32; dispatched after T_a steps)
+│
+└─ Depth branch head
+      → VAE Decoder D̄ → D̂_{1:H} (inverse depth)   [B, V, F, 1, H_img, W_img]
+                                                  (3-replicated-channel pseudo-RGB; trained with MSE)
+
+Inference loop (ANS, Asynchronous):
+   for k = 1..T_a:    update z_a, z_s, z_O          (UniPC, coupled steps)
+   dispatch â_{1:K}   to robot                      (action-ready latency = T_a forward passes)
+   for k = T_a+1..T_O: update z_O only,
+                       depth branch optionally on   (action conditions video; no further action denoising)</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Multi-view RGB Encoder (Causal VAE)"><h2 class="slide-title">Method — 5.3.1 Multi-view RGB Encoder (Causal VAE)</h2><div class="card"><p><strong>Function:</strong> Encode each view&#x27;s RGB frames (and, for the depth branch, channel-replicated inverse-depth maps) into a shared latent grid using the original Wan2.2-TI2V-5B causal VAE, preserving the pretrained visual prior.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>O</code> (and <code>D</code> replicated to 3 channels for depth)</li><li>Shape: <code>[B, V, F_in, 3, H_img, W_img]</code> where <code>V</code> = number of views (typically 3: first-person, third-person, wrist), <code>F_in = 1 + H</code> for input plus future frames</li><li>Source: data loader / training noise injection on future frames</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>z_O</code> (and <code>z_D</code> for depth)</li><li>Shape: <code>[B, V, F&#x27;, C_z, h, w]</code> with <code>F&#x27;</code>, <code>C_z</code>, <code>h</code>, <code>w</code> from causal VAE downsampling (paper does not specify the exact factors used)</li><li>Consumer: token concatenation (§5.3.3)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Each viewpoint&#x27;s RGB stack is independently passed through the frozen causal VAE encoder <code>E</code>, producing per-view latent grids that are flattened into per-view token sequences. Depth maps $D$ are first replicated three times along the channel dimension to form a pseudo-RGB image and then encoded through the <em>same</em> <code>E</code>, ensuring the depth tokens occupy the same latent manifold as RGB and enabling direct supervision in latent space. Symmetric VAE decoders convert clean RGB latents back to images at inference; depth latents decode back to single-channel inverse-depth maps after channel averaging.</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$z_O = \mathcal{E}(O), \qquad z_D = \mathcal{E}(\mathrm{repeat}_3(D))$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>VAE weights are inherited from Wan2.2-TI2V-5B and (per the surrounding text in §3.1, §3.2) are not retrained. Exact spatial/temporal compression factors and latent channel count <code>C_z</code> are not specified in the paper text and should be read off the Wan2.2-5B reference [65].</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 State and Action MLP Projectors"><h2 class="slide-title">Method — 5.3.2 State and Action MLP Projectors</h2><div class="card"><p><strong>Function:</strong> Lift low-dimensional proprioceptive states and actions into the DiT hidden space so they can be denoised jointly with high-dimensional video latents in a single sequence; symmetric decoders project the cleaned latents back to physical units.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>s</code> (states), <code>a</code> (actions)</li><li>Shape: <code>s</code> = <code>[B, 1+H, d_s]</code>, <code>a</code> = <code>[B, K, d_a]</code> with <code>H = 8</code>, <code>K = 32</code>; <code>d_s</code>, <code>d_a</code> correspond to dual-arm end-effector pose + gripper (paper defines them but does not give the exact numeric width)</li><li>Source: dataset (clean for <code>s_0</code>; noise-injected for the remainder)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>z_s</code>, <code>z_a</code></li><li>Shape: <code>[B, 1+H, D]</code> and <code>[B, K, D]</code>, where <code>D</code> is the DiT hidden dim (Wan2.2-TI2V-5B; not stated explicitly in the paper)</li><li>Consumer: token concatenation (§5.3.3)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Both projectors are learnable MLPs that map <code>d_s</code> and <code>d_a</code> to <code>D</code> channels respectively, applied independently per timestep so each state/action becomes a single DiT token. The state token corresponding to $s_0$ is pinned with $t = 0$ and never noised; the remaining <code>H</code> state tokens share the action timestep $t_s = t_a$ during ANS training. After denoising, symmetric decoders <code>MLPdec_s</code> and <code>MLPdec_a</code> invert this mapping back to <code>d_s</code> and <code>d_a</code> respectively.</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ z_s = \mathrm{MLP}_s(s), \quad z_a = \mathrm{MLP}_a(a), \quad \hat{s} = \mathrm{MLP}_s^{\mathrm{dec}}(z_s), \quad \hat{a} = \mathrm{MLP}_a^{\mathrm{dec}}(z_a) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>For single-arm robots, the right-arm slots in <code>s</code> and <code>a</code> are filled but excluded from the loss (<code>s</code> and <code>a</code> follow a unified dual-arm interface — see §3.4). The exact MLP depth, width, and activation are not disclosed; states represent end-effector pose plus gripper, actions represent the corresponding pose deltas plus gripper changes.</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 Unified Token Sequence with Multi-view RoPE"><h2 class="slide-title">Method — 5.3.3 Unified Token Sequence with Multi-view RoPE</h2><div class="card"><p><strong>Function:</strong> Build the single denoising sequence over all three modalities and inject positional information that (a) preserves the pretrained 3D RoPE temporal/spatial axes for video, (b) distinguishes views without adding extra positional coordinates, and (c) lets state/action tokens align with video frames purely through positional proximity.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>z_O</code>, <code>z_s</code>, <code>z_a</code></li><li>Shape: as in §5.3.1 / §5.3.2</li><li>Source: encoders</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>Z</code></li><li>Shape: <code>[B, L, D]</code> with <code>L = V · (1 + F&#x27;) · h · w + (1 + H) + K</code></li><li>Consumer: shared DiT backbone (§5.3.4)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Per Eq. 1, the three modality token streams are concatenated along the sequence dimension. Each video token additionally has a learnable per-view embedding added so attention can disambiguate viewpoint without disturbing the 3D RoPE that the pretrained DiT relies on. State and action tokens are stamped with the same temporal RoPE used for video tokens along the time axis; actions are uniformly distributed across the same time span at $K/H = 4\times$ the video frame rate, so a given action token sits between two video-frame timestamps and the model can read its temporal location through standard rotary phase. The two clean tokens $z_{O_0}$ and $z_{s_0}$ are pinned with timestep $t = 0$ throughout denoising.</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$Z = [\,z_{O_0},\; z_{O_{1:H}},\; z_{s_0},\; z_{s_{1:H}},\; z_{a_{1:K}}\,]$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Attention over <code>Z</code> is bidirectional full attention (no causal mask). The depth branch is built from the <em>same</em> token layout but only attends over the video-token subsequence (length <code>L_O = V · (1 + F&#x27;) · h · w</code>); state and action tokens are not part of the depth branch&#x27;s input.</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Shared DiT Backbone (first $N - M$ blocks)"><h2 class="slide-title">Method — 5.3.4 Shared DiT Backbone (first $N - M$ blocks)</h2><div class="card"><p><strong>Function:</strong> Process the unified multi-modal sequence through the unmodified pretrained DiT layers, producing a hidden representation that simultaneously seeds the main denoising branch and the depth branch.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>Z</code></li><li>Shape: <code>[B, L, D]</code></li><li>Source: §5.3.3</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>H</code> (shared hidden state at depth <code>N - M</code>)</li><li>Shape: <code>[B, L, D]</code></li><li>Consumer: main branch (§5.3.5) and depth branch (§5.3.6) — both are initialised with this same tensor</li></ul>
+<p><strong>Processing:</strong></p>
+<p>The first <code>N - M</code> DiT blocks of Wan2.2-TI2V-5B run unchanged (full bidirectional attention, original adaLN modulation by the modality-specific timesteps <code>(t_O, t_a, t_s)</code>). Because no parameters are added or split in this stack, the pretrained generative prior is fully preserved. The output <code>H</code> is then <em>copied</em> to seed two branches: $Z_m^{(0)} = Z_D^{(0)} = H$.</p>
+<p><strong>Key Formulas:</strong></p>
+<p>There is no new equation here; the block stack is the standard Wan2.2-TI2V-5B DiT, modulated per token by its assigned modality timestep.</p>
+<p><strong>Implementation Details:</strong></p>
+<p>The total block count <code>N</code> of Wan2.2-TI2V-5B is not stated in the paper; <code>M</code> (the number of replicated blocks) is described as &quot;the final few&quot; and ablations use a single setting (the actual integer is not disclosed). When the depth branch is toggled off at inference, computation in this stack is unchanged.</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Main Denoising Branch (final $M$ blocks)"><h2 class="slide-title">Method — 5.3.5 Main Denoising Branch (final $M$ blocks)</h2><div class="card"><p><strong>Function:</strong> Predict the flow-matching velocity field $v = \epsilon - z^0$ for the three &quot;policy-relevant&quot; modalities (RGB, state, action), conditioned on the per-modality timesteps drawn by ANS.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>Z_m^{(0)} = H</code>, plus timesteps <code>(t_O, t_a, t_s = t_a)</code></li><li>Shape: <code>[B, L, D]</code></li><li>Source: §5.3.4</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: predicted velocities $\hat{v}_O$, $\hat{v}_s$, $\hat{v}_a$ extracted from the corresponding token slices</li><li>Shape: same as input slices ($[B, V \cdot (1+F&#x27;) \cdot h \cdot w, D]$, $[B, 1+H, D]$, $[B, K, D]$)</li><li>Consumer: per-modality velocity loss (<code>L_O</code>, <code>L_s</code>, <code>L_a</code>) and, at inference, the UniPC scheduler that integrates $\hat{v}_m$ into cleaner latents</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Each of the $M$ blocks is a copy of the corresponding pretrained DiT block (initialised, then fine-tuned). At layer $j \in \{1, \ldots, M\}$, the main branch updates as $Z_m^{(j)} = \mathrm{DiTBlock}_{N-M+j}(Z_m^{(j-1)})$, i.e. it does <em>not</em> read from the depth branch — this is the strict half of the unilateral attention. After the final block, output heads slice the sequence by modality and emit velocity predictions.</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \mathcal{L}_m = \bigl\lVert f^m_\theta(z^{t_m}_m, t_m) - (\epsilon_m - z^0_m) \bigr\rVert^2, \quad m \in \{O, s, a\} $$</p>
+<p>(Eq. 5; with $t_O$, $t_a$ from ANS Eq. 4 and $t_s = t_a$.)</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Loss weights are $\lambda_s$, $\lambda_a$, $\lambda_D$ (Eq. 6); the paper does not state their numeric values. Inference uses the UniPC multistep scheduler recommended by Wan2.2 (Eq. is not given) with separate scheduler instances and step sizes for video ($T_O$) and state/action ($T_a$): $T_O = 25$, $T_a = 5$ in the ablation study, giving a $4.5\times$ action-latency speedup vs. fully synchronous denoising (1033 ms vs. 4665 ms on a single RTX 3090).</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Depth Adaptation Branch (interleaved $M$ blocks, unilateral cross-attention)"><h2 class="slide-title">Method — 5.3.6 Depth Adaptation Branch (interleaved $M$ blocks, unilateral cross-attention)</h2><div class="card"><p><strong>Function:</strong> Reconstruct per-view inverse depth from the shared hidden state without lengthening the denoising sequence and without back-influencing the pretrained main branch, so depth supervision can sharpen 3D awareness while remaining toggleable at inference.</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>Z_D^{(0)} = H</code> (video-token slice only) and, at each layer, <code>Z_m^{(j-1)}</code> from §5.3.5</li><li>Shape: <code>[B, L_O, D]</code> with <code>L_O = V · (1 + F&#x27;) · h · w</code></li><li>Source: shared backbone (§5.3.4) for the seed; main branch (§5.3.5) for cross-attention keys/values at every layer</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat{D}$ (inverse-depth latents → decoded inverse-depth maps via the symmetric VAE decoder)</li><li>Shape: <code>[B, V, F, 1, H_img, W_img]</code> after decoding</li><li>Consumer: depth MSE loss at training, optional 4D point-cloud fusion at inference (with end-effector pose <code>T_ee</code> for wrist cameras via $T_{\text{wrist}} = T_{ee} \cdot T_{h2e}$)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>The $M$ depth blocks are replicated from the pretrained DiT&#x27;s final blocks at initialisation. At each layer $j$, the depth block executes cross-attention with the <em>same-layer</em> main-branch hidden state as keys/values, while the main branch is updated independently:</p>
+<p>$$ Z^{(j)}_D = \mathrm{DepthBlock}_j\bigl(Z^{(j-1)}_D \mid Z^{(j-1)}_m\bigr), \qquad Z^{(j)}_m = \mathrm{DiTBlock}_{N-M+j}\bigl(Z^{(j-1)}_m\bigr) $$</p>
+<p>(Eq. 3, &quot;interleaved&quot; execution). Because attention only flows main → depth and never back, the pretrained main-branch weights are bit-for-bit preserved during fine-tuning of the depth branch (this is the formal definition of &quot;unilateral attention&quot; in the paper). The detailed single-step procedure is laid out in Algorithm 1 (Appendix A).</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\mathcal{L}_{\mathrm{depth}} = \bigl\lVert \hat{D} - D^* \bigr\rVert^2$</p>
+<p>where $D^*$ is the ground-truth inverse depth. Inverse-depth MSE follows established monocular depth estimation models such as Depth Anything 3.</p>
+<p><strong>Implementation Details:</strong></p>
+<p>The depth branch is only required during training (and at inference when 3D reconstruction is desired). Toggling it off matches the no-depth latency of 1033 ms in Table 4(a). Channel concatenation and sequence concatenation alternatives were ablated and shown to be either slower (sequence: 1888 ms, $\sim 2\times$ latency) or worse for the policy (channel: SR 64.2% vs. 67.8% for the interleaved branch), validating this design.</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>AgibotWorld-Beta</td><td>Real-robot manipulation</td><td>866,562 episodes / 2,221.5 h</td><td>Pretraining</td></tr><tr><td>DROID</td><td>Real-robot in-the-wild manipulation</td><td>74,734 episodes / 280.3 h</td><td>Pretraining (stationary frames filtered)</td></tr><tr><td>InternA1-Aloha</td><td>Simulated bimanual manipulation</td><td>184,803 episodes / 1,337.3 h</td><td>Pretraining</td></tr><tr><td>InternA1-Genie1</td><td>Simulated manipulation</td><td>50,638 episodes / 174.0 h</td><td>Pretraining</td></tr><tr><td>InternA1-Lift2</td><td>Simulated manipulation</td><td>231,018 episodes / 1,464.7 h</td><td>Pretraining</td></tr><tr><td>RoboCasa MimicGen</td><td>Simulated kitchen manipulation (24 tasks)</td><td>56,771 episodes / 282.4 h</td><td>Pretraining + benchmark fine-tuning + test (100 episodes/task)</td></tr><tr><td>RoboTwin 2.0</td><td>Simulated dual-arm manipulation (50 tasks, AgileX)</td><td>27,500 episodes / 113.7 h</td><td>Pretraining + benchmark fine-tuning (50 clean + 500 randomized trajectories per task) + test (Clean / Randomized, 100 episodes/task)</td></tr><tr><td>Earphone packing (AC One dual-arm)</td><td>Real-world long-horizon bimanual packing</td><td>~20 h of demonstrations</td><td>Real-robot fine-tuning + test (6 trials × 6 settings)</td></tr></tbody></table>
+<p>Notes: depth maps for pretraining videos are extracted by Video Depth Anything since most datasets lack depth annotations; videos are downsampled to 3.75 FPS at 320×256 (Appendix B.1)。</p></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Average Success Rate (SR, %)</td><td>Closed-loop task success averaged over 100 episodes per task on RoboCasa (24 tasks) and RoboTwin 2.0 (50 tasks, Clean / Randomized)</td><td>yes</td></tr><tr><td>PSNR ↑</td><td>Peak signal-to-noise ratio between predicted and ground-truth RGB on the two static cameras</td><td>no</td></tr><tr><td>SSIM ↑</td><td>Structural similarity on static-camera RGB</td><td>no</td></tr><tr><td>LPIPS ↓</td><td>Perceptual distance on static-camera RGB</td><td>no</td></tr><tr><td>AbsRel ↓</td><td>Absolute relative error of predicted per-pixel depth (single-view geometry quality)</td><td>no</td></tr><tr><td>$\delta_1$ ↑</td><td>Threshold accuracy for depth (fraction of pixels with $\max(d/d^<em>, d^</em>/d) &lt; 1.25$)</td><td>no</td></tr><tr><td>Chamfer Distance (CD) ↓</td><td>Distance between fused multi-view point clouds and ground truth; jointly evaluates depth quality, camera-extrinsic estimation for static cameras, and end-effector-pose prediction for wrist cameras</td><td>yes</td></tr><tr><td>Action latency (ms) ↓</td><td>Wall-clock time to produce one action chunk, measured on a single NVIDIA RTX 3090 GPU (ablation table)</td><td>yes (efficiency claim)</td></tr><tr><td>Progress (%)</td><td>Stage-weighted progress on the 4-stage real-world earphone packing task (each stage = 25%)</td><td>yes (real-robot claim)</td></tr><tr><td>Completion time (s) ↓</td><td>Mean wall-clock time, averaged only over episodes reaching 100% progress</td><td>no</td></tr></tbody></table>
+<p>Pixel-level RGB and depth metrics are computed only on the two static cameras; wrist-camera quality is assessed via CD and qualitative results due to pixel misalignment from end-effector pose error。</p></div>
+              <div class="card"><h3>Settings</h3><ul><li><strong>Backbone</strong>: fine-tuned from the pretrained video DiT Wan2.2-TI2V-5B; flow-matching objective with velocity prediction.</li><li><strong>Architecture configuration</strong>: $N$ DiT blocks total with the final $M = 10$ blocks replicated as the depth branch; prediction horizons $H = 8$ for video/state and $K = 32$ for actions ($K/H = 4\times$ video frame rate); ANS action-conditioned probability $p = 0.5$; loss weights $\lambda_s = \lambda_a = \lambda_D = 1.0$ (Appendix B.2)。</li><li><strong>Pretraining</strong>: 256 NVIDIA H20 GPUs, per-GPU batch size 8 (global batch 2,048), AdamW with peak LR $1\times 10^{-4}$, 1,000-step linear warmup then cosine decay to 0, 40,000 training steps (Appendix B.2)。</li><li><strong>Benchmark fine-tuning</strong> (RoboCasa / RoboTwin 2.0): 32 NVIDIA H20 GPUs, per-GPU batch size 4 (global batch 128), LR $3\times 10^{-5}$, same warmup/cosine schedule, 20,000 steps. Ground-truth depth obtained by replaying official demos in the simulator with non-overlapping seeds (Appendix B.2)。</li><li><strong>Real-robot fine-tuning</strong> (earphone packing): 64 NVIDIA H20 GPUs, per-GPU batch size 4, 40,000 steps; control frequency 15 Hz with 15-action (1 s) chunks and an RTC inference delay of 6 actions (Appendix D)。</li><li><strong>Inference</strong>: UniPC multistep scheduler with separate instances for video and state/action; benchmark setting uses $T_a = 10$ action steps and $T_O = 50$ video steps; classifier-free guidance scale $1.0$. Real-robot deployment uses asynchronous denoising with 8 steps on an RTX 5090 D, ~300 ms per action chunk, plus Real-Time Chunking (RTC) to overlap denoising with execution (Appendix B.2, D)。</li><li><strong>Ablation training</strong>: due to compute, all ablation variants are fine-tuned directly from Wan2.2-TI2V-5B without large-scale pretraining; same data, hyperparameters, and schedule across variants; latency measured on a single RTX 3090 GPU (Section 4.3)。</li><li><strong>Random seeds / variance</strong>: the paper does not specify multiple seeds or report standard deviations; each task uses 100 evaluation episodes per benchmark protocol。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>RoboCasa (24 tasks, average SR %):</p>
+<table><thead><tr><th>Method</th><th>Avg SR (%)</th><th>Notes</th></tr></thead><tbody><tr><td>$\pi_0$</td><td>62.5</td><td>VLA baseline</td></tr><tr><td>GR00T-N1.5</td><td>64.1</td><td>VLA baseline</td></tr><tr><td>UWM</td><td>60.8</td><td>2D unified WAM</td></tr><tr><td>DreamZero</td><td>62.4</td><td>WAM with KV-cache</td></tr><tr><td>Cosmos Policy</td><td>67.1</td><td>Strongest prior WAM baseline</td></tr><tr><td><strong>X-WAM (Ours)</strong></td><td><strong>79.2</strong></td><td><strong>+12.1 pp over Cosmos Policy</strong></td></tr></tbody></table>
+<p>RoboTwin 2.0 (50 tasks, average SR %):</p>
+<table><thead><tr><th>Method</th><th>Clean</th><th>Randomized</th><th>Notes</th></tr></thead><tbody><tr><td>$\pi_0$</td><td>65.9</td><td>58.4</td><td>VLA</td></tr><tr><td>$\pi_{0.5}$</td><td>82.7</td><td>76.8</td><td>VLA</td></tr><tr><td>UWM</td><td>81.7</td><td>78.6</td><td>2D unified WAM</td></tr><tr><td>GigaWorld-Policy</td><td>87.0</td><td>85.0</td><td>WAM</td></tr><tr><td>Motus</td><td>88.7</td><td>87.0</td><td>Prior best WAM</td></tr><tr><td><strong>X-WAM (Ours)</strong></td><td><strong>89.8</strong></td><td><strong>90.7</strong></td><td><strong>Best on both protocols</strong></td></tr></tbody></table>
+<p>4D reconstruction and generation on RoboCasa (Table 3):</p>
+<table><thead><tr><th>Method</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>AbsRel ↓</th><th>$\delta_1$ ↑</th><th>CD ↓</th></tr></thead><tbody><tr><td>DreamZero + DA3</td><td>21.12</td><td>0.7788</td><td>0.1580</td><td>0.1362</td><td>0.8594</td><td>0.0680</td></tr><tr><td>Robot4DGen</td><td>22.67</td><td>0.8207</td><td>0.1026</td><td>0.0736</td><td>0.9443</td><td>0.0134</td></tr><tr><td>X-WAM w/o depth + DA3</td><td>23.09</td><td>0.8916</td><td>0.0548</td><td>0.1045</td><td>0.9089</td><td>0.0401</td></tr><tr><td><strong>X-WAM (Ours)</strong></td><td><strong>23.46</strong></td><td><strong>0.8942</strong></td><td><strong>0.0513</strong></td><td><strong>0.0349</strong></td><td><strong>0.9738</strong></td><td><strong>0.0049</strong></td></tr></tbody></table>
+<p>Real-world earphone packing (Appendix D, Table 8): X-WAM beats XR-0 on packing 2 earphones (93.8% vs 79.1% progress), packing 3 earphones (68.0% vs 63.9%), novel placements (70.8% vs 58.3%), and unseen distractors (75.0% vs 66.7%); ties on unseen tablecloth (66.7%) and single earphone (100%); consistently faster completion times across all settings. $\pi_{0.5}$ trained with the same data failed to complete a single episode and is omitted。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>All ablations run on RoboCasa without large-scale pretraining (Table 4)。</p>
+<p><strong>(a) Depth architecture design</strong> — diagnostic of the lightweight depth-adaptation claim:</p>
+<ul><li><em>No depth</em>: SR drops from 67.8% → 63.0% (−4.8 pp); reconstruction columns become N/A. Confirms depth supervision is essential, not decorative。</li><li><em>Sequence concatenation</em>: best raw quality (PSNR 23.60, CD 0.0037) but action latency nearly doubles (1033 → 1888 ms). Quantifies the cost the interleaved branch is designed to avoid。</li><li><em>Channel concatenation</em>: worse SR (64.2%) and modest latency overhead (1266 ms), supporting the claim that channel fusion shifts the input off the pretrained manifold。</li><li><em>Interleaved branch (ours)</em>: matches no-depth latency (1033 ms) while delivering SR 67.8% and second-best quality across most metrics. Trade-off claim is supported; this is a well-targeted ablation。</li></ul>
+<p><strong>(b) Noise scheduling strategy</strong> — diagnostic of ANS:</p>
+<ul><li><em>Sync train + Sync infer</em>: SR 66.4%, latency 4665 ms (4.5× slower). Establishes the no-async upper-bound on quality and the latency cost of synchrony。</li><li><em>Decoupled train + Sync infer</em>: SR 66.3%, RGB and depth degrade vs Sync-Sync, showing decoupled training without async inference is strictly worse — a useful diagnostic, not a sanity check。</li><li><em>Decoupled train + Async infer</em>: matches ours&#x27; 1033 ms latency but PSNR drops to 22.60 and AbsRel rises to 0.0430, isolating the train/test distribution mismatch ANS targets。</li><li><em>ANS train + Async infer (ours)</em>: best SR (67.8%), best AbsRel (0.0349), latency tied with the fast async variants. The 2×2 design directly attributes gains to coupled sampling rather than just async inference。</li></ul>
+<p><strong>Assessment</strong>: both ablation tables are diagnostic — each row isolates one design choice (depth-injection mechanism; train×infer scheduling) against a metric the paper claims to improve. Missing diagnostics: no sweep over $M$ (depth-block count), no sweep over $T_a / T_O$ or the ANS probability $p$, and no analysis of the Beta(1.5, 1) prior choice。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline — Cosmos Policy on RoboCasa and Motus / GigaWorld-Policy / $\pi_{0.5}$ on RoboTwin 2.0 are the most recent published WAM/VLA baselines (Tables 1, 2)。</li><li>[covered] Has cross-task / cross-dataset evaluation — RoboCasa (24 kitchen tasks), RoboTwin 2.0 Clean and Randomized (50 dual-arm tasks), plus a real-world earphone-packing platform。</li><li>[covered] Has ablations that diagnose the new components — Table 4(a) isolates depth-injection design and Table 4(b) uses a 2×2 train/infer scheduling grid that directly attributes gains to coupled sampling rather than async inference alone。</li><li>[missing] Has a scaling study — no sweep over backbone size, depth-block count $M$, action/video step counts $(T_a, T_O)$, dataset size, or pretraining hours; the 5,800 h pretraining is reported as a single point。</li><li>[covered] Has an efficiency / wall-clock comparison — action latency reported for all four depth variants and four scheduling variants on a single RTX 3090 (Table 4); real-robot completion times reported in Table 8; per-action-chunk latency (~300 ms) and RTC overlap reported in Appendix D。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — only mean SR over 100 episodes per task is reported; no standard deviations, confidence intervals, or multi-seed runs。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — a project page (https://sharinka0715.github.io/X-WAM/) is linked and Appendix B documents hyperparameters, but the paper itself does not state that code, weights, or fine-tuning data will be released; reliance on internal datasets (InternA1 family, AC One platform, earphone-packing data) further constrains exact reproduction。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>模型只處理固定長度的 observation context、不支援歷史條件或 autoregressive rollout,缺乏 DreamZero 等方法的 KV-cache 長時序機制,作者承認這在 long-horizon 任務中可能導致無法消歧任務階段 (Section E, p.21)。</li><li>統一模型同時生成高維影片與低維動作的代價是推論延遲偏高:每個 action chunk 約 300 ms (含 8 步去雜訊),作者明確承認這比專用 VLA 與 Fast-WAM 等輕量 WAM 慢,需依賴 Real-Time Chunking [75] 重疊計算與執行才能即時部署 (Section E, p.21)。</li><li>部分基線並非在相同管線重跑,而是直接引用其他論文的數字 (π0、GR00T-N1.5、UWM、Cosmos Policy 來自 [11];π0、π0.5 在 RoboTwin 2.0 來自 [8];Motus 與 GigaWorld-Policy 來自原論文),作者僅在「pretraining data parity」段落 (Appendix B.3, p.18) 承認此事但未量化其對公平性的影響。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li><strong>預訓練深度標註全部來自 Video Depth Anything</strong>:Section B.1 (p.16) 明示「since most pretraining datasets lack depth annotations, we extract depth maps from all training videos using Video Depth Anything」,意即所有「3D 監督訊號」實質上是另一個 2D→深度 feed-forward 模型的偽標籤,因此 X-WAM 的幾何上限被 VDA 鎖死,所謂「explicit 3D awareness」其實是對 VDA 的蒸餾。</li><li><strong>消融實驗完全未使用 5,874 小時預訓練</strong>:Section 4.3 (p.9) 明寫「all ablation variants are fine-tuned directly from the Wan2.2-TI2V-5B weights on the benchmark data without the large-scale pretraining stage」,因此消融組成功率僅 ~67%,離主表 79.2% 相差 12pp,讀者無法判斷 ANS / depth branch / Wan2.2 base 在 79.2% 中各佔多少貢獻。</li><li><strong>RoboCasa 主表的 +12.1pp 增幅疑似混入資料規模優勢</strong>:Appendix B.3 (p.18) 自承僅 DreamZero 與 X-WAM 同樣以通用影片模型微調,但 X-WAM 多了 5,874 小時機器人資料,而 Table 1 的 Cosmos Policy 僅 67.1%、UWM 僅 60.8% 的對比並未在同等預訓練資料下重跑。</li><li><strong>Beta(1.5, 1) 與 $p=0.5$ 等 ANS 超參缺乏敏感度分析</strong>:Eq. 4 (p.6) 直接給定 $b \sim \mathrm{Beta}(1.5, 1)$ 與 action-conditioned 機率 $p=0.5$ (Appendix B.2, p.17),但全文無任何 ablation 說明若改成 $\mathrm{Beta}(2,1)$、$\mathrm{Beta}(1,1)$ 或不同 $p$ 是否會破壞結論,使核心方法的 robustness 無從驗證。</li><li><strong>PSNR/SSIM/LPIPS/AbsRel/$\delta_1$ 全部排除腕部動態相機</strong>:Section 4.2 (p.8) 自承「pixel-level metrics ... computed only on the two static cameras ... as the wrist camera suffers from pixel misalignment」,而腕部相機正是 manipulation 任務最關鍵的視角,把它從像素指標排除等於迴避了該方法在最重要視角上的真實品質。</li><li><strong>CD 的多視角融合誤差會掩蓋 $T_{ee}$ 預測誤差</strong>:由於 $T_{wrist} = T_{ee} \cdot T_{h2e}$ (Eq. 2),腕部點雲的整體位置完全依賴預測的 end-effector 姿態,但 X-WAM 並未報告 $T_{ee}$ 自身的位姿誤差 (mm/deg),只報告下游 CD 0.0049,讀者無法判斷低 CD 是真的點雲 alignment 好還是被 fusion 平均掉。</li><li><strong>真機實驗每設定僅 6 試次</strong>:Appendix D Table 8 (p.21) 的 progress 數字背後是 6 次 episode (single-earphone 為每色 2 次),導致 70.8% vs 58.3%、75.0% vs 66.7% 等差距分母太小,無法支持「X-WAM 在 generalization 上更強」的強斷言。</li><li><strong>π0.5 在真機任務「全部失敗」的單一比較</strong>:Appendix D (p.18) 報告 π0.5 在作者自家 openpi 訓練流程下「failed to complete a single full earphone packing episode」,然後僅以 XR-0 為對比基線,但 π0.5 在 RoboTwin 2.0 (Table 2) 卻達到 82.7%/76.8% 的高分,真機失敗極可能源自作者再實作的訓練設定而非方法本身,該對比不應作為支持證據。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: Lightweight depth adaptation 將 4D 感知注入 unified WAM,而不增加序列長度也不破壞預訓練先驗 — 部分支撐</strong>。Table 4a (p.9) 顯示 interleaved branch 與 no-depth 同為 1033 ms 並全面優於 channel concat,確實避免序列爆炸;但所有深度監督訊號來自 VDA 偽標籤 (Section B.1),所以「保留預訓練先驗」屬實,「真正幾何監督」則被高估。</li><li><strong>C2: ANS 透過聯合分佈耦合取樣對齊訓練/推論,提升動作解碼速度與影片生成品質 — 支撐</strong>。Table 4b (p.9) 展示 4.5× 加速 (4665 → 1033 ms),且 Decoupled-Async 雖能加速但 PSNR 從 23.48 掉到 22.60,而 ANS 同時保住 23.46 PSNR 與最高 67.8% SR,實證對齊分佈能修復異步推論的品質塌陷。</li><li><strong>C3: 單一框架可同時最佳化 policy execution、video generation、spatial reconstruction — 部分支撐</strong>。Table 1/2/3 同時呈現 SR、PSNR、CD 三類指標皆領先,但 Table 3 的指標僅在靜態相機計算且深度 GT 來自 VDA,因此「同時最佳化」成立於該指標定義下,對腕部視角的真實重建品質仍是黑盒。</li><li><strong>C4: RoboCasa 79.2%、RoboTwin 2.0 89.8%/90.7%,持續超越所有基線 — 過度宣稱 (數字屬實但歸因模糊)</strong>。數字本身正確,但 Appendix B.3 自承僅 DreamZero 與 X-WAM 共享「無機器人預訓練的 video model 起點」這條件,且 ablation 完全跳過大規模預訓練,故無法區分增幅來自方法 vs. 5,874 小時資料規模。</li><li><strong>C5: 真實雙臂耳機包裝任務驗證 4D 感知帶來實際操作優勢 — 弱支撐</strong>。Table 8 數字趨勢一致 (X-WAM 全部設定 ≥ XR-0),但每設定僅 6 trials、π0.5 對比因作者再實作失敗而被排除,樣本量與基線選擇均不足以支持強因果歸因。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>幾何上限被 Video Depth Anything 鎖住</strong>。整個 4D 模組的訓練監督來自 VDA 跑出的偽深度 (Appendix B.1, p.16),意即 X-WAM 學到的「3D 結構」實質上是 VDA 的單目深度先驗,無法超越 VDA 的尺度與精度。在物體高度遮擋、反射、透明等 VDA 失效的場景,X-WAM 必然繼承這些失敗模式,且因為架構強制要求深度分支 regress VDA 輸出,即使日後拿到真實 RGB-D 資料也需要重新校準損失尺度。</p>
+<p><strong>ANS 的時程偏置是一個固定的 hand-crafted prior</strong>。$\mathrm{Beta}(1.5, 1)$ 與機率 $p=0.5$ 是寫死的設計選擇 (Eq. 4, p.6),其依據是「video 通常需要更多 denoising 步數」這一經驗觀察,但分佈參數本身與任務、模態維度、scheduler (UniPC) 的耦合並未理論化也未做超參掃描。換句話說,ANS 在當前形式下是一個對特定 $T_O=50, T_a=10$ 設定校準過的訓練 trick,而非一個能自動依模態維度調整的原則性框架。</p>
+<p><strong>Unilateral attention 的設計使深度分支對推論時動作解碼完全無因果貢獻</strong>。由於 depth branch 只 read main branch 而不寫回 (Eq. 3, p.6),且 action latency 與 no-depth 變體完全相同 (Table 4a 1033 ms = 1033 ms),意味著推論時動作是由純 RGB 主分支生成的;深度的所有「對策略的好處」必須透過訓練時的梯度流動實現。這是一個合理的工程妥協,但也意味著這個「4D 模型」在推論時其實是個 2D 模型加上選配的離線深度估計器,與「unified 4D dynamics simulator」的命名敘事存在落差。</p>
+<p><strong>像素級重建指標排除腕部相機,而腕部相機正是 manipulation 任務最重要的視角</strong>。Section 4.2 (p.8) 把 PSNR/SSIM/LPIPS/AbsRel/$\delta_1$ 限制在前視與第三人稱兩個靜態相機,理由是腕部視角因 $T_{ee}$ 預測誤差導致 pixel misalignment,但 manipulation 動作的精準度恰好取決於腕部視角的 sub-cm 對齊。在當前架構下,這個限制無法用更大規模訓練解決,因為它源自於用 $T_{wrist} = T_{ee} \cdot T_{h2e}$ 推導腕部位姿的設計選擇。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[19] UWM (Zhu et al., 2025)</strong>:X-WAM 的直接前作與主對標目標,理解 unified WAM 的去雜訊耦合動機必讀。</li><li><strong>[20] Motus (Bi et al., 2025)</strong>:採用 decoupled 取樣的 unified latent action world model,X-WAM 的 ANS 動機正是為了修正其訓練/推論失配,直接展現方法差距。</li><li><strong>[64] Depth Anything 3 (Lin et al., 2025)</strong>:X-WAM 的偽深度標籤來源,也是 Table 3 的 baseline 元件,是評估 X-WAM 幾何能力上限的基準。</li><li><strong>[65] Wan2.2-TI2V-5B (Wan Team, 2025)</strong>:X-WAM 的 base model,5B 預訓練影片擴散模型的容量決定了多少視覺先驗能被 inherit。</li><li><strong>[75] Real-Time Chunking (Black et al., 2025)</strong>:讓 X-WAM 的 300 ms 延遲在實機上可用的關鍵推論技巧;若無 RTC,X-WAM 的真機部署論點難以成立。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 若把 X-WAM 與 UWM、Motus、Cosmos Policy 全部在同一份 5,874 小時預訓練資料上重跑,Table 1/2 的 12.1pp / 3.7pp 優勢還剩多少?目前數字無法區分「方法增益」與「資料規模增益」。</li><li>[ ] 把 VDA 偽深度換成 RoboCasa/RoboTwin 模擬器渲染的 GT depth (兩個 benchmark 都能取得真深度),X-WAM 的 AbsRel 會改善還是因 distribution shift 反而退化?這直接決定 4D 宣稱的真實性。</li><li>[ ] $\mathrm{Beta}(1.5, 1)$ 與 $p=0.5$ 的選擇有多脆弱?若改成 $\mathrm{Beta}(1, 1)$ (uniform 但 $t_O \geq t_a$ 截斷) 或不同 $p \in \{0.1, 0.3, 0.7\}$,Table 4b 的趨勢是否仍成立?</li><li>[ ] 在腕部相機加入「對齊容忍」的 SSIM/PSNR 變體 (例如允許 $\pm 5$ 像素 shift),X-WAM 與 baseline 的差距是擴大還是縮小?目前的指標排除使腕部視角的真實品質完全無法評估。</li><li>[ ] 若直接報告預測的 $T_{ee}$ 平移/旋轉誤差 (mm/deg),CD 0.0049 對應的 end-effector 位姿誤差是多少?低 CD 是來自準確的 $T_{ee}$ 還是來自 fusion 過程的平均?</li><li>[ ] 把 $M$ (replicated depth blocks 數量) 從 10 掃到 $\{2, 5, 10, 15, 20\}$,policy SR 與 depth quality 各自飽和點在哪?目前 $M=10$ 的選擇缺乏依據。</li><li>[ ] 為何 π0.5 在作者的 openpi pipeline 下完全無法完成耳機包裝、卻在 RoboTwin 2.0 (Table 2) 達到 82.7%?是訓練資料量、超參、還是任務特性差異?在沒搞清楚之前,Table 8 不應視為 X-WAM 對 π0.5 的優勢證據。</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>同等預訓練資料下重跑 UWM 與 Motus</strong> (高可行)。直接複製 Section B.1 的資料管線跑兩個基線各一輪,即可量化「方法 vs. 資料」的增益分解。這是回應 Phyra-inferred 第三點的最低成本實驗,也是讓 79.2% 主結論可信的最直接做法。</li><li><strong>加入「VDA 偽標籤 vs. 模擬器 GT depth」的對照組</strong> (高可行)。RoboCasa 與 RoboTwin 2.0 都能輸出真深度 (作者也用 replay 取得 fine-tune GT,Appendix B.2),只需在 ablation 多跑一個變體即可揭示 X-WAM 的幾何能力是否被 VDA 鎖住,直接回答 §7.2 的核心限制。</li><li><strong>報告腕部相機在「pose-aligned」前提下的像素指標</strong> (中可行)。先以預測 $T_{ee}$ 對齊到 GT $T_{ee}$,再計算 PSNR/LPIPS,可分離 pose 誤差與紋理誤差,讓 manipulation 最關鍵的視角不再從評估中缺席。</li><li><strong>在 ANS 上做超參掃描並報告分佈敏感度</strong> (中可行)。掃 $\mathrm{Beta}(\alpha, 1)$ 的 $\alpha \in \{1, 1.5, 2, 3\}$ 與 $p \in \{0.25, 0.5, 0.75\}$,把 Table 4b 升級成 heatmap,可把 ANS 從「one specific schedule」升級成「a family of schedules」並顯示其穩定性。</li><li><strong>將深度分支改成 bilateral attention 並比較</strong> (中可行)。當前 unilateral 設計使推論時 RGB 不從 depth 受益,可試做一個輕量的 depth→main 反向 cross-attn 通道 (僅在訓練後期啟動),驗證「真正讓動作受益於 explicit 3D」是否能再進一步提升 SR。</li><li><strong>以 KV-cache 與 history conditioning 擴展 long context</strong> (低可行,但作者已在 Section E 點名為 future work)。沿用 DreamZero 的 causal mask + KV cache 方案,可在不破壞 ANS 的前提下處理 long-horizon 任務,直接回應作者承認的第一個限制。</li><li><strong>加大真機 trial 數至每設定 ≥ 30 並重訓 π0.5</strong> (低可行,需大量人力)。把 Table 8 的 6 trials 提升到統計可靠的水準,並用 π0.5 官方權重 + 公開微調流程重跑,可讓真機部分從敘事性證據變成可信的對照實驗。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(110 words)</p>
+<div class="card"><p>§5 是一段精簡的收束,它把整篇論文的「兩槓桿一願景」再敘述一次:X-WAM 把 unified world action modeling 從 2D pixel space 推進到能感知空間的 4D dynamics simulation,這呼應 §1 把過往 unified WAM 定位為「2D 受困者」的鋪陳。Lightweight depth adaptation 被歸功於兩件事,能在不增加 sequence length、不破壞 pretrained 視覺先驗的條件下取得高品質空間重建。Asynchronous Noise Sampling 則被歸功於對齊 training 與 inference 的 noise 分布,使 action 解碼能快速進行同時不犧牲 video 生成品質。實驗總結指向 RoboCasa 與 RoboTwin 2.0 兩個 benchmark,用「policy success rate 與 4D 重建品質都超越所有 baseline」來支持「單一框架可同時最佳化 policy 執行、視覺生成、空間重建」的核心宣稱。</p></div>
+<div class="card"><p>值得注意的是,本文 §5 並未獨立列出 Limitations 或 Future Work 段落:作者沒有在正文中討論失敗模式、計算上限或資料偏差,真實機器人部署、baseline 重現與設計選擇都被推到 Appendix。這是 arXiv 預印本常見的書寫策略,以宣告性語氣鞏固「one framework, four objectives, two designs」的 contribution narrative,把潛在的限制留給讀者從實驗細節自行推論 (例如 ablation 因算力限制省去大規模 pretraining、$T_a$ 與 $T_O$ 的步數選擇是經驗式而非推導、pretraining 階段 depth label 多倚賴 Video Depth Anything 偽標籤等)。Conclusion 的敘事任務因此是「在進入附錄前把貢獻綁緊」,而非「打開未來方向」。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

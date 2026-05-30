@@ -1,0 +1,504 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WORLDMEM: Long-term Consistent World Simulation with Memory</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">WORLDMEM: Long-term Consistent World Simulation with Memory</h1>
+          <p class="cover-meta">Zeqi Xiao, Yushi Lan, Yifan Zhou, Wenqi Ouyang, Shuai Yang, Yanhong Zeng, Xingang Pan</p>
+          <p class="cover-meta">2504.12369 · NeurIPS 2025 · 2026-01-01</p>
+          <div class="cover-tagline"><p>本研究聚焦於互動式世界模擬(interactive world simulation)中的長期一致性問題。現有以 video diffusion 為核心的世界模型受限於固定大小的 temporal context window,無法回顧較早生成的內容,導致當鏡頭離開後再回到同一場景時,生成結果與先前畫面不一致,尤其破壞 3D 空間一致性。作者提出 WORLDMEM,在 Conditional DiT 與 Diffusion Forcing 基礎上引入 token-level 的 memory bank 與 state-aware memory attention,將過往生成 frame 連同其 pose 與 timestamp 作為 memory unit 儲存,再依 FOV 重疊與時間距離擷取相關記憶,並以 Plücker pose embedding 與 sinusoidal time embedding 作為 query/key 的狀態提示。整體框架同時支援靜態場景的精確重建與動態世界(如時間流逝、物件擺放與生長)的演化推理,並在 Minecraft 與 RealEstate10K 上驗證其長期一致性與互動能力。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本研究聚焦於互動式世界模擬(interactive world simulation)中的長期一致性問題。現有以 video diffusion 為核心的世界模型受限於固定大小的 temporal context window,無法回顧較早生成的內容,導致當鏡頭離開後再回到同一場景時,生成結果與先前畫面不一致,尤其破壞 3D 空間一致性。作者提出 WORLDMEM,在 Conditional DiT 與 Diffusion Forcing 基礎上引入 token-level 的 memory bank 與 state-aware memory attention,將過往生成 frame 連同其 pose 與 timestamp 作為 memory unit 儲存,再依 FOV 重疊與時間距離擷取相關記憶,並以 Plücker pose embedding 與 sinusoidal time embedding 作為 query/key 的狀態提示。整體框架同時支援靜態場景的精確重建與動態世界(如時間流逝、物件擺放與生長)的演化推理,並在 Minecraft 與 RealEstate10K 上驗證其長期一致性與互動能力。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者指出長期世界模擬之所以無法保持一致,根本原因在於 video diffusion 的 temporal context window 為固定且有限,超出視窗的歷史內容會被直接丟棄,使模型在鏡頭回到舊場景時必須重新「想像」內容,造成 3D 空間不一致。處理此問題的兩條既有路線各有缺陷:explicit 3D/4D 重建固然能保留幾何,但對動態與大型未界定場景缺乏彈性,且難以容納持續演化的世界;而 geometric-free 的 implicit 方法(如將歷史壓進 LoRA、固定 token 表徵或對特定地圖過擬合)則犧牲視覺保真度與可擴展性。作者由此推論:正確的解法應是 geometry-free 但 token-level 的外部記憶,只在需要時擷取一小部分相關歷史,以兼顧細節保留與可擴展性。然而僅靠視覺 token 進行 cross-attention 仍不足以跨越大幅度的視角與時間落差,因此必須為每個 memory unit 附加 state(pose 與 timestamp)作為顯式的時空錨點,讓 attention 能進行 spatiotemporal reasoning。基於此,他們設計了 (1) memory bank 搭配以 FOV overlap 與時間差為 confidence 的 greedy retrieval、(2) Plücker pose 與 sinusoidal time 組成的 state embedding,以及 (3) 將 query 視為 zero reference、key 採相對狀態的 state-aware memory attention。如此一來,模型既能在大時空跨度下精準重建舊場景,又能將時間戳納入條件以建模世界的動態演化,使「長期一致性」與「動態互動」在同一個 geometry-free 框架中同時被解決,這正是其方法在邏輯上之所以必要的原因。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>提出 token-level memory bank,將過往 frame 連同 pose 與 timestamp 以 latent token 形式儲存,並透過以 FOV overlap 與時間距離為 confidence 的 greedy retrieval 擷取相關記憶,使長期一致性問題首次以 geometry-free 的方式被系統化處理 (p.2 §1, p.5 Alg.1)。</li><li>在 Minecraft 的 within-context-window 評估中,WORLDMEM 取得 PSNR 25.98 / LPIPS 0.0072 / rFID 13.73,優於 Diffusion Forcing 基線 (PSNR 24.11) 與 Full Sequence 基線 (PSNR 20.14) (Table 1, p.7)。</li><li>在 beyond-context-window (生成 100 frames、初始化 600-frame memory bank) 設定中,WORLDMEM 取得 PSNR 23.98 / LPIPS 0.1429 / rFID 15.37,相較 DF 的 PSNR 17.32 / LPIPS 0.4376 / rFID 51.28 為大幅提升 (Table 1, p.7)。</li><li>在 RealEstate10K 的 loop-closure 軌跡 (37–60 frames,超過所有基線最大 25 frame 訓練長度) 上達 PSNR 23.34 / LPIPS 0.1672 / rFID 43.14,優於 Viewcrafter 的 21.72 / 0.1729 / 58.43 與 DFoT 的 16.42 / 0.2933 / 110.34 (Table 4, p.8)。</li><li>將 query frame 視為 zero reference、key frame 採相對 state 的 relative state 設計,相較 absolute encoding 將 rFID 由 29.34 降至 15.37、LPIPS 由 0.1830 降至 0.1429,並在 300 frame 後仍維持穩定 (Table 2 + Figure 7, p.7, p.10)。</li><li>Plücker dense pose embedding 相較 sparse pose embedding 使 PSNR 由 20.67 提升至 23.63、rFID 由 39.23 降至 29.34,顯示密集幾何表徵對 cross-frame reasoning 的關鍵性 (Table 2, p.7)。</li><li>Progressive sampling (先小範圍後大範圍) 顯著優於 small-range 與 large-range 的單一策略,將 PSNR 由 19.23–21.11 提升至 23.98、rFID 由 42.96–46.55 降至 15.37,證實課程式訓練對 memory reasoning 是必要的 (Table 5, p.9)。</li><li>透過將 timestamp 作為 state 一部分,模型可在「在同一位置不同時間」的記憶單元中正確區辨並反映世界演化 (如 hay 持續存在、wheat 生長、雪被融化),Time condition 帶來 PSNR 23.17 → 25.12、rFID 23.89 → 16.53 的提升 (Table 6 + Figures 1, 3, 8, p.2, p.6, p.10)。</li><li>Memory bank 儲存成本低 (600 tokens 約 21 MB)、retrieval latency 在 1000 candidates 下僅 0.16s (約佔總 inference 時間 10–20%),顯示此設計在規模上具實用性 (p.15)。</li><li>Memory retrieval 的 confidence + similarity filter 相較 random sampling,將 PSNR 由 18.32 提升至 23.98、rFID 由 47.35 降至 15.37,表明 retrieval 策略本身是性能主導因素 (Table 3, p.7)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(175 words)</p>
+<p>標題 &quot;WORLDMEM: Long-term Consistent World Simulation with Memory&quot; 直接點出三個核心概念：world simulation、long-term consistency、以及作為解法手段的 memory。Abstract 採取「問題 → 觀察 → 方法 → 能力延伸 → 驗證」的五段式論述。</p>
+<p>第一句先建立 world simulation 的應用價值（建模虛擬環境並預測動作後果）；第二句立即收斂到本文要攻擊的痛點：limited temporal context window 會破壞 long-term consistency，尤其是 3D spatial consistency。這個對比把問題鎖定在「記憶超出 context window 之後就遺失」，而非生成品質本身。</p>
+<p>第三、四句正式提出 WORLDMEM：核心是一個 memory bank，內部由 memory units 組成，每個 unit 同時儲存 memory frames 與其對應 states (poses, timestamps)。緊接著說明條件機制是 state-aware memory attention，依 state 從 memory frames 抽取相關資訊，從而能在大幅 viewpoint 或時間差距下重建先前場景。</p>
+<p>第五句把貢獻從靜態場景延伸到動態世界：透過把 timestamp 編碼入 state，框架可同時刻劃靜態世界與其隨時間演化的過程，使 simulator 同時具備 perception 與 interaction 能力。最末以 &quot;extensive experiments in both virtual and real scenarios&quot; 為效力背書，並附上 project page。</p>
+<p>整段 abstract 已隱含論文的論證鏈：context window 受限 → 用 external memory 解決 → memory 必須是 state-aware 才能跨 viewpoint/time 推理 → 進而能模擬動態世界，為後續 §1 Introduction 進一步展開奠定動機與技術定位。</p>
+<h3>3.2 Introduction</h3>
+<p>(920 words)</p>
+<p>Introduction 採「動機 → 困境 → 設計觀點 → 具體解法 → 結果與貢獻」五段佈局，逐步把讀者推向作者的設計選擇。</p>
+<p>第一段先建立 world simulation 的價值：video diffusion 帶動了高保真的 future rollout，使 world simulator 對 autonomous navigation 與 game engine 替代等應用具備可行性。這一段是「為什麼值得關心」的話術。</p>
+<p>第二段把鏡頭拉到 fundamental challenge：limited probing horizon。因為計算與顯存限制，video generative models 只能在固定 context window 內條件化過去畫面，導致歷史內容被丟棄、世界一致性破裂。Figure 1(a) 提供視覺證據：相機離開後再回望，內容已偏離原貌。這段確立了問題不是品質而是 consistency。</p>
+<p>第三段提出「natural solution = external memory」，但隨即指出 formulating this memory 並不平凡。3D 顯式重建雖直觀，卻在 dynamic、unbounded 環境下不靈活、易掉細節。這一段的功能是排除最直觀的對手（geometry-based），把讀者引向 geometry-free。</p>
+<p>第四段討論 geometry-free 方向自身的兩難：LoRA 等隱式表徵壓縮但失真，而 discrete tokens 受固定 token 數限制無法描繪複雜環境。作者的關鍵 observation 是：對下一刻生成而言，只有少量歷史內容真正相關。基於此他們提出 token-level memory bank，全量保留 latent tokens、但每步僅檢索一小部分。這段把「記什麼、怎麼記」清楚定義。</p>
+<p>第五段轉向「條件化」這一面：long-term world simulation 與既有用 memory 做 temporal smoothness 或 semantic coherence 的工作不同，需在大時空 gap 下精確重建。為此提出 state-aware design：每個 memory unit 額外攜帶 spatial location、viewpoint、timestamp 等 state cues，並進入 attention 的 query/key 計算，使模型能跨 viewpoint 與 time 對齊。同時強調這仍是 standard attention，可順著硬體與模型容量擴展。</p>
+<p>第六段把上述觀點具體化為架構：WORLDMEM 建立在 CDiT 與 Diffusion Forcing 之上，autoregressively 生成第一人稱視角；核心是 memory bank + memory attention，前者由 confidence-based selection 依 FOV overlap 與 temporal proximity 評分；後者讓被生成的 latent tokens 作 query、memory tokens 作 key/value，並在 query/key 雙端注入 state-aware embedding。引入 relative embedding 進一步降低 spatial-temporal 推理難度。</p>
+<p>最後一段總結結果：在 Minecraft (MineDojo) benchmark 與 RealEstate10K 上驗證，前者含 plains、savannas、deserts 等多地貌與 movement、viewpoint、event triggers 多模 action。實驗顯示 WORLDMEM 顯著提升 3D spatial consistency，能在大 viewpoint 變化下 robust reasoning，並在動態環境中追蹤 evolving events，例如放置物件後仍持續存在、雪因火光而融化。最後以「希望 scalable design 啟發後續 memory-based world simulation 研究」作為 invitation。</p>
+<p>整體 Introduction 形成嚴密的「為什麼用 memory、為什麼是 token-level、為什麼要 state-aware」逐層收斂的論證，為 §3 Method 的 memory bank、retrieval、state-aware attention 模組鋪好概念地基。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(820 words)</p>
+<p>§2 Related Work 與 §3.1 Preliminary 共同負責「對手地圖 + 技術前置條件」兩件事。</p>
+<p>Related Work 分三節。第一節 Video diffusion model 把領域演進從 U-Net 架構推進到 Transformer 架構，再到 autoregressive video generation，並特別點名 Diffusion Forcing：它以 per-frame noise level 取代 full-sequence 一致 noise level，使 autoregressive 生成在訓練 horizon 之外仍穩定。這段不只是綜述，而是替後面選 DF 作 backbone 的決策建立合法性。</p>
+<p>第二節 Interactive world simulation 把 world model 的脈絡從 Ha &amp; Schmidhuber 的 agent learning 延伸到視覺世界模擬，列舉 Oasis、Genie、GameFactory 等作品。重點是最後一句的批評：這些方法 due to context window limitations 會丟棄歷史、產生 3D 不一致，這把作者要解的問題正式釘在領域共同痛點上。</p>
+<p>第三節 Consistent world simulation 是真正的對手分析，分為 geometric-based 與 geometric-free 兩派。Geometric-based 顯式重建 3D/4D，雖能維持一致但「重建後就難以修改與互動」，與 dynamic interactive 訴求衝突。Geometric-free 一派又分兩種：Alonso、Valevski 等靠 overfit 特定地圖（CS:GO/DOOM）犧牲 scalability；StreamingT2V 用 global+local visual context 延續一致性、SlowFastGen 用 progressive LoRA 做 memory recall，但都依賴 abstract 表徵、無法精確重建。作者用「依 frame 與 state 直接檢索」的設計與兩派區隔，論點是「既不犧牲 flexibility 也不犧牲 fidelity」。</p>
+<p>Preliminary (§3.1) 鋪兩個技術前提。第一是 standard video diffusion，所有 frame 共用同一 noise level $k$，公式 $p_\theta(x^{k-1}_t | x^k_t) = \mathcal{N}(x^{k-1}_t; \mu_\theta(x^k_t, k), \sigma^2_k I)$；它能做 global guidance 但對長度與 autoregressive 不友善。第二是 Diffusion Forcing 的 per-frame noise level $k_t$：</p>
+<p>$$p_\theta(x^{k_t-1}_t | x^{k_t}_t) = \mathcal{N}(x^{k_t-1}_t; \mu_\theta(x^{k_t}_t, k_t), \sigma^2_{k_t} I)$$</p>
+<p>這個公式的關鍵是 noise level 可逐 frame 不同，從而 autoregressive 變成「只有最後幾 frame 為 noisy」的特例。這正是 §3 後面把 memory frames 設為最低 noise $k_{\min}$、把當前生成 frame 設為 $k_{\max}$ 的理論依據。</p>
+<p>整節 §2 + §3.1 一起完成兩件事：(1) 把 WORLDMEM 與所有「忘掉過去 / 顯式 3D / abstract memory」對手畫出邊界，凸顯 token-level + state-aware 的獨特位置；(2) 把 DF 設為 backbone 並交代 noise level 機制，使後續 §3.4 的 memory 注入 (memory frame 設 $k_{\min}$、context frame 取 $[k_{\min}, k_{\max}]$ 隨機、生成 frame 取 $k_{\max}$) 可以無縫接上。讀完此節讀者應同時理解「對手是誰」與「我這套模型運作在哪個機制下」。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(950 words)</p>
+<p>§3 Method 採三層遞進：先給 baseline simulator (§3.2)，再講記憶如何儲存與檢索 (§3.3)，最後講記憶如何條件化生成 (§3.4)。</p>
+<p>§3.2 Interactive World Simulation 先把不含 memory 的版本講清楚。模型是條件 DiT，每個 block 由 spatial 與 temporal 模組組成，temporal 模組採 causal attention 確保每 frame 只 attend 到先前 frame；訓練/推論採用 Diffusion Forcing。Action 透過 MLP 投到 embedding 空間，與 denoising timestep embedding 相加後以 AdaLN 注入 temporal block。Minecraft 的 action space 為 25 維，含 movement、view adjustment、event trigger。這段最後以「context window 受限會在長期生成時忘記過去」作為轉折，把記憶機制的必要性釘下。</p>
+<p>§3.3 Memory Representation and Retrieval 提出 memory bank：$\{(x^m_i, p_i, t_i)\}^N_{i=1}$，其中 $x^m_i$ 為 token-level memory frame（已被 visual encoder 壓縮但保留重建細節），$p_i \in \mathbb{R}^5$ 含 $(x, y, z, \text{pitch}, \text{yaw})$，$t_i$ 是 timestamp。Retrieval 採 greedy matching：對每個 candidate 同時計算 FOV overlap ratio $o$ 與 timestamp difference $d$，組成 confidence $\alpha = o \cdot w_o - d \cdot w_t$；再以 similarity threshold $t_r$ 過濾冗餘 memory unit，最終選出 $L_M$ 個進入 conditioning。Algorithm 1 即此流程。作者強調此策略雖簡單，但即使檢索略有瑕疵，模型內部的 reasoning 仍能補救。</p>
+<p>§3.4 State-aware Memory Condition 是論文最具創意的部分。動機與既有 memory 工作明確切割：別人用 memory 做 temporal smoothness 或 semantic coherence，作者要的是在大 viewpoint 與 scene change 下「精確重建」過去畫面，因此單靠 visual token 不夠，要把 state 當作 reasoning 的 anchor。</p>
+<p>具體機制分兩塊：State Embedding 將 5D pose 透過 Plücker embedding 升維為 $\mathrm{PE}(p) \in \mathbb{R}^{h \times w \times 6}$ 的 dense 位置特徵；timestamp 經 sinusoidal embedding 後過 MLP，最終 $E = G_p(\mathrm{PE}(p)) + G_t(\mathrm{SE}(t))$。State-aware Memory Attention 把 query 與 key 各自加上對應 state embedding 後再投影：$\tilde X_q = X_q + E_q$、$\tilde X_k = X_k + E_k$，再以 cross-attention 取出更新值</p>
+<p>$X&#x27; = \mathrm{CrossAttn}(Q = p_q(\tilde X_q), K = p_k(\tilde X_k), V = p_v(X_k))$</p>
+<p>關鍵設計是 relative state formulation：query frame 的 state 設為零參考（pose 重置為 identity、timestamp 為零），memory frame 的 state 改為「相對於 query」的相對值。這降低學習空間維度，使 viewpoint 偏移時 alignment 更穩定。</p>
+<p>最後 Method 處理「memory 如何進入 pipeline」。訓練時 memory frame 給最低 noise $k_{\min}$、context window frame 從 $[k_{\min}, k_{\max}]$ 隨機抽 noise level；推論時 memory 與 context 都給 $k_{\min}$、僅當前生成 frame 給 $k_{\max}$。為了讓 memory 影響只發生在 memory block 中，作者設計 temporal attention mask：memory 區段 ($i \le L_M$) 只能 attend 到自己 ($j = i$)，window 內 frame ($i &gt; L_M$) 維持 causal attention，其他位置遮罩。這同時保證因果性、又防止 memory unit 互相干擾。</p>
+<p>整段 Method 形成「base simulator → 記什麼/怎麼撈 → 怎麼讓記憶條件化 attention → 怎麼塞入 noise schedule」完整鏈條，每一步都對應後續 §4 的對應 ablation。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1620 words)</p>
+<p>§4 Experiments 分兩主軸：generation benchmark 比較 (§4.1) 與 ablation (§4.2)，並由實驗設定段先把資料、指標、超參打底。</p>
+<p>實驗設定階段，作者使用 MineDojo 客製化 Minecraft 環境（plains、savannas、ice plains、deserts 等多地貌與 25 維 action），並加上 RealEstate10K 真實場景。指標採 PSNR、LPIPS、rFID 三件組以同時量測 pixel fidelity、perceptual similarity、整體 realism。Minecraft 上以 Oasis 為 base model、640×360 解析度、VAE 編碼至 32×18 再 patchify 至 16×9，採 8-frame context + 8-frame memory，4 GPU 約 500K steps，相似度門檻 $t_r = 0.9$、$w_o = 1$、$w_t = 0.2/t_c$、$k_{\min}=15$、$k_{\max}=1000$。RealEstate10K 上以 DFoT 為 base、256×256、約 50K steps。</p>
+<p>§4.1 比較分兩類 setting。Within context window：context = 16、memory = 8，自訂 motion (turn left then right、move forward then backward) 用以測 self-contained consistency，把「同一位置先後生成的 frame」作為 ground truth。表 1 顯示 full-sequence baseline 即使在自身 context 內也不一致；DF 因 per-frame noise 改善資訊交流而提升；WORLDMEM 進一步取得最佳 PSNR/LPIPS/rFID，證明加入專屬 memory 機制即便短期亦有益。</p>
+<p>Beyond context window 是本論文真正想證明的場景：context = 8、memory = 8、memory bank 預載 600 frame，再生成 100 future frame 並與 ground truth 對齊。Full-sequence 無法 rollout 此長度故被排除；DF 的 PSNR/LPIPS 大幅劣化，且 rFID 也下降，表示偏離 ground truth 並伴隨品質崩壞；WORLDMEM 在三個指標上全面領先（Figure 5 對比可視化）。Figure 3 進一步展示兩個故事：上排在 600 frame memory 條件下生成 100 future frame，仍能對齊 GT 動作與位姿，呈現 rain 等動態；下排展示動態世界互動，例如沙漠 hay 與草原小麥不僅不消失，小麥還隨 timestamp 視覺化「成長」，把 dynamic perception 的能力具體化。</p>
+<p>RealEstate10K 比較中，作者設計 5 條 loop trajectory（首尾位姿相同、長度 37–60 frame，超過所有 baseline 訓練長度 25），對 100 個場景做 closure 一致性測試。CameraCtrl、TrajAttn、DFoT 因丟棄歷史而出現 loop closure 不一致，Viewcrafter 使用顯式 3D 重建表現較好但受限於 reconstruction/rendering 後處理誤差；WORLDMEM 在 PSNR/LPIPS/rFID 三項俱優（表 4）。作者誠實指出 RealEstate 為短、非互動 clip，無法完全發揮 WORLDMEM 潛力，留作未來工作。</p>
+<p>§4.2 Ablation 圍繞四個設計問題。其一是 embedding 設計：sparse pose+absolute、dense pose (Plücker)+absolute、dense pose+relative 三組 (表 2)。Plücker dense embedding 顯著優於 sparse，relative 又進一步提升 LPIPS 與 rFID；Figure 7 顯示 absolute 在 100 frame 後即累積誤差，relative 即使超過 300 frame 仍穩定。</p>
+<p>其二是訓練 sampling 策略 (表 5)：small-range (2m)、large-range (8m)、progressive (先 small 後 large)。Progressive 大幅勝出，凸顯「先學近距離、再擴展遠距離」這種 curriculum 對 memory reasoning 有效。</p>
+<p>其三是 time condition (表 6)：作者收集 100 個含 placing event 的影片，無 timestamp 時模型無法區分同位置不同時間的 memory unit，造成錯誤；加入 timestamp 後 PSNR、LPIPS 均顯著改善。Figure 8 展示同一位置不同時間的 hay 場景，無 time 時模型混淆，有 time 時可正確跟上世界更新。</p>
+<p>其四是 memory retrieval 策略 (表 3)：random sampling 表現最差且 rFID 暴跌，加入 confidence filter 大幅改善，再加 similarity filter 進一步提升所有指標，證明「相關性」與「不冗餘」缺一不可。</p>
+<p>附錄 §7 還補充 memory context length（8 為最佳，1/4 不足、16 引入雜訊）、pose prediction（用輕量 module 從 last image+last pose+next action 預測下一 pose，不需 ground truth pose 仍可運作，僅些微下降）、memory bank 規模 (600 token 約 21MB)、retrieval latency (1000 candidates 仍只佔總推論 10–20%)、訓練/推論成本 (memory 模組增加 51 GB 訓練顯存、推論僅多 2 GB) 與 Monte Carlo FOV overlap 計算細節。整節實驗從「短期一致 → 長期一致 → 真實場景 → 內部設計拆解 → 工程可行性」逐步驗證 WORLDMEM 的設計每個元件都必要、且 scalable。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(220 words)</p>
+<p>§5 Limitations and Future Works 與 §6 Conclusion 共同收尾，但作者刻意把 limitation 放在 conclusion 之前，使最終印象停在貢獻與展望。</p>
+<p>Limitations 提出三點誠實的不足。第一，他們無法保證從 memory bank 一定能撈回所有必要資訊；當視野被障礙物遮擋時，僅靠 FOV overlap 作為 confidence 並不足夠，這指向未來需要 occlusion-aware 或語意引導的 retrieval。第二，現有 environment interaction 多樣性與真實感仍有限，主要限於 Minecraft 的離散 event；未來計畫擴展到 real-world 場景與更豐富的 interaction modality。第三，memory 設計仍是 linearly increasing memory usage，極長序列下會撞到顯存上限，這暗示後續可探索 memory compression、hierarchical memory 或 memory eviction 機制。</p>
+<p>Conclusion 重申論文要點：WORLDMEM 透過 memory bank（過去 frame 與 state）與 state-aware memory attention，解決長期 world simulation 的 consistency 問題，能在大 viewpoint 與 time gap 下精確重建場景，且能模擬世界的動態演化（如 plant growth、light melting snow）。virtual 與 real setting 的實驗證明其 robust、immersive simulation 能力。最後一句把姿態擺向社群：希望本工作激勵後續 memory-based world simulator 的設計與應用研究，而非把問題視為已解決。</p>
+<p>整體尾聲呼應 Abstract 與 Introduction 的承諾，但用 limitation 預先框出後續 follow-up paper 可以接手的明確方向。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(920 words)</p>
+<div class="card"><p>Introduction 採「動機 → 困境 → 設計觀點 → 具體解法 → 結果與貢獻」五段佈局，逐步把讀者推向作者的設計選擇。</p></div>
+<div class="card"><p>第一段先建立 world simulation 的價值：video diffusion 帶動了高保真的 future rollout，使 world simulator 對 autonomous navigation 與 game engine 替代等應用具備可行性。這一段是「為什麼值得關心」的話術。</p></div>
+<div class="card"><p>第二段把鏡頭拉到 fundamental challenge：limited probing horizon。因為計算與顯存限制，video generative models 只能在固定 context window 內條件化過去畫面，導致歷史內容被丟棄、世界一致性破裂。Figure 1(a) 提供視覺證據：相機離開後再回望，內容已偏離原貌。這段確立了問題不是品質而是 consistency。</p></div>
+<div class="card"><p>第三段提出「natural solution = external memory」，但隨即指出 formulating this memory 並不平凡。3D 顯式重建雖直觀，卻在 dynamic、unbounded 環境下不靈活、易掉細節。這一段的功能是排除最直觀的對手（geometry-based），把讀者引向 geometry-free。</p></div>
+<div class="card"><p>第四段討論 geometry-free 方向自身的兩難：LoRA 等隱式表徵壓縮但失真，而 discrete tokens 受固定 token 數限制無法描繪複雜環境。作者的關鍵 observation 是：對下一刻生成而言，只有少量歷史內容真正相關。基於此他們提出 token-level memory bank，全量保留 latent tokens、但每步僅檢索一小部分。這段把「記什麼、怎麼記」清楚定義。</p></div>
+<div class="card"><p>第五段轉向「條件化」這一面：long-term world simulation 與既有用 memory 做 temporal smoothness 或 semantic coherence 的工作不同，需在大時空 gap 下精確重建。為此提出 state-aware design：每個 memory unit 額外攜帶 spatial location、viewpoint、timestamp 等 state cues，並進入 attention 的 query/key 計算，使模型能跨 viewpoint 與 time 對齊。同時強調這仍是 standard attention，可順著硬體與模型容量擴展。</p></div>
+<div class="card"><p>第六段把上述觀點具體化為架構：WORLDMEM 建立在 CDiT 與 Diffusion Forcing 之上，autoregressively 生成第一人稱視角；核心是 memory bank + memory attention，前者由 confidence-based selection 依 FOV overlap 與 temporal proximity 評分；後者讓被生成的 latent tokens 作 query、memory tokens 作 key/value，並在 query/key 雙端注入 state-aware embedding。引入 relative embedding 進一步降低 spatial-temporal 推理難度。</p></div>
+<div class="card"><p>最後一段總結結果：在 Minecraft (MineDojo) benchmark 與 RealEstate10K 上驗證，前者含 plains、savannas、deserts 等多地貌與 movement、viewpoint、event triggers 多模 action。實驗顯示 WORLDMEM 顯著提升 3D spatial consistency，能在大 viewpoint 變化下 robust reasoning，並在動態環境中追蹤 evolving events，例如放置物件後仍持續存在、雪因火光而融化。最後以「希望 scalable design 啟發後續 memory-based world simulation 研究」作為 invitation。</p></div>
+<div class="card"><p>整體 Introduction 形成嚴密的「為什麼用 memory、為什麼是 token-level、為什麼要 state-aware」逐層收斂的論證，為 §3 Method 的 memory bank、retrieval、state-aware attention 模組鋪好概念地基。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(820 words)</p>
+<div class="card"><p>§2 Related Work 與 §3.1 Preliminary 共同負責「對手地圖 + 技術前置條件」兩件事。</p></div>
+<div class="card"><p>Related Work 分三節。第一節 Video diffusion model 把領域演進從 U-Net 架構推進到 Transformer 架構，再到 autoregressive video generation，並特別點名 Diffusion Forcing：它以 per-frame noise level 取代 full-sequence 一致 noise level，使 autoregressive 生成在訓練 horizon 之外仍穩定。這段不只是綜述，而是替後面選 DF 作 backbone 的決策建立合法性。</p></div>
+<div class="card"><p>第二節 Interactive world simulation 把 world model 的脈絡從 Ha &amp; Schmidhuber 的 agent learning 延伸到視覺世界模擬，列舉 Oasis、Genie、GameFactory 等作品。重點是最後一句的批評：這些方法 due to context window limitations 會丟棄歷史、產生 3D 不一致，這把作者要解的問題正式釘在領域共同痛點上。</p></div>
+<div class="card"><p>第三節 Consistent world simulation 是真正的對手分析，分為 geometric-based 與 geometric-free 兩派。Geometric-based 顯式重建 3D/4D，雖能維持一致但「重建後就難以修改與互動」，與 dynamic interactive 訴求衝突。Geometric-free 一派又分兩種：Alonso、Valevski 等靠 overfit 特定地圖（CS:GO/DOOM）犧牲 scalability；StreamingT2V 用 global+local visual context 延續一致性、SlowFastGen 用 progressive LoRA 做 memory recall，但都依賴 abstract 表徵、無法精確重建。作者用「依 frame 與 state 直接檢索」的設計與兩派區隔，論點是「既不犧牲 flexibility 也不犧牲 fidelity」。</p></div>
+<div class="card"><p>Preliminary (§3.1) 鋪兩個技術前提。第一是 standard video diffusion，所有 frame 共用同一 noise level $k$，公式 $p_\theta(x^{k-1}_t | x^k_t) = \mathcal{N}(x^{k-1}_t; \mu_\theta(x^k_t, k), \sigma^2_k I)$；它能做 global guidance 但對長度與 autoregressive 不友善。第二是 Diffusion Forcing 的 per-frame noise level $k_t$：</p></div>
+<div class="card"><p>$$p_\theta(x^{k_t-1}_t | x^{k_t}_t) = \mathcal{N}(x^{k_t-1}_t; \mu_\theta(x^{k_t}_t, k_t), \sigma^2_{k_t} I)$$</p></div>
+<div class="card"><p>這個公式的關鍵是 noise level 可逐 frame 不同，從而 autoregressive 變成「只有最後幾 frame 為 noisy」的特例。這正是 §3 後面把 memory frames 設為最低 noise $k_{\min}$、把當前生成 frame 設為 $k_{\max}$ 的理論依據。</p></div>
+<div class="card"><p>整節 §2 + §3.1 一起完成兩件事：(1) 把 WORLDMEM 與所有「忘掉過去 / 顯式 3D / abstract memory」對手畫出邊界，凸顯 token-level + state-aware 的獨特位置；(2) 把 DF 設為 backbone 並交代 noise level 機制，使後續 §3.4 的 memory 注入 (memory frame 設 $k_{\min}$、context frame 取 $[k_{\min}, k_{\max}]$ 隨機、生成 frame 取 $k_{\max}$) 可以無縫接上。讀完此節讀者應同時理解「對手是誰」與「我這套模型運作在哪個機制下」。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>WORLDMEM 建構於兩個既有的 video diffusion 範式之上：Conditional Diffusion Transformer (CDiT, Peebles &amp; Xie, 2023) 與 Diffusion Forcing (DF, Chen et al., 2025)。CDiT 提供以 spatial 與 temporal block 交替堆疊的 transformer 主幹，DF 則允許每個 frame 擁有獨立的 noise level $k_t$，讓自迴歸式生成（context window 內僅尾端少數 frame 為高雜訊）能與 full-sequence training 共用同一個 denoising 目標。在此基礎上，作者再導入第三類運算單元 — memory block，與外部 memory bank 互動以擷取 context window 之外的歷史 token。</p>
+<p>整體 forward pass 將 RGB frame 經 VAE 壓縮至 latent，再 patchify 為 token 序列；token 依序通過多層 DiT block，每層內部依序執行 spatial attention（每 frame 內部）、temporal causal attention（context window 內 frame 之間）與 memory cross-attention（context window frame query 至 memory frame key/value）。Action signal 經 MLP 投影後與 denoising timestep embedding 相加，再透過 AdaLN 注入 spatial 與 temporal block；memory block 的 query 與 key 則額外加上 state embedding（Plücker pose + sinusoidal time），實現狀態感知的 attention。</p>
+<p>Memory bank 為 token-level 的外部儲存，每個 memory unit 紀錄 latent token $x_i^m$、5D pose $p_i \in \mathbb{R}^5$（$x, y, z$, pitch, yaw）與時間戳 $t_i$。每次生成步驟之前，retrieval 模組以 FOV overlap 比例為主、時間距離為輔的 confidence 分數 greedy 挑選 $L_M$ 個 memory unit，並以 similarity threshold 過濾近似重複者，再餵入 memory block 作為 key/value。為簡化跨大時空跨距的 reasoning，作者採用 relative state 設計：query 端的 state 設為 zero reference（pose 設為 identity、時間設為 0），key 端則以相對於 query 的差值表達。如此一來，模型能在 geometry-free 的前提下，僅以一小部分相關歷史 token 維持長期 3D 一致性與動態演化。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input (context window of T noisy frames)         Memory bank
+  x_t ∈ [B, T, 3, 360, 640]                        {(x_i^m, p_i, t_i)}_{i=1..N}
+       │                                                   │
+       ├→ VAE Encoder        [B, T, C_v, 32, 18]           ├→ Greedy Retrieval
+       │                     (C_v = ?)                     │   confidence α = o·w_o − d·w_t
+       ├→ Patchify (16×9)    [B, T, N, d]                  │   + similarity filter (tr=0.9)
+       │                     N = 16·9 = 144 tokens/frame   │     ↓
+       │                     d = ?                         │   selected indices S, |S|=L_M
+       ├→ + positional emb.  [B, T, N, d]                  │     ↓
+       │                                                   │   memory tokens
+       ▼                                                   │   X_k_raw ∈ [B, L_M, N, d]
+  ┌──────────────────────────────────────────────────────┐ │   poses     [B, L_M, 5]
+  │  × N_blocks (number undisclosed)                     │ │   times     [B, L_M, 1]
+  │                                                      │ │
+  │  ┌─ Spatial Block ─────────────────────────────────┐ │ │   ┌─ State Embedding ─┐
+  │  │  reshape [B,T,N,d] → [B·T, N, d]                │ │ │   │ Plücker(p)        │
+  │  │  self-attention over N spatial tokens           │ │ │   │   ∈ [B,·,h,w,6]   │
+  │  │  AdaLN with (timestep + action) emb.            │ │ │   │   (h,w match grid)│
+  │  └─────────────────────────────────────────────────┘ │ │   │ SE(t) ∈ [B,·,d_t] │
+  │                                                      │ │   │ E = G_p(PE(p))    │
+  │  ┌─ Temporal Block ────────────────────────────────┐ │ │   │   + G_t(SE(t))    │
+  │  │  concat memory + context along time axis        │ │ │   │   ∈ [B,·,N,d]     │
+  │  │  reshape → [B·N, T+L_M, d]                      │ │ │   └───────────────────┘
+  │  │  masked causal attention (mask Eq. 6):          │ │ │       │      │
+  │  │   memory rows attend self only;                 │ │ │       ▼      ▼
+  │  │   context rows attend all preceding             │ │ │     E_q       E_k
+  │  │  AdaLN with (timestep + action) emb.            │ │ │  [B,T,N,d]  [B,L_M,N,d]
+  │  └─────────────────────────────────────────────────┘ │ │       │      │
+  │                                                      │ │       │      │
+  │  ┌─ Memory Block (cross-attention) ────────────────┐◄┼─┘       │      │
+  │  │  query  X_q ∈ [B, T,   N, d] ←── context        │ │         │      │
+  │  │  key/val X_k ∈ [B, L_M, N, d] ←── memory        │◄┼─────────┘      │
+  │  │  X̃_q = X_q + E_q     (zero-ref state)           │◄┼────────────────┘
+  │  │  X̃_k = X_k + E_k     (relative state)           │ │
+  │  │  Q = p_q(X̃_q), K = p_k(X̃_k), V = p_v(X_k)       │ │
+  │  │  X&#x27; = CrossAttn(Q, K, V)                        │ │
+  │  └─────────────────────────────────────────────────┘ │
+  │                                                      │
+  └──────────────────────────────────────────────────────┘
+       │
+       ├→ Unpatchify          [B, T, C_v, 32, 18]
+       │
+       └→ VAE Decoder          [B, T, 3, 360, 640]
+                  │
+                  ▼
+       Predicted denoised frames at level k_t − 1
+
+
+Action / timestep conditioning side-channel:
+  a_t ∈ [B, T, 25]  ── MLP ──►  a_emb ∈ [B, T, d]
+                                       +
+  k_t ∈ [B, T]      ── emb ──►  t_emb ∈ [B, T, d]
+                                       │
+                                       ▼
+                              AdaLN(scale, shift)
+                       → injected into spatial &amp; temporal blocks</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Input Encoding (VAE + Patchify)"><h2 class="slide-title">Method — 5.3.1 Input Encoding (VAE + Patchify)</h2><div class="card"><p><strong>Function:</strong> 將 RGB frame 壓縮為 latent token 序列，作為 DiT backbone 的輸入。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>x_t</code></li><li>Shape: <code>[B, T, 3, 360, 640]</code>（Minecraft 設定；RealEstate10K 為 <code>[B, T, 3, 256, 256]</code>）</li><li>Source: 原始 video frame（含每 frame 的 noise level $k_t$）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>tokens</code></li><li>Shape: <code>[B, T, N, d]</code>，其中 $N = 16 \times 9 = 144$（Minecraft）或 $N = 128 \times 128$（RealEstate10K）</li><li>Consumer: Spatial Block (5.3.2)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>先以 VAE encoder 將每個 frame 從 <code>[3, 360, 640]</code> 壓縮至 <code>[C_v, 32, 18]</code> 的 latent；再 patchify 為 <code>16×9</code> 的 token grid，每個 token 投影到隱藏維度 $d$。論文未揭露 $C_v$ 與 $d$ 的具體數值。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>論文於此模組未提供獨立公式；patchify 為標準 ViT/DiT 流程。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>VAE 採自 Oasis (Decart et al., 2024) 作為 base model；訓練影像解析度 $640 \times 360$，VAE 輸出 $32 \times 18$，patch 後 $16 \times 9$。RealEstate10K 設定下解析度為 $256 \times 256$，patch 為 $128 \times 128$。VAE 在訓練中保持與 base model 相同（論文未提到重訓）。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 DiT Block (Spatial + Temporal with AdaLN Conditioning)"><h2 class="slide-title">Method — 5.3.2 DiT Block (Spatial + Temporal with AdaLN Conditioning)</h2><div class="card"><p><strong>Function:</strong> 在 context window 內以 spatial self-attention 與 temporal causal attention 交替處理 latent token，並以 AdaLN 注入 action 與 denoising timestep 條件。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>tokens</code></li><li>Shape: <code>[B, T, N, d]</code>（temporal block 中會與 memory token 串接成 <code>[B, T + L_M, N, d]</code>）</li><li>Source: 上一個 DiT block，或 input encoding (5.3.1)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>tokens&#x27;</code></li><li>Shape: <code>[B, T, N, d]</code></li><li>Consumer: Memory Block (5.3.4) 或下一個 DiT block</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Spatial block 將 <code>[B, T, N, d]</code> reshape 為 <code>[B·T, N, d]</code>，於 $N$ 個空間 token 之間做 self-attention，再 reshape 回。Temporal block 將 memory frame 與 context frame 沿時間軸串接為長度 $T + L_M$，reshape 為 <code>[B·N, T + L_M, d]</code>，套用論文 Eq. (6) 的 attention mask 後做 attention：memory 列僅 attend 自身（防止 memory 之間互相污染），context 列以 causal 方式 attend 所有先前位置（含 memory）。Action embedding 與 timestep embedding 相加後，經 MLP 產生 scale/shift 參數，於兩種 block 內以 AdaLN 形式調變 LayerNorm。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ A_{\text{mask}}(i, j) = \begin{cases} 1, &amp; i \le L_M \text{ and } j = i \\ 1, &amp; i &gt; L_M \text{ and } j \le i \\ 0, &amp; \text{otherwise} \end{cases} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Action 維度為 25（含移動、視角、事件觸發）。Timestep embedding 與 action embedding 相加後注入 spatial 與 temporal block 兩處。AdaLN 形式採 Bar et al. (2024)、Decart et al. (2024) 的範式。Block 數量、$d$、注意力頭數論文未揭露。Residual connection、multi-head attention、feedforward 等標準元件論文未在圖中列出但實際存在。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 State Embedding"><h2 class="slide-title">Method — 5.3.3 State Embedding</h2><div class="card"><p><strong>Function:</strong> 將 5D pose 與 timestamp 轉為 token-level state embedding，供 memory block 的 query/key 加上時空錨點。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: pose <code>p</code>、timestamp <code>t</code></li><li>Shape: <code>p ∈ [B, ·, 5]</code>、<code>t ∈ [B, ·, 1]</code>（<code>·</code> 為 $T$ 或 $L_M$）</li><li>Source: query 端來自 context window（zero reference），key 端來自 memory bank 的相對值</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>E</code>（拆為 <code>E_q</code>、<code>E_k</code>）</li><li>Shape: <code>[B, ·, N, d]</code></li><li>Consumer: Memory Block (5.3.4) 內的 token-wise 加法</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對 pose $p \in \mathbb{R}^5$ 計算 Plücker embedding $PE(p) \in \mathbb{R}^{h \times w \times 6}$（$h \times w$ 對應 patch grid，例如 $16 \times 9$），以 He et al. (2024)、Gao et al. (2024) 的方式由相機外參與內參產生每個 token 位置的 6D 射線座標。Timestamp 先以 sinusoidal embedding 升維到 $d_t$，再經輕量 MLP $G_t$ 投影到 $d$。Pose 端則經 MLP $G_p$ 將 $PE(p)$ 投影到 $d$。兩者於相同維度相加得到最終 state embedding $E$（公式 3）。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$E = G_p(PE(p)) + G_t(SE(t))$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>採 relative formulation：query frame 的 state 設為 zero reference（pose 重置為 identity、時間設為 0），key frame 的 state 以相對於 query 的差值表達。論文消融顯示，由 sparse/absolute 改為 dense Plücker + relative 後，PSNR 從 20.67 提升至 23.98、rFID 從 39.23 改善到 15.37（Table 2）。論文未揭露 $G_p, G_t$ 的層數與隱藏維度。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Memory Block (State-Aware Cross-Attention)"><h2 class="slide-title">Method — 5.3.4 Memory Block (State-Aware Cross-Attention)</h2><div class="card"><p><strong>Function:</strong> 以 cross-attention 將 context window query 對齊至 memory bank 的 key/value，並透過 state embedding 解析跨大時空跨距的對應關係。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>X_q</code>（context tokens）、<code>X_k</code>（memory tokens）、<code>E_q</code>、<code>E_k</code></li><li>Shape: <code>X_q ∈ [B, T, N, d]</code>、<code>X_k ∈ [B, L_M, N, d]</code>、<code>E_q, E_k</code> 同對應形狀</li><li>Source: <code>X_q</code> 來自上游 DiT block；<code>X_k</code> 來自 memory bank 經 retrieval（5.3.5）；state embedding 來自 5.3.3</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>X&#x27;</code></li><li>Shape: <code>[B, T, N, d]</code></li><li>Consumer: 下一個 DiT block 或最終 unpatchify</li></ul>
+<p><strong>Processing:</strong></p>
+<p>先將 visual token 與 state embedding 逐元素相加：$\tilde{X}_q = X_q + E_q$、$\tilde{X}_k = X_k + E_k$（公式 4）。再以可學習投影 $p_q, p_k, p_v$ 產生 $Q, K, V$，其中 $V$ 取自原始 $X_k$ 而非 $\tilde{X}_k$（公式 5）。Cross-attention 將每個 context token 對 $L_M \cdot N$ 個 memory token 計算相似度並聚合，輸出回到 context 端。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ X&#x27; = \mathrm{CrossAttn}\bigl(Q = p_q(\tilde{X}_q),\ K = p_k(\tilde{X}_k),\ V = p_v(X_k)\bigr) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>只將 state embedding 加到 $Q, K$（而非 $V$），以維持 value 的 visual 訊息純度。記憶單元在訓練與推論時皆視為 clean input（noise level $k_{\min}$），透過 5.3.2 的 attention mask 防止 memory 之間互通。論文未揭露 attention head 數與 dropout 設定。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Memory Bank &amp;amp; Greedy Retrieval"><h2 class="slide-title">Method — 5.3.5 Memory Bank &amp;amp; Greedy Retrieval</h2><div class="card"><p><strong>Function:</strong> 維護 token-level 的歷史記憶儲存，並依 FOV overlap 與時間距離挑選 $L_M$ 個與當前生成最相關的 memory unit。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 全部歷史 memory units <code>{(x_i^m, p_i, t_i)}_{i=1..N}</code> 與當前狀態 <code>(x_c, p_c, t_c)</code></li><li>Shape: 每個 unit 的 <code>x_i^m</code> 為 latent token <code>[N, d]</code>、<code>p_i ∈ [5]</code>、<code>t_i ∈ [1]</code></li><li>Source: 自先前已生成 frame 累積；當前狀態由生成器提供</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 選中的 memory units 索引集合 <code>S</code></li><li>Shape: <code>|S| = L_M</code>，對應 token 為 <code>[B, L_M, N, d]</code></li><li>Consumer: Memory Block (5.3.4) 與 State Embedding (5.3.3)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個歷史 unit $i$，先以 Monte Carlo 取樣計算與當前視野的 FOV overlap 比例 $o_i$，並取 $d_i = |t_i - t_c|$ 為時間差；綜合為 confidence $\alpha_i = o_i \cdot w_o - d_i \cdot w_t$（Algorithm 1）。Greedy 流程每輪挑出 $\arg\max_i \alpha_i$，加入 $S$，再以 similarity threshold $t_r$ 移除與該選中 unit 相似度過高者，重複至 $|S| = L_M$。每個 memory unit 以 token-level 形式儲存（已被 visual encoder 壓縮但保留足夠重建細節）。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\alpha_i = o_i \cdot w_o - d_i \cdot w_t$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Minecraft 設定下 $w_o = 1$、$w_t = 0.2 / t_c$、$t_r = 0.9$、$L_M = 8$。消融顯示：純隨機取樣 PSNR 僅 18.32、rFID 47.35；加入 confidence filter 後 PSNR 升至 23.12、rFID 24.33；再加 similarity filter 達 PSNR 23.98、rFID 15.37（Table 3）。Memory bank 大小隨生成長度線性增長，論文於 limitations 中明確指出此為當前限制。</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Noise Scheduling &amp;amp; Training Strategy"><h2 class="slide-title">Method — 5.3.6 Noise Scheduling &amp;amp; Training Strategy</h2><div class="card"><p><strong>Function:</strong> 規範 memory frame、context frame 與當前生成 frame 的 noise level 配置，並安排訓練時的 sampling 範圍以利學習跨距相關性。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 每 frame 的 noise level <code>k_t</code></li><li>Shape: <code>[B, T + L_M]</code></li><li>Source: 訓練時隨機取樣或推論時依規則設定</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 用於 forward diffusion 的 noisy latent</li><li>Shape: 與 latent 相同 <code>[B, T + L_M, N, d]</code></li><li>Consumer: DiT backbone (5.3.2)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>訓練時，memory frame 一律配置最低 noise level $k_{\min}$，context window frame 則於 $[k_{\min}, k_{\max}]$ 範圍內各自獨立取樣 noise level。推論時，memory 與 context frame 皆設為 $k_{\min}$，當前正在生成的 frame 設為 $k_{\max}$。Sampling 策略採 progressive：訓練初期僅取近距離 memory（如 Minecraft 的 2m 範圍），後續逐步擴展至遠距離（8m）。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ p_\theta\bigl(x^{k_t - 1}_t \mid x^{k_t}_t\bigr) = \mathcal{N}\bigl(x^{k_t - 1}_t;\ \mu_\theta(x^{k_t}_t, k_t),\ \sigma^2_{k_t} I\bigr) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>$k_{\min} = 15$、$k_{\max} = 1000$。訓練於 Minecraft 用 Adam optimizer、learning rate $2 \times 10^{-5}$、約 12K 段 1500-frame 影片，4 GPU、每 GPU batch 4，訓練約 500K steps；context window 與 memory window 皆為 8。Progressive sampling 顯著優於固定 small/large range：PSNR 從 19.23 / 21.11 提升至 23.98（Table 5）。RealEstate10K 設定 base model 為 DFoT (Song et al., 2025)，4 GPU、每 GPU batch 8、約 50K steps。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>MineDojo / Minecraft (Fan et al., 2022)</td><td>Interactive world simulation (1st-person rollouts; 25-dim action space含 movement、view control、event triggers)</td><td>約 12K long videos，每段 1500 frames；多種 terrain（plains、savannas、ice plains、deserts）與天氣</td><td>train + 300 test videos</td></tr><tr><td>RealEstate10K (Zhou et al., 2018)</td><td>Novel-view / camera-controlled video generation with pose annotations</td><td>約 65K short clips；評測使用 100 scenes × 5 trajectories（37–60 frames，超過 baseline 訓練長度 25）</td><td>train + 100 scenes test</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>PSNR</td><td>Pixel-level fidelity，相對於 ground-truth frame 的重建誤差</td><td>yes</td></tr><tr><td>LPIPS</td><td>Learned perceptual similarity；衡量 perceptual consistency</td><td>yes</td></tr><tr><td>rFID (reconstruction FID)</td><td>生成影格相對於 GT 的 distribution-level realism</td><td>no（輔助衡量整體品質）</td></tr></tbody></table>
+<p>備註：論文以 &quot;long-term 3D spatial consistency&quot; 為主軸，beyond-context-window 設定下的 PSNR / LPIPS 是其核心主張的承載指標。</p></div>
+              <div class="card"><h3>Settings</h3><ul><li>Base model：Minecraft 沿用 Oasis (Decart et al., 2024)；RealEstate10K 沿用 DFoT (Song et al., 2025)。</li><li>Optimizer：Adam，固定 learning rate $2 \times 10^{-5}$。</li><li>Minecraft training：resolution $640 \times 360$，先以 VAE 編碼至 latent $32 \times 18$，再 patchify 至 $16 \times 9$；temporal context window = 8 frames、memory window = 8 frames；約 500K steps、4 GPUs、batch size 4 / GPU。</li><li>RealEstate10K training：resolution $256 \times 256$，patchify 至 $128 \times 128$；約 50K steps、4 GPUs、batch size 8 / GPU。</li><li>Memory retrieval hyperparameters（Alg. 1）：similarity threshold $t_r = 0.9$、$w_o = 1$、$w_t = 0.2/t_c$。</li><li>Diffusion noise levels：$k_{\min}=15$、$k_{\max}=1000$；memory frame 訓練/推論時皆指派為 $k_{\min}$，當前生成 frame 指派為 $k_{\max}$（§3.4 與 Eq. 6）。</li><li>Inference：20 denoising steps、8 context + 8 memory frames；每 frame 約 0.9s（§7.2）；retrieval 在 1000-candidate memory bank 下約 0.16s。</li><li>Hardware（efficiency benchmark）：appendix §7.2 在 single H200 上量測；其餘 GPU 型號 the paper does not specify。</li><li>Pose 來源：Minecraft 主實驗使用模擬器 GT pose；§7.1 另訓練輕量 pose predictor 以支援純 action 驅動的互動。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>Minecraft — beyond context window（8-frame context + 8-frame memory + 600-frame memory bank，後 100 frames 對 GT）：</p>
+<table><thead><tr><th>Method</th><th>PSNR ↑</th><th>LPIPS ↓</th><th>rFID ↓</th><th>Notes</th></tr></thead><tbody><tr><td>Full Seq. (CDiT)</td><td>/</td><td>/</td><td>/</td><td>無法 roll out 至此長度</td></tr><tr><td>Diffusion Forcing (Chen et al., 2025)</td><td>17.32</td><td>0.4376</td><td>51.28</td><td>嚴重發散且品質劣化</td></tr><tr><td><strong>WORLDMEM (Ours)</strong></td><td><strong>23.98</strong></td><td><strong>0.1429</strong></td><td><strong>15.37</strong></td><td>全 metric 領先；within-context 設定亦領先（25.98 / 0.0072 / 13.73）</td></tr></tbody></table>
+<p>RealEstate10K — 5 條 loop trajectory × 100 scenes，長度超出 baseline 訓練範圍：</p>
+<table><thead><tr><th>Method</th><th>PSNR ↑</th><th>LPIPS ↓</th><th>rFID ↓</th><th>Notes</th></tr></thead><tbody><tr><td>CameraCtrl (He et al., 2024)</td><td>13.19</td><td>0.3328</td><td>133.81</td><td>丟棄歷史 frames</td></tr><tr><td>TrajAttn (Xiao et al., 2024)</td><td>14.22</td><td>0.3698</td><td>128.36</td><td>軌跡引導但無記憶</td></tr><tr><td>DFoT (Song et al., 2025)</td><td>16.42</td><td>0.2933</td><td>110.34</td><td>History-guided diffusion baseline</td></tr><tr><td>Viewcrafter (Yu et al., 2024c)</td><td>21.72</td><td>0.1729</td><td>58.43</td><td>顯式 3D reconstruction，受後處理誤差限制</td></tr><tr><td><strong>WORLDMEM (Ours)</strong></td><td><strong>23.34</strong></td><td><strong>0.1672</strong></td><td><strong>43.14</strong></td><td>全 metric 領先；loop closure 可視化亦明顯較一致</td></tr></tbody></table></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><ul><li><strong>Embedding design（Table 2）</strong>：sparse + absolute → dense (Plücker) + absolute → dense + relative，PSNR 從 20.67 升至 23.98、rFID 從 39.23 降至 15.37；Figure 7 顯示 absolute embedding 在 100 frames 後迅速劣化、relative embedding 可穩定超過 300 frames。屬於對核心新組件（state-aware attention 的相對 state 設計）的 diagnostic ablation。</li><li><strong>Memory retrieval strategy（Table 3）</strong>：Random → +Confidence filter → +Similarity filter，PSNR 18.32 → 23.12 → 23.98、rFID 47.35 → 24.33 → 15.37。直接驗證 §3.3 所提的 confidence + similarity 兩階段檢索之必要性，屬 diagnostic。</li><li><strong>Training sampling strategy（Table 5）</strong>：small-range（2 m）/ large-range（8 m）/ progressive；progressive 由近至遠 curriculum 顯著最佳（PSNR 23.98 vs 19.23 / 21.11，rFID 15.37 vs 46.55 / 42.96）。為訓練配方的 diagnostic ablation。</li><li><strong>Time condition（Table 6 + Figure 8）</strong>：移除 timestamp embedding 後，PSNR 25.12 → 23.17、LPIPS 0.1613 → 0.1989；驗證將時間納入 state 對「動態世界」（同一位置不同時間）建模的必要性。Diagnostic。</li><li><strong>Memory context length（Table 7）</strong>：長度 1 / 4 / 8 / 16 → PSNR 22.18 / 14.68 / 25.32 / 23.14；長度 8 為最佳，過長反而劣化。可視為 memory window 的小型 scaling study，但 length=4 結果出現非單調凹陷，論文未解釋此異常。</li><li><strong>Predicted vs GT pose（Table 8）</strong>：以 lightweight pose predictor 取代 GT pose，PSNR 25.32 → 23.13、rFID 15.37 → 20.36；確認方法對 pose 噪聲具一定容忍度。屬 robustness check 而非新組件 diagnostic。</li></ul>
+<p>整體而言，§6.5 的 ablations 皆對應論文宣稱的具體新組件（state embedding、relative encoding、retrieval filtering、time-aware memory），不屬 sanity check；唯 Table 7 之非單調點未深入分析。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline — RealEstate10K 對比顯式 3D 重建路線的 Viewcrafter 與 history-guided diffusion 的 DFoT；Minecraft 對比 Diffusion Forcing 與 Full-Seq CDiT。</li><li>[covered] Has cross-task / cross-dataset evaluation — 同時在 synthetic interactive Minecraft（25-dim action space、含 event triggers）與 real-world RealEstate10K 上評測。</li><li>[covered] Has ablations that diagnose the new components — embedding 種類、相對 vs 絕對編碼、retrieval 兩段 filter、time condition 都直接對應論文新提組件。</li><li>[partial] Has a scaling study — Table 7 對 memory context length（1/4/8/16）做了小型掃描，但未對 model size、training steps 或 memory bank 規模（除 retrieval latency 外）做 scaling 分析。</li><li>[covered] Has an efficiency / wall-clock comparison — Appendix §7.2 報告 training/inference 記憶體與 speed（w/o memory 33 GB / 3.19 it/s vs with memory 51 GB / 1.76 it/s；inference 9 GB / 1.03 it/s vs 11 GB / 0.89 it/s），並列出 retrieval latency 隨 memory bank 大小的變化。</li><li>[missing] Reports variance / standard deviation / multiple seeds — 所有表格皆為單次數值，未見 std 或 seed 平均。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 論文僅給出 project page（https://xizaoqu.github.io/worldmem），未在文中明確聲明 code、weights 或 customized Minecraft benchmark 的釋出條款。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>無法保證可從 memory bank 擷取所有必要資訊,在 corner cases (如 view 被障礙物遮擋) 中,僅依賴 view overlap 並不足夠 (§5 Limitations, p.10)。</li><li>目前與環境的互動缺乏多樣性與真實性,計畫於未來延伸至更真實、多樣的真實場景互動 (§5 Limitations, p.10)。</li><li>Memory 設計使記憶體使用量隨序列長度線性增長,處理極長序列時可能受限 (§5 Limitations, p.10)。</li><li>RealEstate10K 由短的、非互動式片段組成,時序複雜度有限,因此本身限制了方法的完整潛力 (§4.1, p.9)。</li><li>Memory context length 並非越長越好:由 8 增至 16 反而劣化指標 (PSNR 25.32 → 23.14、rFID 15.37 → 18.33),作者將此歸因於過多 memory frames 引入雜訊或降低 retrieval 精度 (Table 7 + 文字, p.14)。</li><li>使用預測 pose 取代 ground truth pose 時所有指標皆下降 (PSNR 25.32 → 23.13、rFID 15.37 → 20.36),作者認為「掉幅可接受」,但仍是公開承認的退化 (Table 8, p.14–15)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>Beyond-context-window 評估僅使用「600 memory bank + 後續 100 frames」這一個固定 horizon,沒有掃描 1k / 5k / 10k frames 的退化曲線,因此「長期一致性」的真正極限無從判讀,而 limitations 也已承認線性 memory growth,使該維度尤其關鍵 (Table 1, p.7)。</li><li>主要量化評估全部基於 reconstruction metrics (PSNR / LPIPS / rFID),且 ground truth 由 Minecraft simulator 直接生成;這與「世界模型應能合理外插未見之未來」的目標脫鉤,世界演化部分 (如 plant growth) 僅以 qualitative figure 呈現 (§4 文字 + Figure 3 + Table 6, p.7–10)。</li><li>與最直接競爭的「explicit 3D/4D」路線在 Minecraft 上完全沒有比較,僅在 RealEstate10K 與 Viewcrafter 比較;由於作者的主要論述就是「geometry-free 優於 geometry-based」,此基線缺席使該核心宣稱在主場景中未被驗證 (§4.1 Minecraft 實驗節, p.7–8)。</li><li>Memory retrieval 採以 FOV overlap 為主的 confidence,在 Minecraft 這種 voxel 化、無遮擋幾何下幾乎理想,但作者已承認此假設在遮擋情境會破裂;然而沒有任何 occlusion-heavy 場景的量化退化資料,使 retrieval 的失敗模式被刻意迴避 (Alg.1 + §5, p.5, p.10)。</li><li>所有 Minecraft 實驗都建立在 Oasis 作為 base model 之上,且訓練資料是 12K 條 1500-frame 自家生成軌跡;沒有 cross-base-model 或 cross-dataset 的 ablation,難以判斷 memory 機制是 model-agnostic 還是與 Oasis 的具體 inductive bias 綁定 (§4 Experimental details, p.7–8)。</li><li>隱含「memory frames 為 clean inputs」的訓練設計 (kmin=15, kmax=1000),意味著 memory 內容若本身不一致 (例如先前生成已偏離 GT) 會被當作 ground truth 持續累積誤差;但實驗用的 memory bank 是由 simulator 提供的真值,而非自迴歸生成,因此 closed-loop 自生成下的 drift 並未被測試 (§3.4 文字 + §4.1 文字, p.6, p.8)。</li><li>Time condition 的量化評估僅在 100 個 placing-event 樣本上進行,且作者明示「plant growth 等事件本質不可預測,故不做量化」;這恰好是 dynamic world 最具代表性的能力,被以「不可預測」為由排除於量化驗證之外 (Table 6 + 文字, p.10)。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: 引入 memory bank 解決長期一致性問題,beyond context window 仍能精確重建舊場景。</strong> Supported in the tested regime. Table 1 beyond-context-window 一節給出 PSNR 23.98 vs. DF 17.32、rFID 15.37 vs. 51.28,且 Figure 5、Figure 7 顯示 300 frame 後仍穩定。但「長期」上限僅驗證到 600 memory + 100 generated frames,且 memory 由 GT 提供,因此「長期一致性」這一宣稱在更長 horizon 與 closed-loop 條件下仍未被測試。</li><li><strong>C2: state-aware memory attention (Plücker pose + sinusoidal time + relative state) 是必要設計。</strong> Supported. Table 2 顯示 sparse → dense 與 absolute → relative 兩步皆有可量測增益 (rFID 39.23 → 29.34 → 15.37),Figure 7 顯示 absolute encoding 在 100 frame 後開始劣化,relative 在 300 frame 後仍穩定,三項設計均通過 ablation。</li><li><strong>C3: 加入 timestamp 後框架不只能模擬靜態世界,也能模擬動態演化 (時間流逝、物件擺放、生長)。</strong> Partially supported. Table 6 在 100 個 placing-event 上量化:Time condition 帶來 PSNR 23.17 → 25.12、rFID 23.89 → 16.53,Figure 8 給出明確 qualitative 對照。但 plant growth 等 evolving dynamics 因「本質不可預測」被作者排除於量化評估,因此「捕捉動態演化」此宣稱主要由 qualitative 結果支撐,證據強度低於 C1/C2。</li><li><strong>C4: 在真實場景 (RealEstate10K) 同樣有效。</strong> Partially supported. Table 4 / Figure 6 顯示 PSNR/LPIPS/rFID 均優於 CameraCtrl、TrajAttn、Viewcrafter、DFoT;但作者本身已聲明 RealEstate10K「短、非互動」限制了方法潛力,且軌跡長度 37–60 frames 仍遠短於 Minecraft 的 600+,使「真實場景的長期一致性」尚未被嚴格驗證。</li><li><strong>C5: 採用標準 attention 架構,可隨硬體與模型容量自然擴展。</strong> Partially supported / overclaimed in spirit. p.15 報告 600 tokens 約 21 MB、retrieval ≤ 0.16s/1000 candidates,顯示設計輕量;但作者於 §5 已自承 memory 線性增長,所謂 &quot;scale naturally&quot; 是 attention 的線性 memory cost,並非演算法層面的次線性擴展,該宣稱應被理解為「不會退化」而非「真能 scale 到極長序列」。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>FOV-overlap retrieval 與遮擋幾何的結構性脫鉤。</strong> Retrieval confidence 由 Monte Carlo FOV overlap (Alg.2) 主導,假設「視錐內可見即相關」,在 Minecraft 這種大量無遮擋空間中近乎正確,但一旦進入有牆體、家具、人群遮擋的真實場景,被擋住的物件仍會獲得高 overlap 分數,而真正相關的鄰房記憶則可能因 FOV 不重疊被丟棄。作者在 §5 已承認此風險,但此問題不是工程細節,而是 retrieval 公式本身缺乏可見性 (visibility) 推理。</p>
+<p><strong>訓練/推理「memory 為 clean inputs」造成的 closed-loop 漂移風險。</strong> 在 §3.4 與 Eq.6 的設計下,memory frame 一律以 kmin 注入,被視為近乎 ground truth。當 deployment 真正進入自迴歸 closed-loop 時,生成 frame 會回流為 memory,先前的生成誤差會被 attention 當成可信錨點放大;然而 §4.1 的 beyond-context-window 評估初始化 600-frame GT memory bank,規避了此情形。此設計上的不對稱意味著「長期一致性」的實驗結果有可能高估真實 deployment 表現。</p>
+<p><strong>Memory 線性增長 + 隨 length 增益反轉的雙重瓶頸。</strong> §5 已承認 memory 線性增長;Table 7 進一步顯示 context length 由 8 增至 16 反而劣化所有指標,亦即 retrieval 在記憶量擴大時 precision 會崩潰。這兩條限制相加使「memory bank 持續累積」的願景在數萬 frame 等級難以兌現:既不能省記憶體,也不能無痛地塞更多進 attention。</p>
+<p><strong>狀態錨點需要外部提供的 pose/timestamp。</strong> 整個 state-aware attention 的有效性建立在每個 memory unit 都帶有可信 pose 與 timestamp 之上,Minecraft 由 simulator 提供,RealEstate10K 由 dataset 標註提供。作者雖在 supp. 提供 lightweight pose predictor (Table 8 的 PSNR 25.32 → 23.13 退化),但更關鍵的是在無 pose 標註的真實互動 deployment 中,該 predictor 必須與生成 frame 共同自迴歸,其誤差累積尚未被評估。此非演算法可單獨解決的問題,而是該框架對「外部精確狀態」的結構性依賴。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>Chen et al., 2025 (Diffusion Forcing).</strong> WORLDMEM 直接以 DF 作為 autoregressive 範式,理解 per-frame noise level 的訓練/推理動態是判斷 closed-loop drift 風險的前提。</li><li><strong>Decart et al., 2024 (Oasis).</strong> 所有 Minecraft 實驗的 base model 與最直接的對比基線,且本工作的 token shape、action space 多沿用 Oasis 約定;判斷 memory 機制是否 model-agnostic 必須回到此參考。</li><li><strong>Wang et al., 2025 (&quot;Error analyses of auto-regressive video diffusion models&quot;).</strong> 作者引用其作為「世界不一致是普遍問題」的依據,該文對 AR video diffusion 的 error accumulation 給出統一分析,正是本工作未量化的 closed-loop drift 的理論工具。</li><li><strong>Hong et al., 2024 (SlowFast-VGen).</strong> WORLDMEM 主張 token-level memory 優於 LoRA-based implicit memory 的核心對手;若要嚴格判斷「token-level vs. parametric memory」之爭,SlowFast-VGen 的設計細節是必讀基線。</li><li><strong>Sajjadi et al., 2022 (Scene Representation Transformer).</strong> 本文將其列為「fixed token、難以捕捉演化環境」的代表;它與 WORLDMEM 同屬 geometry-free token 路線,理解 SRT 的 set-latent 設計能釐清「token-level memory」的真正設計空間是什麼。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在完全 closed-loop 的自迴歸 rollout (memory bank 由模型自身生成而非 simulator GT) 下,PSNR/LPIPS/rFID 隨 horizon 的退化曲線為何,在多少幀後與 DF 基線等價?</li><li>[ ] 當場景含明顯遮擋 (室內、人群、家具),純 FOV overlap 的 retrieval 失敗率與整體一致性退化如何,是否需要引入可見性 (depth-aware) 加權?</li><li>[ ] Memory context length 在 8 之後反而劣化的根本原因是什麼:是 attention dilution、retrieval precision 下降,還是訓練分佈未涵蓋更長 context?</li><li>[ ] 將 base model 從 Oasis / DFoT 換成其他 video diffusion 主幹 (例如 OpenSora、Latte) 時,memory 機制能否同樣帶來 beyond-context-window 的增益,亦即此設計是否真為 model-agnostic?</li><li>[ ] 在無 pose 標註且必須自預測 pose 的真實互動 deployment 中,pose predictor 誤差與 memory drift 的耦合如何發展,是否存在 catastrophic feedback?</li><li>[ ] Plant growth、liquid flow、生物移動等本質具不確定性的演化,應以何種量化指標 (機率性、分佈匹配) 評估,而非僅以 placing event 的 PSNR 代理?</li><li>[ ] 線性增長的 memory bank 是否能以「retrieval-aware compression」(例如低重疊 region 的 token merging) 替換 raw token 儲存而不傷一致性?</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>以遮擋感知 (depth- or visibility-aware) 重新定義 retrieval confidence。</strong> 在 FOV overlap 之外,結合 monocular depth 或從生成 frame 自帶的 attention map 估計可見性,將被遮擋表面剔除於相關性計分。依據是 §5 已自承純 FOV 在遮擋下不足,而 Table 3 顯示 retrieval 策略對 rFID 的影響可達 47.35 → 15.37 量級,是高槓桿改動。</li><li><strong>加入 closed-loop self-rollout 評估方案。</strong> 評估時禁用 GT memory,改以模型自迴歸產出的歷史 frame 餵回 memory bank,並掃描 100 / 500 / 2000 / 10000 frame horizon。理由:目前 beyond-context-window 設定使用 GT memory 已系統性偏離真實 deployment,該評估能直接揭露 §3.4 訓練中「memory = clean」假設的成本。</li><li><strong>Retrieval 與 memory length 的聯合 curriculum。</strong> 現行 progressive sampling 僅變化空間範圍 (2m → 8m),可進一步在訓練中逐步擴大 memory bank 大小與 retrieval 候選數量。理由是 Table 7 顯示 context length 16 反劣於 8,暗示模型未在大 candidate pool 下學會精確選擇;curriculum 可緩解 retrieval precision 隨規模崩潰的問題。</li><li><strong>以 pose-free 或 pose-uncertainty-aware 的 state embedding 取代硬性 Plücker。</strong> 將 pose predictor 的不確定性 (variance) 嵌入 state,使 attention 在 pose 不可信時自動降低權重。依據是 Table 8 顯示預測 pose 帶來一致退化,而真實 deployment 不會有 simulator GT pose,此改動直接面對 §7.2 第四點的結構性依賴。</li><li><strong>token compression / merging 取代 raw token 線性儲存。</strong> 對 FOV 高度重疊或語意冗餘的 memory units 做 token-level merging (類似 Token Merging),保留代表性 token。理由為 §5 自承的線性 memory growth 是長期 deployment 的硬瓶頸,而 retrieval 中已有 similarity filter (Table 3 帶來 LPIPS 0.1863 → 0.1429) 證實冗餘可安全去除,壓縮是 retrieval 的自然延伸。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(220 words)</p>
+<div class="card"><p>§5 Limitations and Future Works 與 §6 Conclusion 共同收尾，但作者刻意把 limitation 放在 conclusion 之前，使最終印象停在貢獻與展望。</p></div>
+<div class="card"><p>Limitations 提出三點誠實的不足。第一，他們無法保證從 memory bank 一定能撈回所有必要資訊；當視野被障礙物遮擋時，僅靠 FOV overlap 作為 confidence 並不足夠，這指向未來需要 occlusion-aware 或語意引導的 retrieval。第二，現有 environment interaction 多樣性與真實感仍有限，主要限於 Minecraft 的離散 event；未來計畫擴展到 real-world 場景與更豐富的 interaction modality。第三，memory 設計仍是 linearly increasing memory usage，極長序列下會撞到顯存上限，這暗示後續可探索 memory compression、hierarchical memory 或 memory eviction 機制。</p></div>
+<div class="card"><p>Conclusion 重申論文要點：WORLDMEM 透過 memory bank（過去 frame 與 state）與 state-aware memory attention，解決長期 world simulation 的 consistency 問題，能在大 viewpoint 與 time gap 下精確重建場景，且能模擬世界的動態演化（如 plant growth、light melting snow）。virtual 與 real setting 的實驗證明其 robust、immersive simulation 能力。最後一句把姿態擺向社群：希望本工作激勵後續 memory-based world simulator 的設計與應用研究，而非把問題視為已解決。</p></div>
+<div class="card"><p>整體尾聲呼應 Abstract 與 Introduction 的承諾，但用 limitation 預先框出後續 follow-up paper 可以接手的明確方向。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

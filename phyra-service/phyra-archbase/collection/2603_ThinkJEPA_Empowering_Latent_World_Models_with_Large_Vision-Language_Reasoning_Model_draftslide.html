@@ -1,0 +1,502 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ThinkJEPA: Empowering Latent World Models with Large Vision-Language Reasoning Model</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">ThinkJEPA: Empowering Latent World Models with Large Vision-Language Reasoning Model</h1>
+          <p class="cover-meta">Haichao Zhang, Yijiang Li, Shwai He, Tushar Nagarajan, Mingfei Chen, Jianglin Lu, Ang Li, Yun Fu</p>
+          <p class="cover-meta">2603.22281 · arXiv preprint · 2026-03-23</p>
+          <div class="cover-tagline"><p>本文聚焦於將 JEPA 風格的潛在世界模型 (latent world model) 與大型視覺語言推理模型 (Vision-Language Model, VLM) 結合,以提升從影片觀察進行未來潛在表徵預測的能力,並以手部操作 (hand-manipulation) 軌跡預測作為下游任務評估。研究領域橫跨影片世界模型、自監督預測式表徵學習、以及多模態語意導引,屬於 computer vision 與 embodied AI/機器人預測之交集。作者觀察到 V-JEPA2 等密集取樣方法雖能捕捉細節動態,卻缺乏長時程語意與開放詞彙概念對齊;而 VLM 雖具強語意基礎,卻因稀疏取樣與語言輸出瓶頸不適合直接做密集預測。ThinkJEPA 因此提出以雙時序 (dual-temporal) 感受野將兩者互補,並透過階層金字塔 (hierarchical pyramid) 表徵抽取模組,把 VLM 多層中間特徵蒸餾為導引訊號注入 JEPA 預測器。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本文聚焦於將 JEPA 風格的潛在世界模型 (latent world model) 與大型視覺語言推理模型 (Vision-Language Model, VLM) 結合,以提升從影片觀察進行未來潛在表徵預測的能力,並以手部操作 (hand-manipulation) 軌跡預測作為下游任務評估。研究領域橫跨影片世界模型、自監督預測式表徵學習、以及多模態語意導引,屬於 computer vision 與 embodied AI/機器人預測之交集。作者觀察到 V-JEPA2 等密集取樣方法雖能捕捉細節動態,卻缺乏長時程語意與開放詞彙概念對齊;而 VLM 雖具強語意基礎,卻因稀疏取樣與語言輸出瓶頸不適合直接做密集預測。ThinkJEPA 因此提出以雙時序 (dual-temporal) 感受野將兩者互補,並透過階層金字塔 (hierarchical pyramid) 表徵抽取模組,把 VLM 多層中間特徵蒸餾為導引訊號注入 JEPA 預測器。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者識別的根本問題是「密集動態建模」與「長時程語意理解」在資源受限下的天生矛盾:JEPA 式預測器只能在短窗口內密集取樣,使預測偏向局部低階外推、缺乏事件級語意;而 VLM 雖能在大時間跨度上做高階推理,卻因 (1) 二次方注意力成本被迫稀疏取樣、(2) 語言輸出瓶頸把連續互動狀態壓縮為文字導向表徵、(3) 在小型動作條件資料上微調易遺忘通用知識,而不適合作為獨立密集預測器。因此,單靠任一支路都無法同時兼顧細粒度動力學與長時程語意,這是論文方案在邏輯上必要的出發點。基於此,ThinkJEPA 主張 VLM 應作為「思考者 (thinker)」提供語意與知識導引,而非取代 JEPA 預測器:作者設計雙時序感受野,讓密集 JEPA 分支保留高頻運動,讓均勻取樣的 VLM 分支提供長時程上下文。為了真正萃取 VLM 的推理訊號,作者進一步指出僅用最終層特徵會偏向語言生成目標、損失視覺空間敏感度,因此提出階層金字塔表徵抽取模組,聚合多層 VLM 中間特徵並透過 FiLM 層級調變注入 JEPA 預測器。如此一來,系統能在保留 JEPA 潛在預測介面的同時,繼承 VLM 的漸進式推理過程,既改善語意對齊與泛化,又不犧牲密集動態預測精度,並在長時程遞迴展開下展現更穩健的軌跡預測表現。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>提出 dual-temporal perception field 設計,將 dense JEPA 分支與 uniform-sampled VLM-thinker 分支以互補時序粒度耦合,明確處理 fine-grained dynamics 與 long-horizon semantics 之間的取捨 (Sec. 3.2)。</li><li>引入 hierarchical pyramid representation extraction,聚合 Qwen3-VL 多層中間表徵 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$,而非僅取最終層 (Sec. 3.4, Sec. 3.5)。</li><li>透過 layer-wise FiLM modulation $\mathrm{FiLM}(z; \gamma_\ell, \beta_\ell) = \gamma_\ell \odot z + \beta_\ell$ 將 VLM guidance 注入 V-JEPA predictor,保留 latent forecasting 介面 (Eq. 6)。</li><li>在 EgoDex 上將 ADE/FDE 從 V-JEPA Predictor 的 0.071/0.066 降至 0.061/0.056,並把 Accuracy 從 0.471 拉升至 0.596 (Tab. 1)。</li><li>在 EgoExo4D 上 Accuracy 提升尤其明顯,從 V-JEPA Predictor 的 0.074 翻倍至 0.171,同時 latent metrics (FD/SL1/CD) 全面改善 (Tab. 1)。</li><li>在 EgoDex trajectory prediction benchmark 中超越 6 種 task-specific baseline (BC、DDPM、Flow Matching × decoder-only/encoder-decoder),ADE/FDE 皆為最佳 (Tab. 3)。</li><li>在 recursive rollout 評估中,horizon $H = 32$ 時 ADE 為 0.111 vs V-JEPA Predictor 0.142、Qwen3-VL Thinking 1.026,顯示 VLM guidance 有助於抑制 compounding error (Tab. 5)。</li><li>透過 cached Qwen3-VL features (encoder tokens + AR tokens) 將 VLM 視為 frozen thinker,規避了 quadratic attention cost 對訓練吞吐的影響 (Sec. 3.5)。</li><li>Token source ablation 顯示 encoder tokens 與 AR tokens 結合 dense JEPA 分支才能達到 0.061 ADE,單獨任一 token 來源僅停留在 V-JEPA 水準的 0.128 ADE (Tab. 2)。</li><li>Layer selection ablation 中,multi-depth pyramid (0.061/0.056/0.596) 大幅領先 last-layer (0.128/0.130/0.099) 與 mid-layer (0.128/0.131/0.098),為 pyramid 設計提供經驗依據 (Tab. 4)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(290 words)</p>
+<p>論文標題 ThinkJEPA: Empowering Latent World Models with Large Vision-Language Reasoning Model 已經把全文的核心張力寫了出來：要把 latent world model（以 V-JEPA2 為代表）與大型 vision-language reasoning model（VLM thinker）兩條原本各自發展的研究線縫合在一起。Abstract 第一句先肯定 latent world model 在「以 short observation window 預測未來世界狀態」上的進展，但隨即點出兩個結構性限制：dense prediction 雖能抓住細部 motion，卻只覆蓋很短的 temporal context，predictor 容易偏向 local、low-level 的外推，難以捕捉 long-horizon semantics，downstream 效用因此被壓縮。</p>
+<p>接著作者把 VLM 推到對照位置：VLM 透過 uniformly sampled frames 與大規模 multimodal pretraining 提供 strong semantic grounding 與 general knowledge，但同樣不適合直接當 dense predictor，原因被點名為三個：compute-driven sparse sampling、language-output bottleneck（細粒度 spatial 與 continuous interaction state 被壓縮成 text-oriented representation）、以及 fine-tune 到小型 action-conditioned dataset 時的 data-regime mismatch。</p>
+<p>在這個雙向「都不夠」的張力下，Abstract 直接給出 ThinkJEPA 的構造：a VLM-guided JEPA-style latent world modeling framework，採用 dual-temporal pathway，一條 dense JEPA branch 處理 fine-grained motion 與 interaction，另一條 uniformly sampled VLM thinker branch 以較大的 temporal stride 提供 knowledge-rich guidance。為了讓 VLM 的 progressive reasoning 真的能轉移進 latent prediction，作者再提一個 hierarchical pyramid representation extraction module，用以聚合多層 VLM representation。最後以 hand-manipulation trajectory prediction 為實證舞台，宣稱優於 VLM-only baseline 與 JEPA-predictor baseline，且在 long-horizon rollout 下更穩健。Abstract 的鋪陳替後續 Introduction 鋪好「兩個世界各有死角，要靠互補架構接起」的敘事接口。</p>
+<h3>3.2 Introduction</h3>
+<p>(640 words)</p>
+<p>Introduction 沿著 abstract 的張力把問題敘述展開到可被工程化的尺度。它從 world model 的目標切入：學習環境的 predictive abstraction 以支援 forecasting、planning、control，而 latent world model 的優勢是「在 representation space 中預測」，避開生成 photorealistic pixel 或精細 3D geometry，因此運算上可行、也鼓勵模型聚焦在 dynamics、physical constraints 等 higher-level structure。V-JEPA2 被點為這條路線的代表。</p>
+<p>接著作者羅列現有 JEPA-style latent world model 的兩個限制。第一是 limited temporal perspective：依賴 short observation window 與 densely sampled frames 雖能抓 fine-grained motion，但 temporal context 被壓縮，predictor 偏向 local dynamics，丟失 longer-horizon semantics 與 event-level cue。第二是 weak semantic grounding 與 general knowledge alignment：latent space 多由 self-supervised visual representation learning 學成（masked reconstruction/prediction 類目標），motion-sensitive 卻缺乏 open-vocabulary concept 與 compositional knowledge 的對齊，導致 predictor 知道 how things move 卻不知道 what they are，generalization 受限於單一 manipulation dataset。</p>
+<p>這兩個限制把 VLM 自然推上替代位置：VLM 在 large-scale pretraining 與 multimodal alignment 下，對 uniformly sampled frames、長 stride 的 video 有 long-range context、entity attribute、general world knowledge 的處理能力。但 VLM 直接當 dense predictor 又不切實際，作者明列三個失敗模式。Compute-driven sparsity：quadratic attention 與 GPU memory 限制下 VLM 只能處理 uniformly sampled 的少量 frames，難以建模 high-FPS、fine-grained dynamics。Language-output bottleneck：VLM 把視覺信息推向 language-generation objective 與 discrete token prediction，contact、precise trajectory、fast motion 等 continuous interaction state 被壓進 language-compatible representation，semantic recognition 可，physical forecasting 常不一致。Data regime mismatch：domain-specific 預測常需 fine-tune 到小型資料集，naïve fine-tuning 易 catastrophic forgetting。</p>
+<p>這些觀察把 VLM 重新定位為「semantic and knowledge-guidance provider」而非 standalone dense predictor，於是作者提出 ThinkJEPA：保留 V-JEPA-style 的 dense-frame 觀察以維持 fine-grained motion 與 interaction cues；新增一條 branch，把 uniformly sampled frames 餵給 VLM 取得 long-horizon、knowledge-rich guidance；再把 guidance 注入 JEPA predictor，以增強 semantic grounding 與未來 latent prediction 的 generalization。</p>
+<p>接著 Introduction 預告另一個技術困難：如何從 VLM 抽出真正有用的 guidance。只用 final-layer feature 並不理想，因為深層越來越被 language-generation objective 形塑，反而中層常保留更豐富的 visual reasoning 信號與 spatial sensitivity。為此作者預告 hierarchical pyramid representation extraction module，把多層 VLM representation 聚合並蒸餾成可注入 JEPA predictor 的 guidance feature，使 predictor 能享用 VLM 的 progressive reasoning 過程而非 single terminal representation。</p>
+<p>最後以四點 contributions 收束：(1) VLM-guided JEPA-style latent world model 將 VLM 作為 thinker 提供 semantic grounding 與 general knowledge guidance；(2) dual-temporal pathway 包含 dense-frame JEPA pathway 與 uniformly sampled VLM pathway；(3) hierarchical pyramid representation extraction module 聚合 multi-layer VLM features；(4) 在 hand-manipulation trajectory prediction 上的大量實驗顯示優於 V-JEPA predictor baseline 與 SOTA 開源 VLM baseline (Qwen3-VL Thinking)。Introduction 把 abstract 的張力工程化為三件具體事：選擇雙路採樣、選擇 multi-layer guidance 抽取、選擇 layer-wise injection——此即 §3 Methodology 的展開順序。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(370 words)</p>
+<p>Related Works 用三節安置 ThinkJEPA 在文獻地圖中的座標，並把每一節都收尾在「現有方法的盲點」上，以連接 §3 的設計動機。</p>
+<p>§2.1 Latent World Models and Predictive Representation Learning 從 world model 的傳統定義出發：在學到的 representation space 中建模 dynamics，避免直接生成 high-dimensional observation。作者把 JEPA-style approach（含 V-JEPA2）放在這條線的最新位置，強調其 predictive objective 鼓勵模型抓 motion pattern 與 physical interaction 等 higher-level structure。然後立刻寫出本節的張力收尾：「most latent world models are learned solely from visual signals and lack alignment with open-vocabulary semantics or external knowledge」——這就是 ThinkJEPA 要補的洞。</p>
+<p>§2.2 Vision-Language Models for Multimodal Understanding 走另一條線。作者從 image–text alignment 與 captioning/VQA 等早期 VLM 工作講起，再帶到 MLLM（Flamingo、LLaVA 系列）以 projection layer 或 cross-attention 把 vision encoder 接到 LLM。這裡的收尾同樣是限制：這類模型「primarily designed for perception and reasoning tasks, and are not optimized for modeling structured physical dynamics」。兩節合起來形成對稱的不足：JEPA 缺 semantics、VLM 缺 structured dynamics——為融合提供必要性。</p>
+<p>§2.3 Multimodal Fusion and Language-Guided Prediction 是真正貼近 ThinkJEPA 的一節。作者先盤點 language 作為 high-level control signal 的既有實踐：text-conditioned 生成（DALL·E、Imagen、DiT）以及 embodied decision-making 中以 LLM 提供 high-level instruction 的工作。接著切到最相關的子主題「JEPA-style predictors with VLMs」，點名 VL-JEPA 把 language signal 注入 joint-embedding predictive framework，以及把 V-JEPA representation 餵給 LLM 做 video understanding 的方向。作者明確指出這些工作的共同位移：output interface 朝 language generation 偏，或不再保留 latent forecasting interface，因此不適合作為 downstream world-model task 的 backbone。</p>
+<p>收尾一句把 ThinkJEPA 的 positioning 講清：保留 JEPA-style latent forecasting interface，把 VLM semantics 視為 guidance、注入 JEPA predictor，以維持 dense latent prediction 同時補進 long-horizon semantic cue。這個收尾正好替 §3 的 dual-temporal sampling 與 layer-wise FiLM injection 鋪好概念地基：相鄰工作做過什麼、為什麼這篇的「保留 latent 接口、僅以 guidance 形式融合」是一個尚未填補的點。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1280 words)</p>
+<p>§3 Methodology 把 abstract 的「VLM-guided JEPA-style latent world model」拆成五個子節，整體敘事弧線是：先界定預測任務與 long-horizon recursion 的接口、再分配兩條 temporal pathway 的職責、再說明 JEPA-style latent tokenization 與 rollout 的標準流程、再導入 VLM thinker 並解釋 hierarchical pyramid representation extraction 為何必要、最後落到實作參數，使整個架構可被複製。</p>
+<p>§3.1 Problem Definition 開宗明義：給定具有 N frames 的 video clip $v$，目標是預測能支持 downstream task 的 future latent representation；本文選擇的 downstream 是 3D hand trajectory prediction。任務以 JEPA-style latent world modeling 為骨架——visual backbone 把 frames 編成 latent tokens，transformer predictor 由 past observation 預測 future latent tokens；為強化 semantic grounding 與 long-horizon reasoning，predictor 額外吃進 video VLM thinking model（實作上是 Qwen3-VL (Thinking)）的 cached features。長 horizon 用標準 recursive rollout：上一輪預測結果作為下一輪輸入；作者承認 recursion 會 error accumulation，因此承諾在實驗中同時報告 one-shot 與 recursive rollout 兩種設定，這就把 §4 的 long-horizon evaluation 預先埋好接口。</p>
+<p>§3.2 Dual-Temporal Perception Field Sampling Architecture 是整篇方法的軸心。作者先把矛盾講清：accurate dynamics forecasting 要 dense temporal signal，semantic understanding 與 event-level reasoning 要 long-horizon temporal context；dense sampling 抓高頻 motion 但 time span 短、uniform sparse sampling 涵蓋長 time span 卻丟 dense motion。Compute 與 memory budget 下，二者無法在單一 branch 共存，因此 ThinkJEPA 顯式把兩種角色派給兩條 branch。給定 $v=\{I_t\}_{t=1}^N$，建構 (i) uniformly sampled clip $v_u$（VLM-thinker branch，提供 large temporal perception field 的 global context 與 semantics）與 (ii) densely sampled clip $v_d$（JEPA branch，提供 high-frequency 的 fine-grained latent forecasting cue）。兩條 branch 在 sample level 同步、之後在 predictor 透過 layer-wise guidance injection 融合。VLM branch 的 sampling 公式定義 $s_i = \lfloor 1+(i-1)\cdot(N-1)/(N_u-1) \rfloor$；JEPA branch 則以 $v_d=\{I_t\}_{t=t_0}^{t_0+N_d-1}$ 表示一段 dense window。本節以「Why dual-temporal sampling matters」收尾，直接把兩種 sampling 對應到 VLM 與 JEPA 各自的 failure mode，使後續任何 ablation 都能對照這個分工。</p>
+<p>§3.3 JEPA-style latent tokenization and forecasting 給 latent forecasting 訂出 tensor 級別的接口：visual backbone 編出 $F\in\mathbb{R}^{B\times T\times P\times D}$，predictor 以內部維度 $D_p$ 操作並投影回 $D$。Rollout 部分定義 $W$ 為每個 JEPA window 的 frame 數，由 $\hat{F}^{\text{fut}}_k = g(F^{\text{past}}_k)$ 與 $F^{\text{past}}_{k+1}\leftarrow \hat{F}^{\text{fut}}_k$ 兩條遞迴關係組成。作者再次強調 rollout 雖能延伸 horizon，但會 error accumulation 並受 local temporal context 限制，因此 motivate 下一節的 VLM-thinker guidance——這個收尾把「為什麼一定要 VLM」的推理閉合。</p>
+<p>§3.4 VLM Thinker: Hierarchical Pyramid Representation Extraction 是本論文最具差異化的一節。作者先做 positioning：先前 VL-JEPA 與「把 V-JEPA feature 餵給 LLM」的工作主要把 JEPA feature 視為 LLM 的輸入，output space 偏向 language generation；ThinkJEPA 反其道而行——保留 JEPA 的 latent forecasting 接口、把 VLM semantics 當 guidance 注入 predictor。形式化為 $\hat{F}^{\text{fut}} = g(F^{\text{past}}(v_d);\,\phi(v_u),\,p)$，其中 $\phi(v_u)$ 是 VLM-derived guidance feature、$p$ 是文字 prompt（由 clip metadata 如 task name 與 scene description 組成的 summarization prompt）。</p>
+<p>接著進入 hierarchical pyramid representation extraction 的論證：只用 final-layer VLM feature 不夠好，因為深層被 language-generation objective 主導，中層反而保留較強的 visual reasoning cue 與 spatial sensitivity；作者引用先前研究指出 aggregating intermediate LLM representation 可勝過 single terminal layer。模組做法是把 (i) ViT tokenizer 的 visual tokens 與 (ii) 選取 LLM 層的 intermediate hidden states 組成 depth-wise pyramid，pooling 與 projection 後輸出 $\phi(v_u)$，同時保留 low-level visual cue 與 high-level semantic reasoning trace。Layer-wise guidance injection 採 FiLM：對 predictor 第 $\ell$ 層由 guidance 產生 $(\gamma_\ell,\beta_\ell)$，做 $\mathrm{FiLM}(z;\gamma_\ell,\beta_\ell) = \gamma_\ell\odot z + \beta_\ell$ 的 affine modulation；這提供 layer-wise、sample-specific 的 conditioning，而不必讓 VLM 變成 dense predictor。下游則沿用 V-JEPA 的標準做法：把 predicted latent token 餵入 task head 做 trajectory regression；recursive rollout 時則把 past latents 與 predicted future latents concat 成完整 token sequence 再進 temporal regression head。</p>
+<p>§3.5 Implementation Details 把架構落到具體規格：V-JEPA-L backbone（vit_large_rope）、$D=1024$；predictor 內部維度 $D_p=384$，每塊用 $(\gamma_\ell,\beta_\ell)$ 由 cached Qwen3-VL (Thinking) 的 encoder tokens 與 autoregressive (AR) tokens 投影到 $D_p$、pooling 後再以 lightweight MLP adapter 映射到 per-layer FiLM 參數。Hierarchical pyramid 取自 VLM 層 $L=\{0,4,8,12,16,20,24,27\}$。Trajectory head 是 lightweight temporal regression：先用 attention pooling with learnable query 把每幀 spatial tokens 聚成 per-frame representation，再用 temporal MLP block 建 cross-frame dependency，配合 stride-2 temporal downsampling 對齊預測 horizon，最後線性投影輸出 shape $32\times 52\times 3$ 的 3D trajectory。整節收束方式很整齊：每個方法決定都同時對應到 §2 的某個既有缺陷與 §3.4 的設計動機，確保 §4 的 ablation 能逐項對應一個具體 design choice。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1620 words)</p>
+<p>§4 Experiments 的敘事意圖很清楚：先確立評估場景與指標，再跑兩條主軸——(A) 比過 single-branch baseline 與 task-specific trajectory baseline 的主比較；(B) 拆 VLM token source、layer selection、long-horizon rollout 等 ablation——最終以 qualitative result 收束。整節是針對 §3 各設計選項的 controlled validation，每張表都對應到 introduction 中某一條 claim。</p>
+<p>§4.1 Datasets 選用兩個 egocentric video benchmark：EgoDex 是大規模 egocentric dexterous manipulation 資料集，提供 egocentric video 與 3D hand/finger pose annotation，自然契合 latent forecasting 與 trajectory regression 設定；EgoExo4D 則是大規模 multimodal、multiview 的 skilled human activity 資料集，含同步 egocentric/exocentric video 與 3D body pose、3D hand pose、gaze 等 annotation，補齊跨視角、跨人類動作的評估。雙資料集的選擇讓主比較可以同時驗證 hand-manipulation 的細粒度預測與更廣的 egocentric activity。</p>
+<p>§4.2 Evaluation Metrics 把指標分三類安置。Trajectory metrics 在 $\hat{Y},Y\in\mathbb{R}^{B\times T_f\times J\times 3}$ 上計算 ADE（所有 future frame 與 joint 的 mean Euclidean distance）、FDE（最後一個 future frame 的 mean Euclidean distance）、Accuracy（Euclidean error 小於 0.05 m 的 joint 比例）。Latent forecasting metrics 用 FD（feature $\ell_2$ distance）、SL1（SmoothL1 distance）、CD（cosine distance，定義為 $1-\cos$）三個 distance 補上 representation 級的視角，避免只看 trajectory head 的下游指標。Rollout metrics 則以 $A@H$ 與 $F@H$ 報告 horizon 為 $H\in\{4,8,16,32\}$ 的 ADE/FDE。三組指標分別對應「下游任務表現」「latent space 預測品質」「long-horizon 穩健度」三個維度。</p>
+<p>§4.3 Baselines and Variants 設下對照軸線。ThinkJEPA 自身是 dense-frame V-JEPA + VLM thinker guidance（含 encoder + AR tokens）的完整版本。Qwen3-VL (Thinking) (VLM-only) 透過把 dense JEPA 輸入 zero out 的方式，只留 VLM branch + 同樣的下游 head，測試「只靠 long-horizon VLM reasoning 能否支撐 dense trajectory prediction」。V-JEPA Predictor (JEPA-only) 則完全沿用標準 V-JEPA-style protocol、不接 VLM conditioning，作為 strong dense latent forecasting baseline。Ablation 分兩組：token sources 包括 encoder+V-JEPA、encoder-only、AR+V-JEPA、AR-only、與移除 thinker module 的 control；layer selection 比較 last-layer、mid-layer 與 all-layer 的 guidance。這些設計把 §3 的每一個關鍵選項——是否要 dense JEPA pathway、是否兩種 token 都需要、是否需要 multi-layer pyramid——都化為一組可分離的對照組。</p>
+<p>§4.4 Training and Experimental Settings 給出共用 hyperparameter（learning rate $10^{-3}$、predictor learning rate $10^{-4}$、train batch 14、eval batch 6、seed 42、2 dataloader workers、past/future split 32/32），把後續所有比較的訓練條件固定下來。§4.5 Long-Horizon Rollout Evaluation 額外定義 short-window predictor 設定 $T_p=T_f=4$ 並 recursively rollout 到 $H\in\{4,8,16,32\}$，配合 ADE@H、FDE@H、Accuracy@H 與 latent distance metric。這個小節把 §3.1 的 recursion 設計連上 §4.10 的具體量測。</p>
+<p>§4.6 Quantitative Comparison 是主比較。Tab. 1 顯示在 EgoDex 上 ThinkJEPA 將 ADE 由 V-JEPA Predictor 的 0.071 降到 0.061、FDE 由 0.066 降到 0.056、Accuracy 由 0.471 提升到 0.596；在 EgoExo4D 上 ADE/FDE 由 0.659/0.636 降到 0.622/0.597、Accuracy 由 0.074 提升到 0.171，並同時降低 FD/SL1/CD。論述邏輯是：對 V-JEPA Predictor 而言，注入 VLM-thinker guidance 補上 semantic grounding 同時保留 dense dynamics，因此 trajectory accuracy 提升明顯；對 Qwen3-VL Thinking 而言，避免使用 sparse、language-oriented representation 作 standalone predictor，改以 guidance 角色注入，因而能 produce physically grounded forecast。Latent metric 同步改善，意味著增益不是只發生在 task head，而是發生在 latent prediction 本身。</p>
+<p>§4.7 Trajectory prediction baselines 把 ThinkJEPA 與 EgoDex 既有的六個 trajectory baseline（Decoder-only / Encoder-decoder × Behavior Cloning / DDPM / Flow Matching）對照，這些 baseline 訓練於 2-second horizon，是 task-specific 的強參照。Tab. 3 顯示 ThinkJEPA（ADE 0.0610、FDE 0.0560）勝過 BC 系最強者（0.0767/0.0818、0.0774/0.0924）以及 DDPM 與 Flow Matching 系，差距在後者更大。論點是 VLM-guided latent forecasting 提供了比 conventional decoder-only 或 encoder-decoder policy head 更強的 trajectory representation。</p>
+<p>§4.8 Ablation on VLM Token Sources 從 Tab. 2 拆解 token 配置。單獨啟用 encoder tokens 或 AR tokens 對比 V-JEPA Predictor 的提升有限；只用 token、不接 dense JEPA branch 則退化到 Qwen3-VL Thinking 的水準。把兩種 token 都接上 dense JEPA pathway 才達到最佳——encoder tokens 提供 visual content summaries、AR tokens 補上 generation-side reasoning trace，兩者互補。移除 thinker module 後性能回到 V-JEPA Predictor 水準，確立增益來自 guidance injection 本身而非訓練/評估細節。</p>
+<p>§4.9 Ablation on VLM Layer Selection（Tab. 4）顯示 last-layer guidance 在 trajectory metric 上略佔優、mid-layer 在 latent forecasting metric 上更好；這個小 trade-off 與「深層偏 language-generation、中層保留 richer visual reasoning」的直覺一致，因此支持 hierarchical（multi-depth）guidance、即 pyramid design。All layers 整體最佳、把 ablation 的結論扣回 §3.4。</p>
+<p>§4.10 Recursive Rollout: Trajectory Errors vs Horizon（Tab. 5）是 long-horizon 行為的決定性證據。Qwen3-VL Thinking 在 rollout 下 sharp degradation——A@8 飆到 0.819、A@16 1.375——支持 introduction 對 VLM 不適合作 standalone dense predictor 的判斷；V-JEPA Predictor 雖穩但隨 horizon 漸增；ThinkJEPA 在所有 horizon 都最佳，且 horizon 越長改進越明顯，意味 semantic guidance 能穩定 iterative prediction、抑制 compounding error。</p>
+<p>§4.11 Qualitative Results（Fig. 2）以 heat map 視覺化 predicted future hand trajectory：ThinkJEPA 的 endpoint（深紅）更貼近參考 frame 中的手部位置、temporal progression 更平滑且 diverse；V-JEPA baseline 出現 temporally collapsed prediction（多 timestep 與 joint 在小區域重疊），VLM-only baseline 在第一個例子裡甚至 hallucinate 出不存在的左手。這個 qualitative 收尾把 §4.6 的數值優勢翻譯成可以一眼看懂的 trajectory 行為差異，作為主比較的視覺佐證。</p>
+<p>整體而言，§4 從 dataset/metric/baseline 的設置，到 main comparison、task-specific baseline 對照、token / layer 兩軸 ablation、long-horizon rollout、再到 qualitative，串起一條對 §3 設計逐一驗證的鏈，並為後續 §5 的 detailed analysis 留下足夠的接口。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(160 words)</p>
+<p>§5 Conclusion 以一段密度高的收束複述全文骨架：ThinkJEPA 是一個 VLM-guided JEPA-style latent world modeling framework，把 vision–language thinker 提供的 long-horizon semantic reasoning 與 dense latent dynamics forecasting 結合。架構決定被總結為兩個關鍵選擇：dual-temporal perception design（uniform sampling 給 VLM thinker、dense sampling 給 JEPA branch）、以及把 pyramid-extracted、multi-depth VLM representation 透過 layer-wise modulation 注入 JEPA predictor。這個 complementary integration 的好處被表述為「保留 downstream world-model task 所需的 latent forecasting interface，同時以 knowledge-aware guidance 豐富預測」——這正好把 §2.3 中 VL-JEPA 與 V-JEPA→LLM 等相鄰路線的 positioning 缺口收口。</p>
+<p>證據面則歸納為：在 egocentric hand-manipulation trajectory prediction 的大量實驗中同時改善 representation-level forecasting quality 與 downstream performance，勝過 strong VLM baseline (Qwen3-VL (Thinking)) 與 V-JEPA predictor baseline，且 long-horizon rollout 行為穩健。Future work 點到兩個方向：把框架延伸到更廣的 embodied task，並探索更 scalable 的 guidance 機制以處理更長 video 與更多元 interaction scenario。論文沒有獨立的 limitations 段落，作者也未在 conclusion 中明確列出方法的不足，這部分的揭露主要落在 §3.1 對 recursion error accumulation 與 §3.4 對 standalone VLM dense prediction 不可行的討論。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(640 words)</p>
+<div class="card"><p>Introduction 沿著 abstract 的張力把問題敘述展開到可被工程化的尺度。它從 world model 的目標切入：學習環境的 predictive abstraction 以支援 forecasting、planning、control，而 latent world model 的優勢是「在 representation space 中預測」，避開生成 photorealistic pixel 或精細 3D geometry，因此運算上可行、也鼓勵模型聚焦在 dynamics、physical constraints 等 higher-level structure。V-JEPA2 被點為這條路線的代表。</p></div>
+<div class="card"><p>接著作者羅列現有 JEPA-style latent world model 的兩個限制。第一是 limited temporal perspective：依賴 short observation window 與 densely sampled frames 雖能抓 fine-grained motion，但 temporal context 被壓縮，predictor 偏向 local dynamics，丟失 longer-horizon semantics 與 event-level cue。第二是 weak semantic grounding 與 general knowledge alignment：latent space 多由 self-supervised visual representation learning 學成（masked reconstruction/prediction 類目標），motion-sensitive 卻缺乏 open-vocabulary concept 與 compositional knowledge 的對齊，導致 predictor 知道 how things move 卻不知道 what they are，generalization 受限於單一 manipulation dataset。</p></div>
+<div class="card"><p>這兩個限制把 VLM 自然推上替代位置：VLM 在 large-scale pretraining 與 multimodal alignment 下，對 uniformly sampled frames、長 stride 的 video 有 long-range context、entity attribute、general world knowledge 的處理能力。但 VLM 直接當 dense predictor 又不切實際，作者明列三個失敗模式。Compute-driven sparsity：quadratic attention 與 GPU memory 限制下 VLM 只能處理 uniformly sampled 的少量 frames，難以建模 high-FPS、fine-grained dynamics。Language-output bottleneck：VLM 把視覺信息推向 language-generation objective 與 discrete token prediction，contact、precise trajectory、fast motion 等 continuous interaction state 被壓進 language-compatible representation，semantic recognition 可，physical forecasting 常不一致。Data regime mismatch：domain-specific 預測常需 fine-tune 到小型資料集，naïve fine-tuning 易 catastrophic forgetting。</p></div>
+<div class="card"><p>這些觀察把 VLM 重新定位為「semantic and knowledge-guidance provider」而非 standalone dense predictor，於是作者提出 ThinkJEPA：保留 V-JEPA-style 的 dense-frame 觀察以維持 fine-grained motion 與 interaction cues；新增一條 branch，把 uniformly sampled frames 餵給 VLM 取得 long-horizon、knowledge-rich guidance；再把 guidance 注入 JEPA predictor，以增強 semantic grounding 與未來 latent prediction 的 generalization。</p></div>
+<div class="card"><p>接著 Introduction 預告另一個技術困難：如何從 VLM 抽出真正有用的 guidance。只用 final-layer feature 並不理想，因為深層越來越被 language-generation objective 形塑，反而中層常保留更豐富的 visual reasoning 信號與 spatial sensitivity。為此作者預告 hierarchical pyramid representation extraction module，把多層 VLM representation 聚合並蒸餾成可注入 JEPA predictor 的 guidance feature，使 predictor 能享用 VLM 的 progressive reasoning 過程而非 single terminal representation。</p></div>
+<div class="card"><p>最後以四點 contributions 收束：(1) VLM-guided JEPA-style latent world model 將 VLM 作為 thinker 提供 semantic grounding 與 general knowledge guidance；(2) dual-temporal pathway 包含 dense-frame JEPA pathway 與 uniformly sampled VLM pathway；(3) hierarchical pyramid representation extraction module 聚合 multi-layer VLM features；(4) 在 hand-manipulation trajectory prediction 上的大量實驗顯示優於 V-JEPA predictor baseline 與 SOTA 開源 VLM baseline (Qwen3-VL Thinking)。Introduction 把 abstract 的張力工程化為三件具體事：選擇雙路採樣、選擇 multi-layer guidance 抽取、選擇 layer-wise injection——此即 §3 Methodology 的展開順序。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(370 words)</p>
+<div class="card"><p>Related Works 用三節安置 ThinkJEPA 在文獻地圖中的座標，並把每一節都收尾在「現有方法的盲點」上，以連接 §3 的設計動機。</p></div>
+<div class="card"><p>§2.1 Latent World Models and Predictive Representation Learning 從 world model 的傳統定義出發：在學到的 representation space 中建模 dynamics，避免直接生成 high-dimensional observation。作者把 JEPA-style approach（含 V-JEPA2）放在這條線的最新位置，強調其 predictive objective 鼓勵模型抓 motion pattern 與 physical interaction 等 higher-level structure。然後立刻寫出本節的張力收尾：「most latent world models are learned solely from visual signals and lack alignment with open-vocabulary semantics or external knowledge」——這就是 ThinkJEPA 要補的洞。</p></div>
+<div class="card"><p>§2.2 Vision-Language Models for Multimodal Understanding 走另一條線。作者從 image–text alignment 與 captioning/VQA 等早期 VLM 工作講起，再帶到 MLLM（Flamingo、LLaVA 系列）以 projection layer 或 cross-attention 把 vision encoder 接到 LLM。這裡的收尾同樣是限制：這類模型「primarily designed for perception and reasoning tasks, and are not optimized for modeling structured physical dynamics」。兩節合起來形成對稱的不足：JEPA 缺 semantics、VLM 缺 structured dynamics——為融合提供必要性。</p></div>
+<div class="card"><p>§2.3 Multimodal Fusion and Language-Guided Prediction 是真正貼近 ThinkJEPA 的一節。作者先盤點 language 作為 high-level control signal 的既有實踐：text-conditioned 生成（DALL·E、Imagen、DiT）以及 embodied decision-making 中以 LLM 提供 high-level instruction 的工作。接著切到最相關的子主題「JEPA-style predictors with VLMs」，點名 VL-JEPA 把 language signal 注入 joint-embedding predictive framework，以及把 V-JEPA representation 餵給 LLM 做 video understanding 的方向。作者明確指出這些工作的共同位移：output interface 朝 language generation 偏，或不再保留 latent forecasting interface，因此不適合作為 downstream world-model task 的 backbone。</p></div>
+<div class="card"><p>收尾一句把 ThinkJEPA 的 positioning 講清：保留 JEPA-style latent forecasting interface，把 VLM semantics 視為 guidance、注入 JEPA predictor，以維持 dense latent prediction 同時補進 long-horizon semantic cue。這個收尾正好替 §3 的 dual-temporal sampling 與 layer-wise FiLM injection 鋪好概念地基：相鄰工作做過什麼、為什麼這篇的「保留 latent 接口、僅以 guidance 形式融合」是一個尚未填補的點。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>ThinkJEPA 透過將兩條互補分支耦合於共享的 latent forecasting 介面下,以同時兼顧 dense 動態建模與 long-horizon 語意理解。Dense JEPA 分支沿用 V-JEPA2 協定:V-JEPA-L 視覺骨幹將 densely sampled 片段 $v_d$ 編碼為逐幀 patch tokens $F \in \mathbb{R}^{B \times T \times P \times D}$,$D=1024$;tokens 切為 past 與 future 兩段,由 masked-token transformer predictor $g(\cdot)$(內部維度 $D_p=384$)從 $F^{\text{past}}$ 預測 $\hat{F}^{\text{fut}}$。此分支保留高頻運動與互動線索,但僅覆蓋較短的觀測時窗。</p>
+<p>VLM-thinker 分支對整段影片均勻取樣 $N_u$ 幀,送入 Qwen3-VL (Thinking),並 cache 其 ViT visual tokenizer 與多個 language-model 中間層的隱藏狀態。為避免僅取最終層所致的語言生成偏差,hierarchical pyramid representation extraction 模組從固定層集合 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$ 聚合 LLM 多深度中間特徵,並結合 ViT visual tokens,經 pooling 與 lightweight MLP 投影至 $D_p$,產出 guidance features $\phi(v_u)$。</p>
+<p>Guidance 透過 layer-wise FiLM modulation 注入 predictor:對 predictor block $\ell$,MLP adapter 將 $\phi(v_u)$ 映射為調變參數 $(\gamma_\ell, \beta_\ell) \in \mathbb{R}^{D_p}$,以 element-wise scale-and-shift 形式作用於 block 輸入。預測得到的 future latents 與 past teacher latents 串接,送入輕量 trajectory head:該 head 先以 learnable query 對每幀 spatial tokens 做 attention pooling,再以 temporal MLP 與 stride-2 時間下採樣對齊預測時程,最後線性投影為 3D hand-joint trajectories,輸出形狀 $32 \times 52 \times 3$(對應 32 future frames、52 joints、3D 座標)。長視程評估時,predictor 採用 $T_p=T_f=4$ 短窗配置,並透過 $F^{\text{past}}_{k+1} \leftarrow \hat{F}^{\text{fut}}_k$ 遞迴展開至 $H \in \{4, 8, 16, 32\}$ 步。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input: v ∈ [B, N, 3, H, W]                          (raw video clip)
+   │
+   ├─► Uniform sampling (Eq. 1) ─► v_u ∈ [B, N_u, 3, H, W]
+   │       │
+   │       ▼
+   │   Qwen3-VL ViT tokenizer ─► ViT tokens ∈ [B, N_u·P_v, D_vit]
+   │                                             (P_v, D_vit: ?)
+   │       │
+   │       ▼
+   │   Qwen3-VL LLM   (with text prompt p from clip metadata)
+   │       │
+   │       ├─ cache hidden states at L = {0, 4, 8, 12, 16, 20, 24, 27}
+   │       │       each layer: [B, S, D_llm]      (S, D_llm: ?)
+   │       ▼
+   │   Hierarchical Pyramid Extraction
+   │     (concat ViT tokens + 8 LLM hidden states → pool → MLP → D_p)
+   │       │
+   │       ▼
+   │   Guidance features  φ(v_u) ∈ [B, ?, D_p=384]
+   │       │
+   │       ▼
+   │   Per-block MLP adapters ─► FiLM params (γ_ℓ, β_ℓ) ∈ R^{D_p}
+   │                              for ℓ = 0..K predictor blocks
+   │       │
+   │       └──────────────────────────────────────────┐
+   │                                                  ▼
+   └─► Dense sampling (Eq. 2) ─► v_d ∈ [B, N_d, 3, H, W]
+            │                                         │
+            ▼                                         │
+        V-JEPA-L (vit_large_rope)                     │
+            │                                         │
+            ▼                                         │
+        Patch tokens  F ∈ [B, T, P, D=1024]           │
+            │                                         │
+            ▼  (split:  T = T_p + T_f,  main: 32+32)  │
+        F^past ∈ [B, T_p, P, 1024]                    │
+            │                                         │
+            ▼                                         │
+        V-JEPA Predictor g(·)                         │
+        (K transformer blocks T_0…T_K,                │
+         internal dim D_p=384, projects D↔D_p)        │
+            │  ◄────── FiLM modulation ───────────────┘
+            │   per block ℓ:   z ↦ γ_ℓ ⊙ z + β_ℓ
+            ▼
+        F̂^fut ∈ [B, T_f, P, 1024]
+            │
+            ▼
+        Concat [F^past, F̂^fut] ∈ [B, T_p+T_f, P, 1024]    (main: 64 frames)
+            │
+            ▼
+        Trajectory Head
+            • spatial attention pooling (learnable query) ─► [B, T_p+T_f, 1024]
+            • temporal MLP blocks                         ─► [B, T_p+T_f, ?]
+            • stride-2 temporal downsampling              ─► [B, (T_p+T_f)/2, ?]
+            • linear projection                           ─► [B, 32, 52, 3]
+            ▼
+        Output: 3D hand trajectory  Ŷ ∈ [B, 32, 52, 3]
+
+Recursive rollout (long-horizon, T_p = T_f = 4):
+   step k:    F̂^fut_k = g(F^past_k ; φ(v_u), p)
+              F^past_{k+1}  ←  F̂^fut_k
+   iterate to reach H ∈ {4, 8, 16, 32} steps</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Dual-Temporal Perception Field Sampling"><h2 class="slide-title">Method — 5.3.1 Dual-Temporal Perception Field Sampling</h2><div class="card"><p><strong>Function:</strong> 從同一段影片同步建構兩條時序取樣輸入,分別餵給 dense JEPA 分支與 VLM-thinker 分支以兼顧高頻動態與長時程語意。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $v = \{I_t\}_{t=1}^{N}$</li><li>Shape: $[B, N, 3, H, W]$</li><li>Source: 原始輸入影片片段</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $v_u$ (uniformly sampled), $v_d$ (densely sampled)</li><li>Shape: $v_u \in [B, N_u, 3, H, W]$;$v_d \in [B, N_d, 3, H, W]$</li><li>Consumer: $v_u$ 進入 Qwen3-VL ViT tokenizer;$v_d$ 進入 V-JEPA-L encoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對 $v$ 以 Eq. (1) 做整段 uniform 取樣得到 $v_u$,提供大時程感受野以利語意推理;再從觀測起始 frame index $t_0$ 取連續 $N_d$ 幀(Eq. (2))得到 $v_d$,保留高頻運動細節。兩條分支於 sample-level 同步(來自同一 $v$),後續再以 layer-wise FiLM 注入融合。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ v_u = \{I_{s_i}\}_{i=1}^{N_u}, \qquad s_i = \left\lfloor 1 + (i-1)\cdot \frac{N-1}{N_u-1} \right\rfloor $$</p>
+<p>$v_d = \{I_t\}_{t=t_0}^{t_0+N_d-1}$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>主要 forecasting 設定為 past/future split 32/32 frames,即 $N_d = T_p + T_f = 64$。長視程 rollout 改用 $T_p = T_f = 4$ 短窗。$N_u$、$t_0$、輸入解析度 $(H, W)$ 與最大 frame 數 $N$ 的具體數值,the paper does not specify。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 V-JEPA Visual Backbone (Dense Branch)"><h2 class="slide-title">Method — 5.3.2 V-JEPA Visual Backbone (Dense Branch)</h2><div class="card"><p><strong>Function:</strong> 將 densely sampled 片段編碼為逐幀 spatial patch tokens,作為 latent forecasting 的輸入與 teacher signal。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $v_d$</li><li>Shape: $[B, N_d, 3, H, W]$</li><li>Source: Dual-temporal sampling (dense branch)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F$,並切為 $F^{\text{past}}$ 與 future target</li><li>Shape: $F \in [B, T, P, D]$ with $D=1024$;$F^{\text{past}} \in [B, T_p, P, D]$;$F^{\text{fut}}_{\text{target}} \in [B, T_f, P, D]$</li><li>Consumer: $F^{\text{past}}$ 進入 V-JEPA predictor;future tokens 作為 prediction target</li></ul>
+<p><strong>Processing:</strong></p>
+<p>採用 V-JEPA-L (vit_large_rope) 將 $v_d$ 編碼為逐幀 spatial patch tokens,維度 $D=1024$。將時間軸切為 past($T_p$ frames)與 future($T_f$ frames)兩段;past tokens 進入 predictor,future tokens 作為 teacher representation 提供預測目標(latent forecasting metrics: FD/SL1/CD)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>(none specific)</p>
+<p><strong>Implementation Details:</strong></p>
+<p>backbone:V-JEPA-L (vit_large_rope),$D = 1024$。每幀 spatial patch 數量 $P$ 由輸入解析度與 ViT patch size 決定,the paper does not specify。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 VLM Thinker (Qwen3-VL Thinking)"><h2 class="slide-title">Method — 5.3.3 VLM Thinker (Qwen3-VL Thinking)</h2><div class="card"><p><strong>Function:</strong> 對均勻取樣片段執行多模態推理,輸出 ViT visual tokens 與多層 LLM 中間隱藏狀態,作為長時程語意 guidance 的來源。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $v_u$ 與選用 text prompt $p$</li><li>Shape: $v_u \in [B, N_u, 3, H, W]$;$p$ 為文字 token 序列(由 clip metadata 如 task name、scene description 填入通用 summarization 模板)</li><li>Source: Dual-temporal sampling (uniform branch)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: cached ViT tokens 與 LLM hidden states at $L$</li><li>Shape: ViT tokens $\in [B, N_u\cdot P_v, D_{\text{vit}}]$;每選定層 $L_i$ 的 LLM hidden state $\in [B, S, D_{\text{llm}}]$,$S$ 為 token 序列長度。$P_v, D_{\text{vit}}, S, D_{\text{llm}}$ 由 Qwen3-VL 配置決定,the paper does not specify</li><li>Consumer: Hierarchical pyramid representation extraction module</li></ul>
+<p><strong>Processing:</strong></p>
+<p>將 $v_u$ 與 prompt $p$ 一併送入 Qwen3-VL (Thinking)。其 ViT visual tokenizer 輸出 visual tokens(encoder tokens),LLM 在前向過程中於選定層 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$ cache 隱藏狀態,亦提供 autoregressive (AR) tokens。實作上 VLM 不做端到端微調,僅快取以節省計算並避免在小型動作條件資料上做 naive fine-tuning 所致的 catastrophic forgetting,維持 open-vocabulary 與通用知識。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>(none)</p>
+<p><strong>Implementation Details:</strong></p>
+<p>模型為 Qwen3-VL (Thinking)。LLM cache 層集合 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$(8 層)。Cache 同時提供 encoder tokens 與 AR tokens 兩類 token 來源,後續 ablation 包括啟用 (i) encoder tokens + V-JEPA、(ii) encoder tokens only、(iii) AR tokens + V-JEPA、(iv) AR tokens only 等變體。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Hierarchical Pyramid Representation Extraction"><h2 class="slide-title">Method — 5.3.4 Hierarchical Pyramid Representation Extraction</h2><div class="card"><p><strong>Function:</strong> 聚合 ViT visual tokens 與多層 LLM 中間隱藏狀態為 depth-wise pyramid,經 pooling 與 MLP adapter 投影至 predictor 維度,產出 guidance features。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: ViT tokens 與 LLM hidden states at $L$</li><li>Shape: ViT tokens $\in [B, N_u\cdot P_v, D_{\text{vit}}]$;每層 LLM hidden state $\in [B, S, D_{\text{llm}}]$,共 8 層</li><li>Source: VLM thinker (cache)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\phi(v_u)$ guidance features</li><li>Shape: $[B, ?, D_p]$ with $D_p = 384$</li><li>Consumer: 後續 per-block FiLM adapter</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對選定層 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$ 的 LLM hidden states 與 ViT visual tokens 形成 depth-wise pyramid;將每來源於空間 / 序列維度 pooling,再以 lightweight MLP 投影至 $D_p$,產出 guidance features $\phi(v_u)$。設計動機:深層 LLM 受語言生成目標壓抑空間敏感度,中間層常保留更豐富的 visual reasoning 與 spatial 線索;同時保留 ViT 端 low-level 視覺與 LLM 端 high-level 語意,可支援更全面的條件化。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>(none specific;guidance 整體在 §5.3.6 預測公式中以 $\phi(v_u)$ 出現)</p>
+<p><strong>Implementation Details:</strong></p>
+<p>cache 提供 encoder tokens 與 AR tokens 兩類來源,皆經 lightweight MLP adapters 投影至 $D_p = 384$,並 pool 後映射到 per-layer FiLM 參數。pooling 細節(如 pooling 範圍、是否帶 learnable token)與 MLP adapter 內部寬度,the paper does not specify。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 FiLM Layer-wise Modulation"><h2 class="slide-title">Method — 5.3.5 FiLM Layer-wise Modulation</h2><div class="card"><p><strong>Function:</strong> 將 pyramid guidance 轉為每個 predictor block 的 sample-specific scale-shift 參數,以條件化方式調變每層 predictor 輸入。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\phi(v_u)$</li><li>Shape: $[B, ?, D_p = 384]$</li><li>Source: Hierarchical pyramid representation extraction</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 每層 FiLM 參數 $\{(\gamma_\ell, \beta_\ell)\}_{\ell=0}^{K}$ 與調變後的 block 輸入</li><li>Shape: $\gamma_\ell, \beta_\ell \in \mathbb{R}^{D_p}$,對應 predictor 層 $\{T_0, \dots, T_K\}$</li><li>Consumer: V-JEPA predictor 各 block 的輸入</li></ul>
+<p><strong>Processing:</strong></p>
+<p>來自 LLM 層 $\{L_0, \dots, L_N\}$ 的 guidance features 經 lightweight MLP adapter 映射為 predictor 層 $\{T_0, \dots, T_K\}$ 的調變參數;對每個 predictor block 的 input $z$ 套用 element-wise scale 與 shift,實現 layer-wise、sample-specific 的條件化,將語意與知識線索注入 latent forecasting 而不必由 VLM 直接負責 dense 預測。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\mathrm{FiLM}(z;\, \gamma_\ell, \beta_\ell) = \gamma_\ell \odot z + \beta_\ell$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>FiLM 參數來自 lightweight MLP adapters,輸入為 cache 的 encoder + AR tokens 經 pool / 投影至 $D_p = 384$ 後的特徵。Predictor block 數 $K$ 與 LLM 層到 predictor 層的對應映射細節,the paper does not specify。</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 V-JEPA Predictor (with VLM Guidance)"><h2 class="slide-title">Method — 5.3.6 V-JEPA Predictor (with VLM Guidance)</h2><div class="card"><p><strong>Function:</strong> 以 masked-token transformer 從 past latent tokens 預測 future latent tokens,並以 layer-wise FiLM 接受 VLM-thinker guidance,支援單步 forecasting 與長視程 recursive rollout。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $F^{\text{past}}$、guidance $\phi(v_u)$ 與 prompt $p$</li><li>Shape: $F^{\text{past}} \in [B, T_p, P, D = 1024]$;每層 FiLM 參數 $\in \mathbb{R}^{D_p = 384}$</li><li>Source: V-JEPA encoder(past split);FiLM adapter</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat{F}^{\text{fut}}$</li><li>Shape: $[B, T_f, P, D = 1024]$</li><li>Consumer: 與 $F^{\text{past}}$ 串接後送入 trajectory head;在 recursive rollout 中作為下一步 $F^{\text{past}}_{k+1}$</li></ul>
+<p><strong>Processing:</strong></p>
+<p>predictor 內部維度為 $D_p = 384$,將輸入由 $D = 1024$ 投影至 $D_p$,經多層 transformer block 處理,每層之前以 FiLM 注入 VLM guidance,最後再投影回 $D = 1024$。對長視程影片以 Eq. (3)–(4) 進行 recursive rollout:每步預測 $\hat{F}^{\text{fut}}_k = g(F^{\text{past}}_k)$,並以 $F^{\text{past}}_{k+1} \leftarrow \hat{F}^{\text{fut}}_k$ 推進,可達任意長視程,但對誤差累積敏感,因此論文同時報告 one-shot 與 rollout 兩種設定。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\hat{F}^{\text{fut}} = g\!\left(F^{\text{past}}(v_d)\,;\, \phi(v_u),\, p\right)$</p>
+<p>$$ \hat{F}^{\text{fut}}_k = g\!\left(F^{\text{past}}_k\right), \qquad F^{\text{past}}_{k+1} \leftarrow \hat{F}^{\text{fut}}_k $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>predictor 內部維度 $D_p = 384$,輸出投影回 $D = 1024$。長視程 rollout 設定 $T_p = T_f = 4$,展開至 $H \in \{4, 8, 16, 32\}$ 步。訓練 learning rate $10^{-3}$,predictor learning rate $10^{-4}$,batch size 14(train)/ 6(eval),random seed 42,2 dataloader workers。Predictor 層數 $K$,the paper does not specify。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>EgoDex [13]</td><td>Egocentric dexterous hand-manipulation 3D trajectory prediction (paired with 3D hand/finger pose)</td><td>Large-scale (the paper does not specify exact clip count)</td><td>The paper does not specify the train/val/test split; main comparison and all supplementary studies (§6.1–§6.5) are run on EgoDex</td></tr><tr><td>EgoExo4D [8]</td><td>Skilled human activity from synchronized egocentric/exocentric video (3D body pose, 3D hand pose, gaze)</td><td>Large-scale multimodal, multiview (the paper does not specify exact size)</td><td>The paper does not specify the train/val/test split; used in the main comparison (Tab. 1) only</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>ADE $\downarrow$</td><td>Average Displacement Error: mean Euclidean distance between predicted and ground-truth 3D joints across all $T_f$ future frames and $J$ joints, averaged over the batch</td><td>yes</td></tr><tr><td>FDE $\downarrow$</td><td>Final Displacement Error: mean Euclidean distance on the final future frame, averaged over joints and batch</td><td>yes</td></tr><tr><td>Acc $\uparrow$</td><td>Fraction of predicted joint positions with Euclidean error $&lt; 0.05$ m, aggregated over time and joints</td><td>yes</td></tr><tr><td>FD $\downarrow$</td><td>Latent feature $\ell_2$ distance between predicted and target V-JEPA latents</td><td>no</td></tr><tr><td>SL1 $\downarrow$</td><td>SmoothL1 distance in latent space</td><td>no</td></tr><tr><td>CD $\downarrow$</td><td>Cosine distance $1 - \cos(\cdot)$ in latent space</td><td>no</td></tr><tr><td>A@H $\downarrow$, F@H $\downarrow$</td><td>ADE and FDE at recursive rollout horizon $H \in \{4, 8, 16, 32\}$</td><td>no (rollout-specific)</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p>硬體環境 the paper does not specify (沒有列出 GPU 型號、數量或訓練時數)。主要超參數來自 §4.4 與 supplementary Tab. 11：</p>
+<ul><li><strong>Backbone</strong>：V-JEPA-L (<code>vit_large_rope</code>)，depth 24、dim $D=1024$，patch embedding 為 Conv3d、kernel/stride $(2, 16, 16)$。</li><li><strong>Predictor</strong>：VLM-injected V-JEPA predictor，內部維度 $D_p = 384$、depth 12、heads 6，啟用 RoPE 與 2 個 mask tokens。</li><li><strong>VLM thinker</strong>：Qwen3-VL (Thinking) 採用 cached features，token 維度 $D_c = 2048$，cache 8 個 clips；encoder token length $L_{\text{enc}} = 480$、AR token length $L_{\text{ar}} = 15$；pyramid 抽取層 $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$。</li><li><strong>Guidance injection</strong>：layer-wise FiLM modulation。</li><li><strong>輸入設定</strong>：64 frames、解析度 $256 \times 256$，past/future split $T_p / T_f = 32 / 32$；temporal head 用 stride-2 AvgPool 對齊到 32 frames，輸出 shape $32 \times 52 \times 3$。</li><li><strong>最佳化</strong>：learning rate $10^{-3}$，predictor learning rate $10^{-4}$；batch size 14 (train) / 6 (eval)；2 dataloader workers；random seed 42。</li><li><strong>訓練步數 / epoch 數 / scheduler</strong>：the paper does not specify。Tab. 2 與 Tab. 4 註明 best-epoch selection by minimum validation ADE，single seed (42)。</li><li><strong>Rollout 推論設定</strong>：§4.5 採用短窗 predictor ($T_p = 4$, $T_f = 4$)，遞迴展開到 $H \in \{4, 8, 16, 32\}$ 步。</li><li><strong>Optimizer 類型 (Adam/AdamW/...) 與 weight decay、warmup、gradient clipping</strong>：the paper does not specify。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>EgoDex 與 EgoExo4D 上的主比較（Tab. 1，p. 12）：</p>
+<table><thead><tr><th>Method</th><th>EgoDex ADE $\downarrow$</th><th>EgoDex FDE $\downarrow$</th><th>EgoDex Acc $\uparrow$</th><th>EgoExo4D ADE $\downarrow$</th><th>EgoExo4D FDE $\downarrow$</th><th>EgoExo4D Acc $\uparrow$</th><th>Notes</th></tr></thead><tbody><tr><td>Qwen3-VL Thinking [5]</td><td>0.142</td><td>0.144</td><td>0.084</td><td>0.661</td><td>0.690</td><td>0.038</td><td>VLM-only baseline，dense JEPA 輸入被 zero out，但保留同樣的 downstream head</td></tr><tr><td>V-JEPA Predictor [4]</td><td>0.071</td><td>0.066</td><td>0.471</td><td>0.659</td><td>0.636</td><td>0.074</td><td>JEPA-only baseline，沒有 VLM conditioning</td></tr><tr><td><strong>ThinkJEPA (ours)</strong></td><td><strong>0.061</strong></td><td><strong>0.056</strong></td><td><strong>0.596</strong></td><td><strong>0.622</strong></td><td><strong>0.597</strong></td><td><strong>0.171</strong></td><td>Dual-temporal + pyramid FiLM guidance；同時最佳 trajectory 與 latent 指標 (FD/SL1/CD)</td></tr></tbody></table>
+<p>EgoDex trajectory benchmark 對比（Tab. 3，p. 13）：ThinkJEPA 的 ADE/FDE = 0.0610/0.0560，優於最強 task-specific baseline Decoder-only + BC (0.0767/0.0818) 與 Encoder-decoder + BC (0.0774/0.0924)，並大幅領先 DDPM、Flow Matching 變體。</p>
+<p>Recursive rollout（Tab. 5，p. 15，EgoDex，$T_p = T_f = 4$）：</p>
+<table><thead><tr><th>Method</th><th>A@4</th><th>A@8</th><th>A@16</th><th>A@32</th><th>F@4</th><th>F@8</th><th>F@16</th><th>F@32</th></tr></thead><tbody><tr><td>Qwen3-VL Thinking</td><td>0.140</td><td>0.819</td><td>1.375</td><td>1.026</td><td>0.143</td><td>2.850</td><td>0.286</td><td>1.092</td></tr><tr><td>V-JEPA Predictor</td><td>0.121</td><td>0.126</td><td>0.134</td><td>0.142</td><td>0.124</td><td>0.136</td><td>0.149</td><td>0.153</td></tr><tr><td><strong>ThinkJEPA</strong></td><td><strong>0.071</strong></td><td><strong>0.078</strong></td><td><strong>0.092</strong></td><td><strong>0.111</strong></td><td><strong>0.073</strong></td><td><strong>0.090</strong></td><td><strong>0.118</strong></td><td><strong>0.136</strong></td></tr></tbody></table>
+<p>ThinkJEPA 在所有 horizon 上皆最佳，且差距隨 $H$ 增加而擴大；Qwen3-VL Thinking 的 rollout 退化非單調（F@8 = 2.850，F@16 = 0.286），數值波動大暗示 prompt-conditioned VLM 在自迴歸展開下不穩定。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p><strong>(A) VLM token sources（Tab. 2，p. 13，EgoDex）</strong>：移除單一來源（encoder-only 或 AR-only，即關掉 dense JEPA branch）會塌陷成 Qwen3-VL Thinking 的水準（ADE 0.143/0.142, Acc ≈ 0.086）。保留 dense JEPA、僅關 thinker（&quot;No-dual-temporal sampling&quot;）會回到 V-JEPA-Predictor-like 表現（ADE 0.128, Acc 0.099）。完整 ThinkJEPA = encoder + AR + V-JEPA + thinker 達 ADE 0.061 / Acc 0.596。<strong>這是診斷型 ablation</strong>：能分離出兩種 token 的互補性（encoder = 視覺內容摘要、AR = 生成端推理痕跡）以及 thinker 模組的貢獻來源。值得注意 Encoder+VJ 與 AR+VJ 數值幾乎相同（0.128 vs 0.128, FD 78.869 vs 78.514），這顯示「單一 token 類型 + JEPA」遠不足以解釋 ThinkJEPA 從 0.128 降到 0.061 的跳躍，paper 沒有解釋為何「兩個各自只有邊際效益的訊號加起來會產生量級級的提升」，這是一個值得質疑的點。</p>
+<p><strong>(B) VLM layer selection（Tab. 4，p. 14，EgoDex）</strong>：last-layer 與 mid-layer guidance 表現相近（ADE 0.128 vs 0.128, FD 78.858 vs 78.517），而 &quot;All layers (ThinkJEPA)&quot; 跳到 ADE 0.061。<strong>這個 ablation 是合理的金字塔設計動機</strong>，但同樣存在「single-layer 兩種選擇都 ≈ 0.128 → 多層加總 = 0.061」的不連續跳躍，paper 僅以 &quot;intermediate layers retain richer cues&quot; 解釋（§4.9），未提供量化分解。</p>
+<p><strong>(C) Prompt + video → VLM condition（Tab. 6，p. 16，supplementary §6.1）</strong>：以 prompt-conditioned VLM features 取代 thinker 路徑，得 ADE/FDE/Acc = 0.069/0.062/0.495 vs ThinkJEPA 0.061/0.056/0.596。<strong>診斷性合理</strong>，顯示 prompt 條件化是有效但非最佳的注入方式。</p>
+<p><strong>(D) Temporal stride（Tab. 7，p. 17）</strong>：stride 1 vs stride 2 差距很小（ADE 0.071 vs 0.073），且兩者都明顯弱於 ThinkJEPA 0.061。<strong>偏向 sanity check</strong>：只驗證稠密採樣略優，未深入探討 dual-temporal 的 stride mismatch 大小如何影響表現。</p>
+<p><strong>(E) Conditioning operator（Tab. 8，p. 18）</strong>：FiLM / Cross-attn / AdaLN 在 ADE 上幾乎一致（0.0706 / 0.0707 / 0.0708），FiLM 在 latent metrics 略優。<strong>設計選擇 ablation</strong>，作者另以「FiLM 對 latent feature 直接 channel-wise 控制」為由選擇之；但三者數值差異在 0.0002 級別，<strong>結論偏弱</strong>，並未真正解釋為何 paper 主表 ThinkJEPA = 0.061 而 FiLM 變體在這張表中是 0.0706 — 這個 0.061 vs 0.0706 的差距 paper 沒有清楚說明（推測是 token sources 設定不同），是內部不一致之嫌。</p>
+<p><strong>(F) Direct visual conditioning vs deepstack-token removal（Tab. 9，p. 19）</strong>：兩者 ADE 0.071/0.072，皆遠弱於 ThinkJEPA 0.061。確認 thinking/deepstack token 對最終表現有貢獻，但同樣未解釋移除後相對「No-dual-temporal sampling」(0.128) 為何反而較佳，<strong>內部一致性可疑</strong>。</p>
+<p><strong>(G) Pure prompt-only VLM（Tab. 10，p. 19）</strong>：Qwen3-VL prompt-only ADE/FDE = 10.855/10.927（兩個量級的差距）。作者明白標示這是 intentionally weak reference，<strong>屬於 sanity check</strong>，主要為解釋為何主表 VLM-only baseline 採用 trained head。</p>
+<p><strong>整體評價</strong>：ablation 覆蓋面廣，但多處出現「單一變因關閉只造成小幅回退、整體版本卻有量級級提升」的不一致現象（最明顯：Tab. 2 的 0.128 → 0.061、Tab. 4 同樣的跳躍、Tab. 8 的 FiLM 0.0706 vs 主表 0.061），paper 未提供令人信服的分解，這削弱了 ablation 的診斷力。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[partial] Has at least one strong baseline (a current SoTA on the chosen task) — 比較了 V-JEPA2-style predictor（同期 SoTA latent world model）、Qwen3-VL Thinking（最新開源 VLM）以及 EgoDex 內附的 BC/DDPM/Flow Matching policy heads（Tab. 3），但未對照其他近期 egocentric trajectory forecasting 方法（如 DiffPose、OSF、HOI-specific 方法）。</li><li>[partial] Has cross-task / cross-dataset evaluation (not just one benchmark) — 使用 EgoDex 與 EgoExo4D 兩個資料集（Tab. 1），但任務本質皆為 egocentric 3D hand trajectory prediction，未跨到不同任務型態（規劃、控制、視訊問答）。所有 ablation、rollout、supplementary 全部僅在 EgoDex 進行。</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — Token sources（Tab. 2）、layer selection（Tab. 4）、conditioning operator（Tab. 8）皆為診斷型 ablation；但部分結果出現量級級不連續（0.128 → 0.061），paper 未解釋，且 Tab. 10 的 prompt-only 與 Tab. 7 的 stride 偏向 sanity check。</li><li>[missing] Has a scaling study (size, length, or compute) — 僅固定 V-JEPA-L + Qwen3-VL (Thinking)；無 backbone size、VLM size、video length、cache token 數的 scaling 研究；§6.2 stride ablation 是時間解析度但非 length scaling。</li><li>[missing] Has an efficiency / wall-clock comparison — 整篇沒有 latency、FLOPs、GPU 記憶體、throughput 的對比；雖然 motivation 強調 VLM 的 quadratic attention cost，卻沒量化 ThinkJEPA 相對 baseline 的計算成本。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — Tab. 2 與 Tab. 4 明確標示 &quot;Single seed (42), best-epoch selection by minimum validation ADE&quot;，全文未報告多 seed 平均、std 或 confidence interval；rollout 與主表結果可能因隨機性而誇大。</li><li>[missing] Releases code / weights / data sufficient for reproducibility — 全文未提及 code repository、預訓練權重釋出，或 cached VLM features 的取得方式；雖然 Tab. 11 提供結構超參，但訓練步數、optimizer、scheduler 等關鍵設定缺失，使重現困難。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>作者承認 recursive rollout 易發生 error accumulation,故才需引入 VLM guidance 作為穩定機制 (Sec. 3.3, Sec. 4.5)。</li><li>作者承認 VLM 受限於 quadratic attention cost,因此只能採用 sparse uniform sampling,無法直接做 dense 預測 (Sec. 1, Sec. 3.2)。</li><li>作者承認 prompt-conditioned VLM features 在 latent metrics (74.007/1.248/0.315) 略優於 ThinkJEPA (74.747/1.263/0.324),存在 trajectory 與 latent 指標之間的小幅 trade-off (Sec. 6.1, Tab. 6)。</li><li>作者承認 pure prompt-only Qwen3-VL baseline (ADE/FDE = 10.855/10.927) 是刻意設計的弱對照,僅作為參考點,不適合視為真正的競爭基線 (Sec. 6.5, Tab. 10)。</li><li>Future work 段落坦承目前方法尚未擴展至更廣泛的 embodied tasks,也未針對更長影片設計更 scalable 的 guidance 機制 (Sec. 5)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>全部 ablation 皆使用 single seed 42 並以 minimum validation ADE 做 best-epoch selection (Tab. 2、Tab. 4 caption),既無多 seed 變異區間又對同一指標做模型選擇,使 ThinkJEPA vs 弱變體 (0.061 vs 0.128) 的巨大跳躍無法用統計顯著性背書。</li><li>Tab. 2 中 Encoder+V-JEPA、AR+V-JEPA、Encoder-only、AR-only、No-dual-temporal 的 ADE 全部聚集在 0.128/0.130,連 Tab. 4 的 last-layer 與 mid-layer 也是 0.128 量級,這種異常高度一致暗示這些變體可能皆退化到 V-JEPA Predictor 的初始值附近,真正的 gain 是否能乾淨分解到 dual-temporal 與 pyramid 兩條軸上仍存疑。</li><li>文中提到 VLM thinker 的 prompt $p$ 由 &quot;clip metadata (e.g., task name and scene description)&quot; 自動生成 (Sec. 3.4),這等於把 task identity 與 scene 標籤洩漏給 VLM 分支,但 V-JEPA Predictor 與 Qwen3-VL Thinking baseline 並未明說是否獲得相同 prompt,可能造成 unfair comparison。</li><li>「Data regime mismatch / catastrophic forgetting」是 motivation 的關鍵論證 (Sec. 1, [31][32]),但全文沒有任何 fine-tune VLM 的對照實驗實際呈現此現象,屬於 rhetorical claim 而非 empirical claim。</li><li>Pyramid layer 集合 $\{0, 4, 8, 12, 16, 20, 24, 27\}$ 在 Sec. 3.5 直接給定,但 supplementary 並未對「層數量」「步距」「等距 vs 非等距」做掃描,只比較了 last-only/mid-only/all (Tab. 4),所以「為何是 8 個等距層」缺乏實驗依據。</li><li>標題與 abstract 主張為 latent world model,但所有定量評估都侷限於 3D hand trajectory prediction (EgoDex/EgoExo4D),未涉及 planning、closed-loop control 或更廣義的 dynamics rollout,使「world model」一詞超出目前實驗能背書的範圍。</li><li>Tab. 5 中 Qwen3-VL Thinking 在 rollout 出現非單調且巨大 swing 的數字 (F@4=0.143、F@8=2.850、F@16=0.286、F@32=1.092),更像是 VLM 直接做 metric-space 預測時的 parsing/輸出不穩定,而非「VLM 不適合 dense forecasting」的乾淨佐證。</li><li>所有實驗只用 Qwen3-VL (Thinking) 一個 VLM,沒有跨 VLM (例如不同尺寸或不同家族) 的 scaling 對比,無法判斷方法 gain 來自於設計本身還是特定 VLM 的特性。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: VLM-guided JEPA latent world model</strong> — Tab. 1 顯示在 EgoDex 與 EgoExo4D 上同時擊敗 V-JEPA Predictor 與 Qwen3-VL Thinking 兩條 single-branch 基線,核心主張在「兩個資料集 × 一個任務」上 supported,但「latent world model」的廣義範圍 (planning/control) 未受測。</li><li><strong>C2: Dual-temporal pathway</strong> — Tab. 2 的 &quot;No-dual-temporal sampling&quot; 變體 (0.128/0.130/0.099) 與 V-JEPA Predictor 水準相當,顯示移除 dual-temporal 後性能回退;但同表中所有缺失任一 VLM token 的變體也都聚集在 0.128 附近,使 dual-temporal 的獨立效益難以與 token source 的效益分離,此貢獻為 partially supported。</li><li><strong>C3: Hierarchical pyramid representation extraction</strong> — Tab. 4 中 all-layer pyramid 將 ADE 從 last-layer 的 0.128 降到 0.061,差距高達兩倍以上,這是全文最強的單一 ablation 證據,該主張 supported;但 layer 選擇本身的具體配置 ($\{0,4,...,27\}$) 無進一步消融。</li><li><strong>C4: Improved long-horizon rollout</strong> — Tab. 5 在 $H \in \{4, 8, 16, 32\}$ 全部 horizon 上 ThinkJEPA 皆領先,且優勢隨 horizon 增大而擴大 (V-JEPA: 0.121→0.142;ThinkJEPA: 0.071→0.111),supported;惟 Qwen3-VL 對照本身有 parsing 不穩定問題,削弱了「VLM 不能單獨做 rollout」的乾淨歸因。</li><li><strong>C5: 超越 EgoDex 上的 6 種 trajectory baselines (BC/DDPM/FM × decoder-only/encoder-decoder)</strong> — Tab. 3 數據確實顯示 ThinkJEPA 取得最低 ADE/FDE,supported;但這些 baseline 來自外部實作 [15],訓練 budget、輸入特徵與本論文不對齊,屬於 reference comparison 而非 controlled comparison。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Frozen-cached VLM 設計的天花板。</strong> Sec. 3.5 明確指出 Qwen3-VL features 是 cached 後再注入 predictor,thinker 本身完全 frozen。這在訓練吞吐上是必要妥協,但代價是 VLM 永遠看不到 trajectory regression 的 loss signal,也無法針對 hand-manipulation 的細粒度語意 (例如 contact event、grasp phase) 做 task-specific refinement。此設計把 ceiling 鎖死在「Qwen3-VL pretrained 表徵恰好對齊本任務」的程度,任何 LoRA / partial-tune 都需要重新設計 cache 流程。</p>
+<p><strong>Pyramid 配置與特定 VLM 架構耦合。</strong> $L = \{0, 4, 8, 12, 16, 20, 24, 27\}$ 對應 28 層 LLM 的等距取樣 (Sec. 3.5),這是一個和 Qwen3-VL 結構深度綁定的硬編碼選擇。換成不同層數的 VLM (如 Qwen2.5-VL 或不同尺寸的 LLaVA) 必須重做 layer-set 與 FiLM adapter 的設計,缺乏一個「層數 → 取樣間隔」的原則化規則,使這個模組的可移植性低於論文敘述所暗示的程度。</p>
+<p><strong>Dual-temporal 並未真正解決 VLM 的 quadratic 成本。</strong> Sec. 3.2 的論述把 sparse uniform sampling 包裝為「設計選擇」,但實際上仍是被 attention 成本逼出來的妥協:VLM 看到的時間覆蓋度受限於 $N_u$,而 dense JEPA 分支看到的 horizon 也受限於單次 forward 視窗。Recursive rollout (Sec. 3.3) 把問題遞推化,但每次 rollout 仍以原始的短窗 VLM cache 為條件,長 horizon 越過原始 clip 邊界時 VLM 是否仍提供有意義 guidance 並未討論。</p>
+<p><strong>「World model」介面尚未閉環。</strong> 整篇實驗只把 predicted latents 餵進 trajectory regression head (Sec. 3.4 結尾、Sec. 3.5 trajectory head),沒有把 latent forecast 用於 action selection、policy rollout 或 model-predictive control。在 V-JEPA2 [4] 把 latent prediction 用於 planning 的脈絡下,ThinkJEPA 目前更接近一個「VLM-guided trajectory regressor」而非完整 world model,這個 gap 是其論文敘事與現實能力之間最大的張力。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[4] V-JEPA 2 (Assran et al., 2025)</strong> — 直接 backbone,要理解 ThinkJEPA 的 predictor、recursive rollout 與下游 protocol 都必須先掌握 V-JEPA2 的 masked-token transformer 預測介面。</li><li><strong>[6] VL-JEPA (Chen et al., 2025)</strong> — 唯一被點名的 concurrent work,代表「把 language signal 引入 JEPA」的另一條路線 (轉向 language output);與 ThinkJEPA 的差異定位在 Sec. 2.3 與 Sec. 3.4,值得對讀。</li><li><strong>[5] Qwen3-VL Technical Report (Bai et al., 2025)</strong> — ThinkJEPA 的 thinker 與 baseline 完全綁定 Qwen3-VL (Thinking),其層數、AR token 結構、thinking-token 機制是 pyramid 設計的硬性前提。</li><li><strong>[33] LinkedOut (Zhang et al., 2025)</strong> — 同一第一作者的 prior work,Sec. 3.4 直接引用其「aggregating intermediate LLM representations 優於 single terminal layer」的分析,是 pyramid 模組的概念前身。</li><li><strong>[13] EgoDex (Hoque et al., 2025)</strong> — 主要 benchmark,提供 ADE/FDE/Acc 指標定義與 trajectory baselines 的比較基準,任何後續工作要超越 ThinkJEPA 都需先在此資料集對齊評估協定。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在多 seed (例如 5 個 seeds) 下,ThinkJEPA 對 V-JEPA Predictor 的 0.061 vs 0.071 ADE 差距是否仍顯著,還是落在 single-seed 的 noise 範圍內?</li><li>[ ] Sec. 3.4 中由 &quot;task name and scene description&quot; 自動生成的 thinker prompt 究竟提供了多少資訊?移除 task-name 或改用通用 prompt 後,ADE 退化幅度為何?</li><li>[ ] 為什麼 Tab. 2 中 Encoder+V-JEPA、AR+V-JEPA、No-dual-temporal、Tab. 4 的 last-layer/mid-layer 全部停在 ADE ≈ 0.128?是否所有部分配置實際上都退化到 V-JEPA Predictor,而 gain 完全集中於「同時啟用 encoder + AR + 多層 pyramid」?</li><li>[ ] 把 Qwen3-VL (Thinking) 換成不同尺寸 (例如更小的 Qwen2.5-VL 或更大的 InternVL) 後,pyramid 是否仍能等比例 transfer?gain 與 VLM 規模的關係如何?</li><li>[ ] Pyramid layer set $\{0, 4, 8, 12, 16, 20, 24, 27\}$ 中,層數量 (4 vs 6 vs 8) 與步距 (等距 vs 對視覺敏感層加密) 對 latent metrics 的邊際效益曲線是什麼?</li><li>[ ] 在 recursive rollout 越過原始 clip 邊界後,VLM cache 仍以 first-window 的 uniform sampling 為條件,此時 VLM guidance 是否仍有效,或是退化成常數?Tab. 5 在 $H = 32$ 之後 (例如 $H = 64, 128$) 的趨勢需要被報告。</li><li>[ ] 把 ThinkJEPA 的 latent forecast 接到下游 policy / MPC 而非 trajectory regression head 時,VLM guidance 對 action 成功率的影響是否仍存在?</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>Multi-seed + 信賴區間</strong> (高可行,低成本):僅需重跑 EgoDex 主表 3–5 個 seed,即可把 Tab. 1 的 0.061 vs 0.071 ADE gap 從 anecdotal 升級為 statistically grounded;這對全文敘事最具決定性,因為當前所有 ablation 對比都倚賴單一 seed。</li><li><strong>Prompt 內容消融</strong> (高可行):提供三種 prompt — (a) 完整 task-name + scene、(b) 僅通用 &quot;predict future hands&quot; 指令、(c) 空 prompt;若 (b)(c) 性能與 (a) 接近,則可駁斥 task-leakage 質疑;若 gap 顯著,則應重新校準 baseline 是否獲得相同 prompt。</li><li><strong>VLM 替換實驗</strong> (中可行):在 frozen-cache 設定下換用 1–2 個尺寸/家族不同的 VLM,驗證 pyramid 設計是否真為「general 機制」而非 Qwen3-VL 特定 layer 結構的偶然契合。</li><li><strong>Pyramid 層數掃描</strong> (中可行):以 $|L| \in \{1, 2, 4, 8, 12\}$ 在固定其他設定下繪製性能曲線,並比較等距 vs 對「視覺敏感區間」加密的取樣策略,為 Sec. 3.5 的硬編碼選擇提供經驗依據。</li><li><strong>更長 rollout horizon</strong> (中可行):把 Tab. 5 延伸至 $H = 64, 128$,並在每個 step 使用更新後的 VLM cache (而非 first-window cache),以檢驗 dual-temporal 在超出原始 clip 後的可持續性。</li><li><strong>下游 policy / closed-loop 評估</strong> (低可行):在 EgoDex 或模擬環境中接 trajectory 至 IL policy 或 MPC,把 ADE/FDE 改成任務成功率;這是把「latent world model」標籤從 rhetoric 升級為 substantive 的最直接路徑。</li><li><strong>Co-training 或 LoRA-tuning VLM thinker</strong> (低可行,高 payoff):打破 frozen-cache 設計,讓 VLM 在 trajectory loss 下接受 lightweight adaptation,直接測試作者的 catastrophic-forgetting 假設,並驗證 cache 設計的天花板有多高。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(160 words)</p>
+<div class="card"><p>§5 Conclusion 以一段密度高的收束複述全文骨架：ThinkJEPA 是一個 VLM-guided JEPA-style latent world modeling framework，把 vision–language thinker 提供的 long-horizon semantic reasoning 與 dense latent dynamics forecasting 結合。架構決定被總結為兩個關鍵選擇：dual-temporal perception design（uniform sampling 給 VLM thinker、dense sampling 給 JEPA branch）、以及把 pyramid-extracted、multi-depth VLM representation 透過 layer-wise modulation 注入 JEPA predictor。這個 complementary integration 的好處被表述為「保留 downstream world-model task 所需的 latent forecasting interface，同時以 knowledge-aware guidance 豐富預測」——這正好把 §2.3 中 VL-JEPA 與 V-JEPA→LLM 等相鄰路線的 positioning 缺口收口。</p></div>
+<div class="card"><p>證據面則歸納為：在 egocentric hand-manipulation trajectory prediction 的大量實驗中同時改善 representation-level forecasting quality 與 downstream performance，勝過 strong VLM baseline (Qwen3-VL (Thinking)) 與 V-JEPA predictor baseline，且 long-horizon rollout 行為穩健。Future work 點到兩個方向：把框架延伸到更廣的 embodied task，並探索更 scalable 的 guidance 機制以處理更長 video 與更多元 interaction scenario。論文沒有獨立的 limitations 段落，作者也未在 conclusion 中明確列出方法的不足，這部分的揭露主要落在 §3.1 對 recursion error accumulation 與 §3.4 對 standalone VLM dense prediction 不可行的討論。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

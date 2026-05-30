@@ -1,0 +1,526 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>VGGT-Motion — VGGT-Motion: Motion-Aware Calibration-Free Monocular SLAM for Long-Range Consistency</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-08 | lang: zh-TW --&gt;</p>
+<h1 id="vggt-motion-vggt-motion-motion-aware-calibration-free-monocular-slam-for-long-range-consistency">VGGT-Motion — VGGT-Motion: Motion-Aware Calibration-Free Monocular SLAM for Long-Range Consistency</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>VGGT-Motion</td></tr><tr><td>Paper full title</td><td>VGGT-Motion: Motion-Aware Calibration-Free Monocular SLAM for Long-Range Consistency</td></tr><tr><td>arXiv ID</td><td>2602.05508</td></tr><tr><td>Release date</td><td>2026-02-05</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2602.05508</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2602.05508v1</td></tr><tr><td>Code link</td><td>—</td></tr><tr><td>Project page</td><td>—</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Zhuang Xiong</td><td>National Key Laboratory of Science and Technology on Multi-spectral Information Processing, Huazhong University of Science and Technology, Wuhan, China</td><td>—</td><td>co-first author</td></tr><tr><td>Chen Zhang</td><td>National Key Laboratory of Science and Technology on Multi-spectral Information Processing, Huazhong University of Science and Technology, Wuhan, China</td><td>—</td><td>co-first author</td></tr><tr><td>Qingshan Xu</td><td>College of Computing and Data Science, Nanyang Technological University, Singapore</td><td>https://ghixu.github.io/</td><td>corresponding author</td></tr><tr><td>Wenbing Tao</td><td>National Key Laboratory of Science and Technology on Multi-spectral Information Processing, Huazhong University of Science and Technology, Wuhan, China</td><td>http://faculty.hust.edu.cn/taowenbing/zh_CN/index.htm</td><td>corresponding author</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>monocular SLAM, calibration-free, 3D foundation model, VGGT, motion-aware submap, optical flow keyframe selection, Sim(3) registration, loop closure, pose graph optimization, long-range trajectory consistency</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>VGGT (Wang et al., 2025a)</td><td>base model</td><td>底層的 3D vision foundation model,提供局部 dense pointmap、camera pose 與 confidence,本工作以其為核心建構 SLAM。</td></tr><tr><td>VGGT-Long (Deng et al., 2025)</td><td>baseline</td><td>最直接的 SOTA baseline,採用簡單分塊 + 重疊配準;本文針對其 motion-agnostic 切分與 scale drift 提出改進。</td></tr><tr><td>VGGT-SLAM (Maggio et al., 2025)</td><td>baseline</td><td>另一個 submap-based foundation SLAM,以 sliding window 對齊;本文同樣與其比較長序列穩健性。</td></tr><tr><td>DUSt3R (Wang et al., 2024)</td><td>predecessor</td><td>calibration-free 雙視圖 dense 幾何回歸的開山之作,啟發後續 3D foundation model 統一框架。</td></tr><tr><td>MASt3R-SLAM (Murai et al., 2025) / MASt3R (Leroy et al., 2024)</td><td>predecessor</td><td>在 DUSt3R 基礎上加入 3D-grounded matching,並衍生出 SLAM 系統,作為 foundation-model SLAM 重要前身與比較對象。</td></tr><tr><td>DROID-SLAM (Teed &amp; Deng, 2021)</td><td>baseline</td><td>代表性 learning-based 校準式 SLAM,以 dense correspondence + 微分式 BA 著稱,作為已校準上界 baseline。</td></tr><tr><td>ORB-SLAM2 (Mur-Artal &amp; Tardós, 2017)</td><td>influence</td><td>經典手工特徵增量式 SLAM,代表傳統 pipeline,被引用以對照 calibration-free 設定下的局限。</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本研究聚焦於以單目影像為輸入、且不需相機內參校準(calibration-free)的視覺 SLAM,並特別處理「公里級長序列」下的全域一致性問題。作者建立在 VGGT 等 3D vision foundation model 之上,透過引入運動感知(motion-aware)的 submap 切分、以光流偵測靜止/轉彎/直行三種運動狀態,搭配以 anchor 為核心的直接 Sim(3) 對齊與輕量級 pose graph 最佳化,在自駕場景的多個資料集(KITTI、Waymo、4Seasons、Complex Urban、A2D2)上,驗證其在 zero-shot、長距離、未校準條件下的軌跡精度與計算效率。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>Computer Vision</li><li>3D Reconstruction</li><li>Visual SLAM</li><li>Autonomous Driving</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>VGGT (3D vision foundation model)</strong>:作為前端推理核心,輸入一段影像 submap 後一次性回歸 dense pointmap $P_k^{(n)}$、camera pose $T_k^{(n)}$ 與 pixel-wise confidence $C_k^{(n)}$,是本系統取得 calibration-free 局部幾何的唯一來源。</li><li><strong>Motion-Aware Submap Construction (本文提出)</strong>:以 dense optical flow 計算 static ratio $r_{\text{static}}^{(t)}$ 與 turning score $m_{\text{turn}}^{(t)}$,將序列分類為 Static / Turning / Linear 三態,進行 static pruning、parallax-based keyframe 選取與 turning encapsulation,以避免 motion-agnostic 切分造成的 zero-motion drift 與旋轉碎裂。</li><li><strong>Anchor-Driven Direct Sim(3) Registration (本文提出)</strong>:以 context-balanced anchor 為共享幾何樞紐,讓 pixel index 直接給出 dense 對應 $x_i^u, x_j^u$,在 valid pixel 集合上以 Huber 損失穩健求解相似變換 $\hat{S}_{ij} = \{s, R, t\}$,將對齊複雜度降到 $O(N)$。</li><li><strong>SALAD-based Loop Detection (Koo et al., 2023)</strong>:以 SALAD 全局描述子檢索歷史 keyframe,將相似度最高者注入當前 submap 作為 loop anchor,提供無需重推理的閉環約束。</li><li><strong>Sky Segmentation (Liba et al., 2020)</strong>:輕量級 off-the-shelf segmenter 用於剔除天空像素,與 confidence 閾值聯合界定 Sim(3) 估計所用的 valid pixel set $\Omega_{\text{valid}}$。</li><li><strong>Lightweight Sim(3) Pose Graph Optimization (本文提出)</strong>:以 submap 為節點($K \ll N$)、以 overlap 與 loop 邊上的 $\hat{S}_{ij}$ 為約束,於 Lie 代數上以 Levenberg-Marquardt 求解 robustified 殘差和,輸出全域一致軌跡。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者指出現有 foundation-model-based monocular SLAM(如 VGGT-Long、VGGT-SLAM)在長序列上失敗的根因並非模型容量,而是「pre-inference 的分塊策略」與「submap 對齊機制」與相機運動及 Transformer 注意力結構不相容,因此即使後端再強也無法補救。具體而言,固定間隔切分會把 sharp turn 切碎,破壞全域 self-attention 賴以維持旋轉與尺度一致性的上下文,造成 boundary 處 scale jump;靜止階段密集取樣讓感測雜訊主導 inter-frame 差異,foundation model 會「幻想」位移,產生 zero-motion drift;而高速移動下相鄰 frame 語意過於相似,無法提供新的幾何訊號,只徒增 O(N²) 自注意力成本。此外,鄰接 submap 的重疊區存在「context asymmetry」:前段 submap 因歷史脈絡偏向近場、後段因預測脈絡偏向遠場,導致同一物理點在兩個 submap 中位置系統性偏移,單靠 dense overlap 對齊會放大這個偏差。基於此,作者主張解法必須回到「以運動結構驅動的 submap 構造」,把靜止冗餘剪除、把 turn 完整封裝在單一 submap、以視差選 keyframe;再用「context-balanced anchor」作為兩 submap 共享幾何樞紐,讓 pixel index 直接給出 dense 對應,避開特徵匹配與最近鄰搜尋,將對齊複雜度降到 O(N);最後僅在 submap 層級做稀疏 Sim(3) pose graph 最佳化,使整體保持線性複雜度卻能維持公里級全域一致性。這條因果鏈解釋了為何每個模組不是可選的工程技巧,而是針對特定失敗根因的必要對策。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(190 words)</p>
+<p>標題「VGGT-Motion: Motion-Aware Calibration-Free Monocular SLAM for Long-Range Consistency」一次性點出三個關鍵屬性：以 VGGT 為基礎、強調 motion-aware 的設計、以及瞄準 calibration-free 與 long-range consistency 兩個痛點。讀者光看標題即可推知本文是針對 foundation-model-based monocular SLAM 在長序列上 scale drift 問題的延伸工作。</p>
+<p>Abstract 採取「問題—成因—方法—結果」的四段式論述。它先承認 calibration-free monocular SLAM 在 3D vision foundation models 加持下已有進展，但在 long sequences 上 scale drift 依舊嚴重；接著把成因歸納為兩點：motion-agnostic partitioning 破壞 contextual coherence 並引發 zero-motion drift，以及 conventional geometric alignment 計算昂貴。隨後依序介紹三個對應模組：(1) motion-aware submap construction 透過 optical flow 自適應切分、剔除靜態冗餘並封裝轉彎以維持 local geometry；(2) anchor-driven direct $\mathrm{Sim}(3)$ registration 以 context-balanced anchors 達成 search-free、pixel-wise dense alignment 與高效 loop closure；(3) lightweight submap-level pose graph optimization 以線性複雜度維持 global consistency。最後以「kilometer-scale 軌跡上達成 SOTA、zero-shot 表現」收束，預告 §4 將以 trajectory accuracy 與 efficiency 為核心指標。整段 abstract 為後續每個章節都鋪好對應錨點，讓讀者帶著「三模組 × 兩成因」的架構圖閱讀全文。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(844 words)</p>
+<p>Introduction 採典型 funnel 結構，從 monocular visual SLAM 在 autonomous driving 的重要性切入，接著鋪陳兩條歷史軸線：classical pipelines（如 ORB-SLAM 系列）受 illumination、texture 變化與 calibration 限制；而新一代 3D vision foundation models（DUSt3R、MASt3R、VGGT）雖然開啟 calibration-free reconstruction 的可能，但 Transformer 的 $O(N^2)$ 自注意力複雜度使其無法直接應用於 long-horizon sequences。這段奠定「foundation models 是必走方向，但 scalability 是必跨門檻」的論述基調。</p>
+<p>接下來作者以一個視覺化的 Figure 1（VGGT-Long 在 Urban27、Old Town 等 kilometer-scale 序列出現上百米 RMSE）建立衝擊力，並隨即把現有 divide-and-conquer 策略（sliding window、簡單 chunking）的失敗歸納為三個編號的問題：(1) Geometric Fragmentation in Motion-Agnostic Partitioning，指出固定切分會把轉彎切成多個 submap、破壞 global self-attention；(2) Spatio-temporal Redundancy and Hallucinated Zero-Motion Drift，指出靜止段落容易因感測雜訊而 hallucinate 位移、動態段落則因 semantic feature saturation（&gt;0.95 similarity）導致幾何訊息為零；(3) Contextual Asymmetry and Systematic Alignment Bias，指出 preceding submap 偏 near-field、succeeding submap 偏 far-field，相同點被重建到不同位置。這三點與 Abstract 提出的三個模組形成嚴格 one-to-one 對應，是整篇論文最重要的鋪排。</p>
+<p>確立問題後，作者宣布 VGGT-Motion 系統的核心 idea：「exploit motion dynamics and structural regularities」。隨後依序介紹三個對應模組：motion-aware submap construction 透過 optical flow 將序列分成 static、turning、linear 三類，搭配 parallax-based keyframe selection、redundancy pruning、turning encapsulation；anchor-driven direct $\mathrm{Sim}(3)$ registration 以 context-balanced anchors 為共享幾何樞紐，達成 search-free、pixel-indexed dense alignment 並把複雜度壓至 $O(N)$；最後以 lightweight pose graph optimization 在稀疏 submap 上完成全域一致性收斂。</p>
+<p>Experiments 段落用一段話先預告結果：在五個資料集上達到 high-fidelity trajectory consistency 與顯著效率提升，並具體指出在 4Seasons、Complex Urban、A2D2 上相對 SOTA VGGT-Long 取得 85–95% trajectory error 降幅與 18–36× speedup，並具備對 illumination、low-texture、high-speed motion 的 robustness。</p>
+<p>最後以三點 contribution 列項收尾，分別對應 motion-aware partitioning、anchor-driven $\mathrm{Sim}(3)$ registration、kilometer-scale calibration-free framework，與前面三個 problem statements 完整閉環。整個 Introduction 為讀者建立「問題分類—模組對應—數據驗證」的閱讀地圖，並把 §3 Method 與 §4 Experiments 的閱讀順序自然鎖定。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(305 words)</p>
+<p>Related Work 分成三個小節，依「傳統—基礎模型—延伸至長序列」遞進，目的是把 VGGT-Motion 精準定位為「Scalable Foundation-Based SLAM」陣營中的補強之作。</p>
+<p>第一段 SfM &amp; SLAM 回顧 classical 與 learning-based 路線。作者點出 SfM pipelines（COLMAP）依賴 global bundle adjustment、ORB-SLAM 採 handcrafted features、DROID-SLAM 與 DPVO 引入 dense correspondence learning 與 differentiable matching。共同限制是「需要已知 camera calibration」，這直接呼應本文 calibration-free 的賣點。</p>
+<p>第二段 3D Foundation Models 介紹 DUSt3R、MASt3R、FAST3R、VGGT 的演進，強調這些模型 bypass epipolar search、直接以 pretraining 取得 dense geometry 與 camera parameters，使 calibration-free 成為可能。但作者隨即指出共同限制：quadratic self-attention 把它們鎖在 short-sequence batch inference，對長軌跡不友善。這段為本文「站在 VGGT 肩膀但要解 scalability」鋪平合法性。</p>
+<p>第三段 Scalable Foundation-Based SLAM 是最關鍵的一段，把 SOTA 對手分成兩條路線：streaming architectures（如 STREAM3R、TTT3R 等）以 causal attention 或 incremental inference 延伸時間視窗，但 susceptible to catastrophic forgetting 與 drift；submap-based registration（VGGT-Long、VGGT-SLAM）對 overlapping chunks 對齊，但 motion-agnostic partitioning 處理不了 static redundancy 與 rapid turns，fixed-overlap alignment 又忽略 contextual asymmetry。作者明確點名兩個對手的具體弱點，與 §1 的三個 problem statements 對齊，等於把 baseline 的問題與本文的解法綁成一條因果鏈。</p>
+<p>整個 Related Work 沒有 preliminaries 的數學鋪陳（作者把 VGGT 的輸入輸出留到 §3.1 Eq. 5 才正式定義），其作用更像是「立場聲明」：本文不重新發明 foundation model，而是以 motion-aware 的資料組織與 alignment 策略，補上 submap-based 路線的短板，順勢預告 §3 Method 將以三個模組分別回應這三類弱點。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(335 words)</p>
+<p>Method 開頭以一句話定義輸入輸出：「Given a monocular image sequence, our goal is to recover a globally consistent trajectory and dense geometry」，並用 Figure 2 把整條 pipeline 視覺化為三段：(a) Motion-Aware Submap Construction、(b) Anchor-Driven Direct $\mathrm{Sim}(3)$ Registration、(c) Lightweight Pose Graph Optimization。這三段對應 §3.1、§3.2、§3.3 三個小節，與 §1 的三個 problem statements 與三個 contributions 形成嚴格三對映。</p>
+<p>§3.1 的敘事邏輯是「先講為何 naive partitioning 會失敗、再講如何用 motion state 修正」。作者點名兩種系統性錯誤：zero-motion drift（在 stop-and-go 期間累積 spurious motion）與 rotation-induced fragmentation（轉彎時切分破壞 attention context 與 scale consistency），並強調這些錯誤源自 pre-inference grouping，因此 backend optimization 無法補救。隨後依序展開 motion state estimation（用 dense optical flow $F_t$ 計算 static ratio $r_{\text{static}}^{(t)}$ 與 turning score $m_{\text{turn}}^{(t)}$，再以 hierarchical classifier 標記 $s(t) \in \{S, T, L\}$）、redundancy filtering（static pruning + parallax-based keyframe selection）、topology-aware partitioning（turning encapsulation + adaptive linear slicing）、以及 submap composition with geometric anchors（$M_k = R_k \cup O_k \cup L_k$，最終丟入 VGGT 取得 $(P_k^{(n)}, T_k^{(n)}, C_k^{(n)})$）。</p>
+<p>§3.2 接續處理「submap 之間如何對齊」。作者先指出 conventional descriptor matching（ORB、SIFT）在 low-texture driving scenes 既脆弱又是 $O(N^2)$，因此改以 VGGT point maps 直接導出 dense, search-free 對應。論述脈絡為：context-balanced anchor selection（overlap anchor 取 $W$ 中點、loop anchor 重用 historical keyframe）→ pixel-indexed dense correspondence（同一 anchor 的兩張 point map 共享 pixel lattice，給出 $O(HW)$ 約束、$O(1)$ 關聯成本）→ reliability-aware robust $\mathrm{Sim}(3)$ estimation（以高 confidence 與非 sky 的 $\Omega_{\text{valid}}$ 上的 Huber loss 求解 $\{s, R, t\}$，並以 inlier ratio $\eta_{ij}$ 做 geometric verification）。</p>
+<p>§3.3 把 alignment 結果聚合為 submap-level pose graph：節點為 $X_k \in \mathrm{Sim}(3)$，邊權重為 $w_{ij} = \eta_{ij}$，殘差以 Lie algebra 表示 $r_{ij} = \log(\hat S_{ij}^{-1} X_i^{-1} X_j) \in \mathbb{R}^7$，以 Levenberg-Marquardt 求解後再以 $T_w^{(n)} = X_k T_k^{(n)}$ 復原全域軌跡。整段 Method 的敘事節奏由「資料層 → 對齊層 → 全域優化層」逐步收斂，為 §4 的實驗鋪陳出三條可分別 ablate 的軸線。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(361 words)</p>
+<p>§4 Experiments 以四個層次展開，敘事節奏是「先驗證標準 benchmark 的競爭力、再凸顯 zero-shot 長序列的優勢、接著佐證效率、最後用 ablation 證明每個模組各司其職」。</p>
+<p>§4.1 Experimental Setup 先把舞台搭好：五個 outdoor datasets（KITTI、Waymo Open、4Seasons、Complex Urban、A2D2），其中後三者刻意不在 VGGT pretraining corpus 中，用以測 zero-shot generalization。指標選擇也呼應論文主軸——除了 Sim(3) 對齊後的 ATE，還報 Translation Drift (%) 來捕捉 global rigid alignment 容易遮蔽的 non-uniform scale drift。Baselines 涵蓋 foundation-model-based（VGGT-Long、VGGT-SLAM、MASt3R-SLAM、Fast3R、CUT3R）與 calibrated pipelines（ORB-SLAM2、DPVO、DROID-SLAM），並刻意給後者 GT intrinsics 形成 upper bound。</p>
+<p>§4.2 Comparison on Standard Benchmarks 處理 KITTI 與 Waymo。作者先指出 MASt3R-SLAM、CUT3R、Fast3R 在大型 outdoor scenes 常見 OOM 或 Tracking-Lost，凸顯 scalability 落差；接著把改善歸因於兩個模組：MASP 在 KITTI 帶來 13% ATE 改善，context-balanced anchor + robust $\mathrm{Sim}(3)$ 在動態 Waymo 帶來進一步 20% 改善。這段把模組與資料集特性一一綁定。</p>
+<p>§4.3 Zero-Shot Generalization &amp; Scalability 是論文最關鍵的賣點驗證。作者特意挑「seasonal appearance changes」、「texture-poor urban canyons」、「high-speed driving」三類嚴苛場景，以 85–95% 的 ATE 與 Drift 雙重降幅、配合 Figure 4 的軌跡可視化，把對 VGGT-Long 與 VGGT-SLAM 的優勢具象化，並把成功歸因於 Submap Composition with Geometric Anchors、Anchor-Driven Direct $\mathrm{Sim}(3)$ Registration、Motion-Aware Submap Construction 三者協同作用。</p>
+<p>§4.4 Efficiency 用 Figure 5 補上效率敘事：在五個 benchmark 上一致超越 VGGT-Long 與 VGGT-SLAM，long-sequence dataset 上達 18–36× speedup，per-frame latency 也大幅下降，並把效率收益歸因於 Redundancy Filtering 與 Direct $\mathrm{Sim}(3)$ Registration。</p>
+<p>§4.5 Ablation Studies 採 incremental ablation protocol，模組依 pipeline 順序加入、每階段以前一階段最佳設定為起點。三個分支對應 §3 三個子模組：Redundancy Filtering 的 Parallax-Based Selection 加 Static Pruning 取得最佳 ATE；Submap Partitioning 比較 temporal slicing、parallax-triggered 與 topology-aware，後者勝出；Submap Alignment 比較 dense baseline 與 ADSR 在不同 overlap size 下的 ATE、Drift、計算時間，由 Figure 6 顯示 ADSR 在效率與精度雙贏。整個 §4 的論述節奏緊扣「三模組 × 三類問題 × 五資料集」三軸，把 Method 的承諾全部兌現。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(290 words)</p>
+<p>正文 §5 Conclusion 採極簡收束（僅一段），但搭配 Appendix B.3 才完整呈現作者對「成就—延伸—邊界」的反思。Conclusion 主段把貢獻濃縮為三點：motion-aware 資料組織策略以 camera dynamics 自適應切分、active pruning of static redundancy 與 turning encapsulation 是它的兩個齒輪；anchor-driven direct $\mathrm{Sim}(3)$ registration 以 context-balanced anchors 與 intrinsic pixel-indexing 達成 search-free dense alignment；兩者合力在 kilometer-scale datasets 上提供 zero-shot generalization 與 low computational overhead。最後一句「advancing foundation-model-based monocular SLAM toward real-world deployment」把全文願景拉到部署層級。</p>
+<p>論文沒有設立傳統意義上的 Future Work 章節，而是把延伸性討論放在 Appendix B.2 的 Discussion 中。作者強調本框架 model-agnostic：核心模組與任何 geometric predictor 解耦，可換用 Depth Anything 系列、$\pi^3$、MapAnything 等。並指出 metric flexibility——若 foundation model 僅給 relative scale 就在 $\mathrm{Sim}(3)$ 操作；若能 infer near-metric geometry 就可改在 $\mathrm{SE}(3)$ 操作以避免 scale ambiguity。這段同時也把「未來隨基礎模型進步本系統可立即受益」的論述基調確立下來，並以 Anysplat、Depth Anything-v3 預測 3DGS 為例，預告整條 pipeline 可朝 renderable scene representations、real-time novel-view synthesis 與 embodied AI 演進。</p>
+<p>Limitations 在 Appendix B.3 列出三項，三者分別對應「效能、場景假設、誤差積累」三個面向：第一，real-time performance 受 foundation model 推論延遲限制，邊緣裝置部署仍需 quantization/distillation；第二，motion-aware partitioning 假設 mostly rigid scene，highly dynamic environments 可能污染 geometric priors；第三，仍有 accumulated scale、rotation、translation drift，loop closure 之間的長間隔仍需 IMU 等輔助 sensor 才能在大規模場景達 metric accuracy。三點限制誠實標出 monocular SLAM 的根本邊界，也暗示了下一步研究路線。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>在 zero-shot 長序列基準（4Seasons、Complex Urban、A2D2）上,相對 SOTA VGGT-Long 取得 ATE 與 Translation Drift 約 <strong>85–95% 的下降</strong>,並在總執行時間上達到 <strong>18–36× 加速</strong>(Table 3、Figure 5,p.6–7)。</li><li>在 KITTI 全 11 條序列(含 Seq.01 的 1,101 frames、5,067 m 高速序列)上,平均 ATE 從 VGGT-Long<em> 的 28.38 m 降至 <strong>24.17 m</strong>(去除 Seq.01 後從 21.89 m 降至 18.26 m),較作者實機重跑的 VGGT-Long</em> 改善約 <strong>13%</strong>(Table 1,p.7)。</li><li>在 Waymo Open 9 個 segment 上,平均 ATE 從 VGGT-Long 的 2.00 m 降至 <strong>1.59 m</strong>,較 VGGT-Long 改善約 <strong>20%</strong>,並在多數動態場景優於需要 GT intrinsics 的 DROID-SLAM(Table 2,p.7)。</li><li>提出以 optical flow 同時計算 static ratio $r^{(t)}_{\text{static}}$ 與 lateral flow 為基礎的 turning score $m^{(t)}_{\text{turn}}$,以階層分類器將 frame 切為 $\{S, T, L\}$ 三態,使 submap 切分由「時間軸」轉為「運動軸」(Eq. 1–3,p.3–4)。</li><li>設計 Turning Segment Encapsulation,將連續 turn 整段封裝為單一 submap,直接針對 Transformer 全域 self-attention 在 sharp turn 被切斷時的 scale jump 問題(§3.1,p.4;Table 5 顯示 Topology-Aware 較 Temporal Slicing 把 Drift 從 1.58% 降到 1.41%,p.8)。</li><li>Anchor-Driven Direct Sim(3) Registration 透過 context-balanced anchor $I_{\text{ovlp}} \triangleq N(\text{mid}(W))$ 直接以 pixel index 建立 dense correspondence,將 alignment 複雜度從傳統 descriptor matching 的 $O(N^2)$ 降到 $O(N)$,完全跳過 ORB/SIFT 與 nearest-neighbor search(§3.2,p.4–5;Figure 6 顯示同時改善精度與速度,p.8)。</li><li>在 reliability filtering 上同時結合高 confidence 像素與 sky mask,定義 $\Omega_{\text{valid}}$ 並用 Huber loss 估 $\hat{S}_{ij}$,使 KITTI Seq.01、05、08 點雲明顯減少天空噪點導致的對齊偏差(Eq. 9–10,p.5;Figure 17–19,p.20–21)。</li><li>Pose graph 僅在 submap 層級進行 sparse Sim(3) 最佳化(節點數 $K \ll N$),邊權重採 inlier ratio $w_{ij} = \eta_{ij}$,以 Levenberg-Marquardt 在 Lie group 上求解,顯式回避 frame-level bundle adjustment 的成本(Eq. 11–13,p.5)。</li><li>在從未進入 VGGT 預訓練的 Complex Urban 27 號(11,601 frames)上,RMSE 從 326.10 m 降到 <strong>17.40 m</strong>;4Seasons Old Town(28,425 frames)從 610.53 m 降到 <strong>23.01 m</strong>(Figure 1,p.1)。</li><li>框架在 §B.2 與 Figure 7–9 展示 model-agnostic 性,可直接替換為 Pi3、DepthAnything-v3、MapAnything 等 backbone,並在後者下用 SE(3) 對齊以擺脫 monocular scale ambiguity(Table 7、Figure 8–9,p.13–14)。</li><li>TUM-Mono 手持資料集 10 條序列上,平均 ATE 從 VGGT-Long 的 4.86 m 降到 <strong>2.41 m</strong>,顯示方法對非平面、強旋轉的手持運動同樣 robust(Table 8,p.16)。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>即時性受限於 backbone foundation model 的 inference latency,無 quantization/distillation 時難以部署到 edge device(§B.3,p.15)。</li><li>系統假設場景大致 rigid;在繁忙路口等高度動態環境下,foundation model 的幾何先驗可能被移動物污染,影響 mapping 一致性(§B.3,p.15)。</li><li>與傳統 monocular SLAM 一樣,在 loop closure 之間的長段落會累積 scale/rotation/translation drift;即便用 near-metric backbone,仍需 IMU 等輔助 sensor 才能在 km 級場景達到絕對精度(§B.3,p.15)。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>三個運動狀態的全部閾值(τflow=0.7、τstatic=0.6、τturn=5、τpalx=15、τconf=0.5、Nmax=12、Novlp=5)在所有 dataset 共用且只列一次,但論文未提供任何 sensitivity analysis,使得「single set of hyperparameters」的宣稱無法檢驗,實際對相機 FOV/解析度/車速分佈的 robustness 不明(§4.1,p.6)。</li><li>「85–95% 的 ATE/Drift 改善」只在 VGGT-Long 與 VGGT-SLAM 兩個 submap-based baseline 上計算,而 MASt3R-SLAM、Fast3R、Cut3R 在所有長序列基準皆 OOM/TL,等於沒有真正的長序列 SOTA 對手,對「state-of-the-art」的定位有誇大成分(Table 3,p.7)。</li><li>Table 4–5 的 ablation 全部只在 KITTI 上做,且 Drift 改善從 1.58% 降到 1.41%(僅 0.17 個百分點),作者宣稱的核心模組 Turning Encapsulation 在這個資料集上的效果其實非常邊際,但對 4Seasons/Complex Urban/A2D2 的 95% 改善來自哪些模組則沒有逐一拆解(§4.5,p.8)。</li><li>Context-balanced anchor 只取 overlap 中點 $N(\text{mid}(W))$ 一個 frame,對 anchor 內 geometry error 的依賴變得集中;一旦 mid-frame 落在天空/曝光異常/動態物上,整段 submap 對齊就會失敗,但論文沒有對 anchor 失效率或 fallback 策略做任何分析(§3.2,p.4–5)。</li><li>Algorithm 1 的 IsStaticBoundary 用 ω 個 frame 的 boundary window 取代整段 static 區間,這假設 traffic stop 期間沒有可用幾何資訊,但對「停車期間有橫穿車流提供 parallax」這類常見駕駛場景沒有討論,可能損失可用 constraint(Algorithm 1,p.12)。</li><li>Loop closure 完全依賴 SALAD feature 從歷史 submap 撈出最相似 keyframe,但論文沒有報告 loop precision/recall 或 false-loop 比率;在 4Seasons 跨季節場景下,外觀變化極大時的 retrieval 可靠性是個沒被檢驗的關鍵節點(§3.1,p.4;§4.3 雖宣稱「bridge appearance gaps across seasons」但無數據)。</li><li>報告的 efficiency 比較把 VGGT-Long 與本方法的 runtime 直接相除得到 18–36× 加速,但本方法的 keyframe selection 已大幅減少送入 VGGT 的 frame 數,即「速度提升」與「精度提升」共享同一個來源(redundancy filtering),不能宣稱兩者是獨立 advantage(Figure 5、§4.4,p.7–8)。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>真正新的是「把 submap 切分視為 motion-aware problem 而非 backend optimization problem」這個診斷視角,以及由此衍生的 Turning Encapsulation 與 context-balanced anchor 兩個機制——它們直接對應作者自己提出的三個 failure mode,因果鏈完整且與 Transformer 注意力結構一致。但 anchor-driven Sim(3) 與 submap-level pose graph 本身屬於工程組裝,並未提出新的最佳化原理。最核心的未解問題是:當 backbone 換到 near-metric 模型(如 MapAnything、DepthAnything-v3)後,motion-aware 切分是否仍是必要,還是部分價值會被 backbone 自身吸收;§B.2 的初步結果顯示 backbone 一升級 ATE 立即下降,但 ablation 並未在新 backbone 下重做,這條依賴關係尚未被檢驗。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>VGGT-Motion 是一個建立在 3D vision foundation model VGGT 之上的 calibration-free monocular SLAM pipeline，輸入為單目影像序列、輸出為全域一致的軌跡與 dense 幾何。整體 pipeline 由三個串接 stage 組成：(a) Motion-Aware Submap Construction、(b) Anchor-Driven Direct Sim(3) Registration、(c) Lightweight Pose Graph Optimization。設計核心是把「pre-inference 的序列切分」與「inter-submap 對齊」改造成與相機運動結構及 Transformer 注意力範圍相容的形式，避免 backend 後端優化無法挽救的失敗模式。</p>
+<p>第一階段先以連續幀之間的 dense optical flow 計算兩個 frame-wise scalar 指標（static ratio $r_{\text{static}}^{(t)}$ 與 turning score $m_{\text{turn}}^{(t)}$），經過時序 Gaussian smoothing 後由 hierarchical classifier 將每一幀指派到 $\{S, T, L\}$ 三類運動狀態（Static / Turning / Linear）。基於 motion state 進行 motion-aware partitioning：static 區段只保留首尾兩幀以抑制 zero-motion hallucination，turning 連續區段整段封裝為單一 submap 以保留旋轉 parallax 結構，linear 區段則以 $\tau_{\text{palx}}=15$ 的 parallax 門檻挑選 keyframe 並受最大幀數預算 $N_{\max}=12$ 控制。每個 base segment $R_k$ 再透過 overlap keyframes $O_k$ 與（偵測到 loop 時）來自歷史 submap 的 loop anchors $L_k$ 擴增為 $M_k = R_k \cup O_k \cup L_k$，整個 $M_k$ 一次餵入 VGGT 取得 per-frame 的 point maps $P_k^{(n)}$、camera poses $T_k^{(n)}$、confidence maps $C_k^{(n)}$。</p>
+<p>第二階段對每對 submap 直接估計 Sim(3) 相對變換以校正 inter-submap gauge drift。為了規避 VGGT 的 context bias，作者選擇 context-balanced anchor：相鄰 submap 對挑選 overlap 區段中點附近的 anchor frame $I_{\text{ovlp}}$，loop closure 則使用注入到當前 submap 的歷史 keyframe $I_{\text{loop}}$ 直接作為 anchor。由於同一個 anchor 在兩個 submap 中產生的 point maps 共享 pixel lattice，每個 pixel index $u$ 直接給出 deterministic 的 3D 對應關係，避開 descriptor extraction、nearest-neighbor search 與 dense matching 的 $O(N^2)$ 成本。對 confidence 高於 $\tau_{\text{conf}}=0.5$ 且非天空區域的 pixel 集合，以 Huber loss 對 $S_{ij} = \{s, R, t\} \in \text{Sim}(3)$ 做 robust least squares，並以 inlier ratio $\eta_{ij}$ 對結果做 geometric verification。第三階段把所有通過驗證的相對 Sim(3) 約束組成 pose graph，節點為 submap 級的 $X_k \in \text{Sim}(3)$（$K \ll N$），邊以 $w_{ij}=\eta_{ij}$ 加權，殘差定義在 Lie algebra 上，透過 Levenberg-Marquardt on Lie groups 最小化，並以 $X_1 = I$ 固定 gauge。最後 keyframe 的全域 pose 由 $T_w^{(n)} = X_k T_k^{(n)}$ 重建，整體後端複雜度線性於 submap 數。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input: monocular image sequence I ∈ [T, H, W, 3]   (T 幀，H,W=?)
+   │
+   ▼
+============================================================
+ Stage (a): Motion-Aware Submap Construction
+============================================================
+   │
+   ├→ Dense optical flow on consecutive pairs (I_{t-1}, I_t)
+   │     F_t ∈ [T-1, H, W, 2]
+   │
+   ├→ Frame-wise scalar metrics  (Eq. 1, Eq. 2)
+   │     r_static ∈ [T],  m_turn ∈ [T]
+   │
+   ├→ Temporal Gaussian smoothing
+   │     S_static ∈ [T],  S_turn ∈ [T]
+   │
+   ├→ Hierarchical classifier  (Eq. 3)
+   │     s ∈ [T]   with values in {S, T, L}
+   │
+   ├→ Motion-Aware Partitioning
+   │     · Static pruning: keep boundary frames only
+   │     · Turning encapsulation: single submap per continuous turn
+   │     · Adaptive linear slicing: parallax &gt; τ_palx=15, |R_k| ≤ N_max=12
+   │       └→ base segments {R_k}_{k=1..K}
+   │
+   ├→ Submap Composition with Geometric Anchors  (Eq. 4)
+   │     M_k = R_k ∪ O_k ∪ L_k
+   │     |M_k ∩ M_{k+1}| = N_ovlp = 5
+   │     L_k ← SALAD-retrieved historical keyframes (loop anchors)
+   │
+   └→ VGGT inference  Φ_VGGT(M_k)   (Eq. 5)
+         ├→ point maps     P_k ∈ [|M_k|, H, W, 3]
+         ├→ camera poses   T_k ∈ [|M_k|, 4, 4]   (SE(3) per frame)
+         └→ confidence     C_k ∈ [|M_k|, H, W]
+   │
+   ▼
+============================================================
+ Stage (b): Anchor-Driven Direct Sim(3) Registration
+============================================================
+   │
+   ├→ Context-balanced anchor selection (per submap pair (i,j))
+   │     · adjacent: I_ovlp = N(mid(W)),   W = M_i ∩ M_j
+   │     · loop:     I_loop = h            (re-used historical keyframe)
+   │     anchor index a_ij ∈ |M_i| ∩ |M_j|
+   │
+   ├→ Pixel-indexed dense correspondence  (Eq. 6, Eq. 7)
+   │     P_i(u) := P_i^{(a_ij)}(u) ∈ R^3,   P_j(u) := P_j^{(a_ij)}(u) ∈ R^3
+   │     C_i(u), C_j(u) ∈ R       for u ∈ Ω = [H, W]
+   │     correspondence cost: O(1) per pixel  →  O(HW) total
+   │
+   ├→ Reliability-aware filtering  (Eq. 9)
+   │     Ω_valid = { u : min(C_i(u), C_j(u)) &gt; τ_conf=0.5 }
+   │              ∩ { u : Mask_sky(u) = 0 }
+   │     |Ω_valid| ≤ HW
+   │
+   ├→ Huber-robust Sim(3) estimation  (Eq. 10)
+   │     Ŝ_ij = {s, R, t} ∈ Sim(3)  (7-DOF: 1 scale + 3 rot + 3 trans)
+   │     inlier ratio η_ij ∈ [0, 1]
+   │
+   └→ Geometric verification: accept Ŝ_ij iff η_ij &gt; τ_in
+   │
+   ▼
+============================================================
+ Stage (c): Lightweight Pose Graph Optimization
+============================================================
+   │
+   ├→ Pose graph
+   │     nodes  {X_k}_{k=1..K},  X_k ∈ Sim(3)         (K ≪ N)
+   │     edges  E ⊂ K × K   with verified Ŝ_ij and weights w_ij = η_ij
+   │
+   ├→ Lie-algebra residuals  (Eq. 11)
+   │     r_ij = log(Ŝ_ij^{-1} X_i^{-1} X_j) ∈ R^7
+   │
+   ├→ Levenberg-Marquardt on Lie groups  (Eq. 12)
+   │     gauge fixed at X_1 = I
+   │     output: optimized {X_k*}_{k=1..K}
+   │
+   └→ Trajectory composition  (Eq. 13)
+         T_w^{(n)} = X_k * T_k^{(n)},   for n ∈ |M_k|
+   │
+   ▼
+Output: global keyframe trajectory {T_w^{(n)}} ∈ [N_kf, 4, 4]
+        + globally consistent dense map (point maps in world frame)</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-motion-state-estimation">5.3.1 Motion State Estimation</h4>
+<p><strong>Function:</strong> 由連續兩幀的 dense optical flow 計算 frame-wise 標量指標，並分類每幀為 Static / Turning / Linear 三種運動狀態之一。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I_{t-1}, I_t$</li><li>Shape: 連續兩幀 $\in [H, W, 3]$</li><li>Source: 原始 monocular image sequence</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $s(t)$</li><li>Shape: per-frame discrete label $\in \{S, T, L\}$，整段為 $[T]$</li><li>Consumer: §5.3.2 Motion-Aware Submap Partitioning</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>計算 dense optical flow $F_t : \Omega \to \mathbb{R}^2$，其中 $\Omega = [H, W]$，$F_t(u) = (f_{x,t}(u), f_{y,t}(u))$。</li><li>由式 (1) 計算 quasi-static pixel 比例 $r_{\text{static}}^{(t)}$，由式 (2) 計算側向 flow magnitude 平均 $m_{\text{turn}}^{(t)}$（注意 turning score 只取 $|f_{x,t}|$ 而非整體 magnitude，這對應車輛在 yaw 主導的轉彎下水平 flow 增大）。</li><li>對 $r_{\text{static}}^{(t)}, m_{\text{turn}}^{(t)}$ 做 temporal Gaussian smoothing 得到 profile $S_{\text{static}}(t), S_{\text{turn}}(t)$，目的是抑制 single-frame jitter 對狀態切換的影響。</li><li>由式 (3) 的 hierarchical classifier 指派狀態：先以 $\tau_{\text{static}}$ 判 static，再以 $\tau_{\text{turn}}$ 判 turn，剩餘為 linear。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ r_{\text{static}}^{(t)} = \frac{1}{|\Omega|} \sum_{u \in \Omega} \mathbb{I}\!\left(\|F_t(u)\|_2 &lt; \tau_{\text{flow}}\right) \quad\text{(Eq. 1)} $$</p>
+<p>$$ m_{\text{turn}}^{(t)} = \frac{1}{|\Omega|} \sum_{u \in \Omega} |f_{x,t}(u)| \quad\text{(Eq. 2)} $$</p>
+<p>$$ s(t) = \begin{cases} S, &amp; \text{if } S_{\text{static}}(t) &gt; \tau_{\text{static}} \\ T, &amp; \text{else if } S_{\text{turn}}(t) &gt; \tau_{\text{turn}} \\ L, &amp; \text{otherwise} \end{cases} \quad\text{(Eq. 3)} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Hyperparameters：$\{\tau_{\text{flow}}, \tau_{\text{static}}, \tau_{\text{turn}}\} = \{0.7, 0.6, 5\}$，跨資料集固定。</li><li>Gaussian smoothing 的 window size 與 $\sigma$ 在論文正文中未指定。</li><li>Optical flow 估計所使用的具體模型（e.g., RAFT 等）未明示。</li><li>影像解析度 $H, W$ 未在論文中明確列出。</li></ul>
+<h4 id="5-3-2-motion-aware-submap-partitioning">5.3.2 Motion-Aware Submap Partitioning</h4>
+<p><strong>Function:</strong> 根據每幀的運動狀態，把序列切分為「對 monocular scale estimation 有利」的 base segments，避免任意切點破壞 turning 的 parallax 結構，同時剪除 static 冗餘。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\{s(t)\}_{t=1..T}$</li><li>Shape: $[T]$，values in $\{S, T, L\}$</li><li>Source: §5.3.1</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 基底段集合 $\{R_k\}_{k=1..K}$</li><li>Shape: 每個 $R_k$ 為長度可變的幀索引序列，$|R_k| \le N_{\max}$</li><li>Consumer: §5.3.3 Submap Composition</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Static Redundancy Pruning</strong>：對 $s(t)=S$ 的連續區間，只保留首末兩幀，其餘丟棄。理由是 static 期間 sensor / environmental noise 可能誘發 VGGT 幻想出微小位移，造成 zero-motion drift。</li><li><strong>Parallax-Based Keyframe Selection</strong>：對 linear 區段，僅在相對於上一 keyframe 的 parallax 超過 $\tau_{\text{palx}}=15$ 時納入 keyframe，避免「語意過於相似」的鄰近幀稀釋幾何訊號。</li><li><strong>Turning Segment Encapsulation</strong>：對 $s(t)=T$ 的連續區間整段裝入單一 submap，禁止在 turn 中間切點，以確保 attention 上下文涵蓋完整的旋轉 parallax 結構。</li><li><strong>Adaptive Linear Slicing</strong>：linear 區段以 $N_{\max}=12$ 為最大幀數預算切分，平衡 memory 與 local geometric fidelity。</li><li>詳細演算法為附錄 Algorithm 1。</li></ol>
+<p><strong>Key Formulas:</strong> 此模組以規則型分類為主，無單獨閉式公式。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Hyperparameters：$\tau_{\text{palx}}=15$、$N_{\max}=12$。</li><li>Parallax 的具體量測方式（pixel disparity vs. optical flow magnitude）論文正文未說明，僅作為門檻使用。</li><li>完整的切分演算法在附錄 Algorithm 1（本節未給出細節）。</li></ul>
+<h4 id="5-3-3-submap-composition-with-geometric-anchors">5.3.3 Submap Composition with Geometric Anchors</h4>
+<p><strong>Function:</strong> 將 base segment $R_k$ 擴增為包含 inter-submap 對齊所需 overlap 區與（若有）loop anchor 的「VGGT inference 輸入單元」。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: base segment $R_k$，外加 overlap candidate $O_k$、loop candidate $L_k$</li><li>Shape: $R_k$ 為幀索引序列，$|R_k| \le N_{\max}$</li><li>Source: §5.3.2 與 loop detector（SALAD features）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: augmented submap $M_k$</li><li>Shape: $M_k$ 為幀索引序列，$|M_k| = |R_k| + |O_k| + |L_k|$，且 $|M_k \cap M_{k+1}| = N_{\text{ovlp}} = 5$</li><li>Consumer: §5.3.4 VGGT inference</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>取 $R_k$ 的尾部幀作為與 $R_{k+1}$ 共享的 overlap 區，使 $|M_k \cap M_{k+1}| = N_{\text{ovlp}}$，作為相鄰對齊的幾何重疊。</li><li>由 SALAD features (Koo et al., 2023) 在歷史 submap 中檢索與當前 submap 相似度最高的 keyframe，將其作為 $L_k$ 注入當前 queue。重點是：$L_k$ 中的歷史 keyframe 保留其原本的 metric pose 狀態，因此後續 loop closure 對齊不需重新對歷史 submap 做 inference，全程保持線性複雜度。</li><li>合併為 $M_k = R_k \cup O_k \cup L_k$（式 4）。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$M_k = R_k \cup O_k \cup L_k \quad\text{(Eq. 4)}$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$N_{\text{ovlp}} = 5$。</li><li>Loop anchor 的相似度門檻、重新檢索頻率、SALAD 模型權重來源未在本節指定。</li><li>$|L_k|$ 大小（每次 loop 注入幾個歷史 keyframe）論文未給定固定值，原文僅描述「the historical keyframe with the highest similarity」，暗示 $|L_k|$ 通常為 1。</li></ul>
+<h4 id="5-3-4-vggt-local-geometry-inference">5.3.4 VGGT Local Geometry Inference</h4>
+<p><strong>Function:</strong> 將 augmented submap $M_k$ 一次性餵入 VGGT，產出 per-frame 的 dense pointmap、camera pose、pixel-wise confidence。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $M_k$ 對應的影像 stack</li><li>Shape: $[|M_k|, H, W, 3]$</li><li>Source: §5.3.3</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\{(P_k^{(n)}, T_k^{(n)}, C_k^{(n)})\}_{n \in |M_k|}$</li><li>Shape:</li><li>$P_k \in [|M_k|, H, W, 3]$</li><li>$T_k \in [|M_k|, 4, 4]$（SE(3) 的 4×4 表示，per frame）</li><li>$C_k \in [|M_k|, H, W]$</li><li>Consumer: §5.3.5（pointmap、confidence）、§5.3.7（local pose $T_k^{(n)}$ 用於 trajectory composition）</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>將整個 $M_k$ 視為一個 batch，透過 $\Phi_{\text{VGGT}}$ 得到三個 head 的輸出（式 5）。</li><li>因為 $M_k$ 已經涵蓋了 turn 完整 parallax、適度 linear keyframe、必要 overlap 與 loop anchor，VGGT 的 self-attention 在 submap 內保持 rotational / scale 一致性。</li><li>注意：$M_k$ 中的歷史 loop frame $L_k$ 的 pose 在新 inference 下會與當前 submap 共用 metric frame，這正是後續 loop closure 對齊的關鍵。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \bigl\{(P_k^{(n)}, T_k^{(n)}, C_k^{(n)})\bigr\}_{n \in |M_k|} = \Phi_{\text{VGGT}}(M_k) \quad\text{(Eq. 5)} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>使用的 VGGT 權重版本（pre-training corpus）為 Wang et al. (2025a) 釋出的版本；論文強調 4Seasons / Complex Urban / A2D2 不在 VGGT pre-training corpus 內以驗證 zero-shot generalization。</li><li>VGGT 內部架構（patch size、attention 層數、token 維度等）未在 §3 重述，需參考原論文。</li><li>推論硬體：NVIDIA RTX 3090 + i7-13700KF。具體的影像輸入解析度與 batch chunking 策略論文正文未指定。</li></ul>
+<h4 id="5-3-5-context-balanced-anchor-selection-and-dense-correspondence">5.3.5 Context-Balanced Anchor Selection and Dense Correspondence</h4>
+<p><strong>Function:</strong> 為每對需要對齊的 submap $(i, j)$ 挑選一個 context-balanced anchor frame $I_{a_{ij}}$，並利用該 anchor 在兩個 submap 中產生的 pointmap 共享 pixel lattice 的特性，建立 search-free 的 dense 3D-3D 對應。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 兩個 submap 的 VGGT 輸出 $\{P_i, T_i, C_i\}$、$\{P_j, T_j, C_j\}$，以及（若為 adjacent 情況）overlap 區 $W = M_i \cap M_j$；（若為 loop 情況）注入的歷史 keyframe $h$</li><li>Shape: 同 §5.3.4 輸出</li><li>Source: §5.3.4</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: anchor index $a_{ij}$、pixel-indexed 對應 $\{(P_i(u), P_j(u), C_i(u), C_j(u))\}_{u \in \Omega}$</li><li>Shape: $a_{ij} \in |M_i| \cap |M_j|$；$P_i(u), P_j(u) \in \mathbb{R}^3$；$C_i(u), C_j(u) \in \mathbb{R}$</li><li>Consumer: §5.3.6 Robust Sim(3) Estimation</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Adjacent 情況</strong>：取 overlap 區 $W$ 中點附近的幀作為 anchor，即 $I_{\text{ovlp}} \triangleq N(\text{mid}(W))$。理由：避免 boundary 處的 context asymmetry（前段 submap 因歷史脈絡偏向近場、後段因預測脈絡偏向遠場），中點附近可獲得 balanced receptive field。</li><li><strong>Loop 情況</strong>：直接取注入到當前 submap 的歷史 keyframe $h$ 作為 $I_{\text{loop}} \triangleq h$，因其原本的 metric state 被保留，不需重新 inference。</li><li>兩個 submap 在同一 anchor frame 上的 dense pointmap 因為共享 image lattice，每個 pixel index $u \in \Omega$ 直接給出兩個 submap 座標系下的 3D 對應點 $x_i^u = P_i(u)$、$x_j^u = P_j(u)$（式 6, 7），對應建立成本為 $O(1)$ per pixel、$O(HW)$ total，無需 descriptor extraction 或 nearest-neighbor search。</li><li>兩者經由 similarity transform $S_{ij} \in \text{Sim}(3)$ 關聯（式 8），其中 $\epsilon_u$ 吸收 prediction noise 與 residual context discrepancies。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ P_i(u) \triangleq P_i^{(a_{ij})}(u),\ P_j(u) \triangleq P_j^{(a_{ij})}(u),\quad C_i(u) \triangleq C_i^{(a_{ij})}(u),\ C_j(u) \triangleq C_j^{(a_{ij})}(u) \quad\text{(Eq. 6)} $$</p>
+<p>$x_j^u = S_{ij}\, x_i^u + \epsilon_u \quad\text{(Eq. 8)}$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$N(\text{mid}(W))$ 的 neighborhood 大小（取單一中點還是中點附近多幀）論文未明確指定；正文寫法暗示為單一 frame。</li><li>Loop similarity 使用 SALAD features 的最高相似度為準，閾值與 top-$k$ 策略未具體列出。</li><li>若 overlap 區為空或 loop anchor 無法取得，論文未描述 fallback 行為。</li></ul>
+<h4 id="5-3-6-reliability-aware-robust-sim-3-estimation">5.3.6 Reliability-Aware Robust Sim(3) Estimation</h4>
+<p><strong>Function:</strong> 在 confidence 足夠且非天空區域的 pixel 集合上，以 Huber-robust least squares 估計兩 submap 之間的 Sim(3) 變換 $\hat{S}_{ij}$，並透過 inlier ratio 進行 geometric verification。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 對應集合 $\{(x_i^u, x_j^u, C_i(u), C_j(u))\}_{u \in \Omega}$、sky mask $\text{Mask}_{\text{sky}}$</li><li>Shape: 同 §5.3.5；sky mask $\in [H, W]$ binary</li><li>Source: §5.3.5；sky mask 由 Liba et al. (2020) 的 lightweight off-the-shelf segmenter 產生</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\hat{S}_{ij}$、inlier ratio $\eta_{ij}$、verification flag</li><li>Shape: $\hat{S}_{ij} = \{s, R, t\}$，等價於 7-DOF Sim(3)；$\eta_{ij} \in [0, 1]$</li><li>Consumer: §5.3.7（若 $\eta_{ij} &gt; \tau_{\text{in}}$ 則加入 pose graph）</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>計算有效 pixel 集合 $\Omega_{\text{valid}}$（式 9）：以 $\min(C_i(u), C_j(u)) &gt; \tau_{\text{conf}}$ 的 high-confidence 區域，與非 sky 區域取交集，避免遠景或無紋理區域主導 fit。</li><li>在 $\Omega_{\text{valid}}$ 上以 Huber loss 進行 robust least squares（式 10），同時估計 scale $s$、rotation $R \in SO(3)$、translation $t \in \mathbb{R}^3$，共 7 DOF。</li><li>收斂後計算 inlier ratio $\eta_{ij}$（依 Huber 參數判定 inlier）；若 $\eta_{ij} &lt; \tau_{\text{in}}$ 則丟棄該約束，否則接受並送入 pose graph。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \Omega_{\text{valid}} \triangleq \bigl\{u \in \Omega : \min(C_i(u), C_j(u)) &gt; \tau_{\text{conf}}\bigr\} \cap \bigl\{u \in \Omega : \text{Mask}_{\text{sky}}(u) = 0\bigr\} \quad\text{(Eq. 9)} $$</p>
+<p>$$ \min_{s, R, t} \sum_{u \in \Omega_{\text{valid}}} \rho_{\text{Huber}}\!\left(\bigl\| s R x_i^u + t - x_j^u \bigr\|_2^2\right) \quad\text{(Eq. 10)} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$\tau_{\text{conf}} = 0.5$。Huber loss 的閾值與 inlier 接受閾值 $\tau_{\text{in}}$ 的具體數值在正文未列出（屬於附錄超參）。</li><li>求解器類型（closed-form Umeyama 初值 + LM 迭代 / IRLS）論文未明示，僅描述為 robust minimization。</li><li>Sky segmenter 為 lightweight off-the-shelf 模型，具體權重未指定。</li></ul>
+<h4 id="5-3-7-lightweight-pose-graph-optimization">5.3.7 Lightweight Pose Graph Optimization</h4>
+<p><strong>Function:</strong> 以 submap 為節點建立稀疏 pose graph，將 §5.3.6 通過驗證的 Sim(3) 約束作為邊，最佳化求得全域一致的 submap pose，並由此 recover 每個 keyframe 在世界座標系下的 pose。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: nodes $\{X_k\}_{k=1..K}$（initialized）、verified edges $E$ with $\hat{S}_{ij}$、weights $w_{ij}=\eta_{ij}$、local frame poses $T_k^{(n)}$</li><li>Shape: $X_k \in \text{Sim}(3)$（7-DOF）；$|E| \ll K^2$（稀疏）</li><li>Source: §5.3.6（edges）、§5.3.4（local $T_k^{(n)}$）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: optimized $\{X_k^*\}$、global keyframe trajectory $\{T_w^{(n)}\}$、globally consistent map</li><li>Shape: $X_k^* \in \text{Sim}(3)$；$T_w^{(n)} \in [4, 4]$</li><li>Consumer: 系統最終輸出（軌跡 + map）</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Node Initialization</strong>：按 submap 序列順序累積 $\hat{S}_{k, k+1}$ 得到 $X_k$ 的初值；$X_1 = I$ 固定 gauge。</li><li><strong>Residual 定義</strong>：每條邊在 Lie algebra 上計算殘差（式 11），把 $\hat{S}_{ij}^{-1} X_i^{-1} X_j$ 透過 logarithm map 投影為 $\mathbb{R}^7$。</li><li><strong>目標函數</strong>：對所有邊以 Huber loss 加權平方殘差求和（式 12），information matrix $\Omega_{ij} = w_{ij} I = \eta_{ij} I$。</li><li><strong>求解</strong>：以 Levenberg-Marquardt on Lie groups 迭代最佳化，避免 frame-level bundle adjustment 的高成本，整個後端複雜度線性於 $K$（submap 數遠小於 keyframe 數 $N$）。</li><li><strong>Trajectory Composition</strong>（式 13）：每個 keyframe $I_n \in M_k$ 的全域 pose 由 $T_w^{(n)} = X_k^* T_k^{(n)}$ 得到。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ r_{ij} = \log\!\left(\hat{S}_{ij}^{-1} X_i^{-1} X_j\right) \in \mathbb{R}^7 \quad\text{(Eq. 11)} $$</p>
+<p>$$ \min_{\{X_k\}} \sum_{(i,j) \in E} \rho_{\text{Huber}}\!\left(r_{ij}^{\top} \Omega_{ij} r_{ij}\right) \quad\text{(Eq. 12)} $$</p>
+<p>$$ T_w^{(n)} = X_k\, T_k^{(n)},\quad n \in |M_k| \quad\text{(Eq. 13)} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Gauge 固定方式：$X_1 = I$；solver 為 Levenberg-Marquardt on Lie groups。</li><li>具體 LM 參數（最大迭代數、收斂條件、damping schedule）論文未指定。</li><li>Information matrix 採 isotropic 加權 $w_{ij} I$，未對 rotation / translation / scale 三個分量分別調整。</li><li>由於是 submap-level 的稀疏 BA，沒有 frame-level reprojection 約束，所以整體成本與 $K$ 線性、與 $N$ 不直接相關，這正是論文宣稱「保持線性複雜度卻能維持公里級全域一致性」的關鍵實作來源。</li></ul>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>KITTI (Geiger et al., 2012)</td><td>Outdoor monocular SLAM 軌跡估測</td><td>11 sequences,單序列約 271–4661 frames、長度約 394–5067 m</td><td>test only(zero-shot 推論;VGGT 基礎模型未在此預訓練,系統本身 calibration-free 不需訓練)</td></tr><tr><td>Waymo Open (Sun et al., 2020)</td><td>自駕場景軌跡估測</td><td>9 segments,各約 196–199 frames</td><td>test only</td></tr><tr><td>4Seasons (Wenzel et al., 2020)</td><td>跨季節長序列 zero-shot 泛化</td><td>平均約 18,880 frames(Old-town 達 28,425 frames、4868 m)</td><td>test only(zero-shot,VGGT 預訓練未涵蓋)</td></tr><tr><td>Complex Urban (Jeong et al., 2019)</td><td>低紋理城市峽谷長序列 zero-shot</td><td>平均約 12,539 frames(Sequence-34 達 21,608 frames、11,192 m)</td><td>test only(zero-shot)</td></tr><tr><td>A2D2 (Geyer et al., 2020)</td><td>高速駕駛長序列 zero-shot</td><td>平均約 24,841 frames(Munich 達 27,451 frames)</td><td>test only(zero-shot)</td></tr><tr><td>TUM-Mono (Engel et al., 2016)</td><td>手持相機室內外、激烈旋轉</td><td>10 sequences,單序列約 2550–6200 frames</td><td>test only(附錄 C.1 補充)</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>ATE RMSE (m)</td><td>經 global $\text{Sim}(3)$ 對齊後的 Absolute Trajectory Error,衡量整體軌跡精度</td><td>yes</td></tr><tr><td>Translation Drift (%)</td><td>公里級軌跡上的非均勻尺度漂移與長期結構不一致;補足 ATE 在剛體對齊後可能掩蓋的長程誤差</td><td>yes(專為長序列泛化評估)</td></tr><tr><td>Total runtime (s)</td><td>排除 disk I/O 的端到端總執行時間,以 log scale 呈現</td><td>no(支援效率主張)</td></tr><tr><td>Per-frame runtime (s/frame)</td><td>平均每幀延遲</td><td>no</td></tr><tr><td>Failure modes(OOM、TL)</td><td>標記 Out-of-Memory 與 Tracking-Lost,反映可擴展性下界</td><td>no(質性指標)</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<p>本方法為 calibration-free、training-free 的 SLAM 系統,直接調用預訓練 VGGT 基礎模型作為幾何先驗,不涉及自身權重訓練,因此無 batch size、optimizer、learning rate schedule、training steps 等訓練設定可報告。</p>
+<p>推論硬體與超參數 (§4.1 與 Appendix):</p>
+<ul><li>Hardware: NVIDIA RTX 3090 GPU + Intel i7-13700KF CPU。</li><li>Motion 估測門檻: $\{\tau_{\text{flow}}, \tau_{\text{static}}, \tau_{\text{turn}}\} = \{0.7, 0.6, 5\}$。</li><li>Filtering / partitioning 參數: $\{\tau_{\text{palx}}, \tau_{\text{conf}}, N_{\max}, N_{\text{ovlp}}\} = \{15, 0.5, 12, 5\}$。</li><li>所有 benchmark 共用同一組超參數,dataset-specific threshold 在序列間保持固定。</li><li>Calibrated baselines (ORB-SLAM2、DPVO、DROID-SLAM) 給予 GT intrinsics 以建立上界;foundation-model baselines 在預設 uncalibrated 設定下評估。</li><li>Pose graph 優化採 Levenberg-Marquardt on Lie groups,gauge 固定為 $X_1 = I$。</li><li>其餘細節 the paper does not specify(僅提到「More details are provided in the Appendix」)。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>KITTI ATE RMSE (m,Avg* 為排除 Seq. 01 之均值):</p>
+<table><thead><tr><th>Method</th><th>Avg</th><th>Avg*</th><th>Notes</th></tr></thead><tbody><tr><td>ORB-SLAM2 (LC, calibrated)</td><td>54.82</td><td>9.46</td><td>需 GT intrinsics</td></tr><tr><td>DPVO (calibrated)</td><td>53.61</td><td>57.70</td><td>—</td></tr><tr><td>DROID-SLAM (calibrated)</td><td>100.28</td><td>75.85</td><td>—</td></tr><tr><td>VGGT-SLAM</td><td>74.23</td><td>71.98</td><td>uncalibrated</td></tr><tr><td>VGGT-Long</td><td>27.64</td><td>18.28</td><td>uncalibrated SOTA</td></tr><tr><td><strong>Ours (VGGT-Motion)</strong></td><td><strong>24.17</strong></td><td><strong>18.26</strong></td><td>uncalibrated;ATE 較 VGGT-Long 改善約 13%</td></tr></tbody></table>
+<p>Waymo Open ATE RMSE (m):</p>
+<table><thead><tr><th>Method</th><th>Avg</th><th>Notes</th></tr></thead><tbody><tr><td>DROID-SLAM (calibrated)</td><td>4.40</td><td>一段 TL</td></tr><tr><td>MASt3R-SLAM</td><td>5.56</td><td>—</td></tr><tr><td>CUT3R</td><td>9.87</td><td>—</td></tr><tr><td>VGGT-SLAM</td><td>4.11</td><td>—</td></tr><tr><td>VGGT-Long</td><td>2.00</td><td>—</td></tr><tr><td><strong>Ours (VGGT-Motion)</strong></td><td><strong>1.59</strong></td><td>較 VGGT-Long 改善約 20%</td></tr></tbody></table>
+<p>長序列 zero-shot 泛化 (4Seasons / Complex Urban / A2D2):</p>
+<table><thead><tr><th>Method</th><th>4Seasons ATE / Drift</th><th>Complex Urban ATE / Drift</th><th>A2D2 ATE / Drift</th></tr></thead><tbody><tr><td>MASt3R-SLAM</td><td>OOM</td><td>OOM</td><td>OOM</td></tr><tr><td>Fast3R</td><td>OOM</td><td>OOM</td><td>OOM</td></tr><tr><td>CUT3R</td><td>TL</td><td>TL</td><td>TL</td></tr><tr><td>VGGT-SLAM</td><td>168.04 m / 4.72%</td><td>444.63 m / 7.73%</td><td>192.80 m / 6.00%</td></tr><tr><td>VGGT-Long</td><td>280.25 m / 7.16%</td><td>475.59 m / 8.20%</td><td>182.93 m / 5.69%</td></tr><tr><td><strong>Ours (VGGT-Motion)</strong></td><td><strong>12.22 m / 0.32%</strong></td><td><strong>35.48 m / 0.58%</strong></td><td><strong>29.80 m / 0.93%</strong></td></tr></tbody></table>
+<p>效率 (§4.4, Figure 5):長序列上相對 VGGT-Long 達 $18\text{–}36\times$ total runtime 加速;Figure 1 顯示 Old Town (28,425 frames) 從 VGGT-Long 的 13,365 s 降至 608 s。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<p>所有 ablation 在 KITTI 上進行,採 incremental protocol(每階段以前一階段最佳設定初始化)。</p>
+<ul><li><strong>Redundancy Filtering (Table 4)</strong>:比較 Dense / Uniform / Covisibility-Based / Parallax-Based 四種 keyframe 選取,並疊加 Static Pruning。Dense (ATE 48.67 m) 與 Uniform (34.14 m) 反而較 Parallax-Based (27.21 m) 差,顯示「更多幀不等於更佳」的反直覺效應;再疊加 Static Pruning 後降至 26.98 m,且在 stop-and-go 序列專用之 ATE* 上由 15.92 m 降至 15.36 m。此設計屬 diagnostic,因為它直接針對「zero-motion drift 來自 hallucinated 位移」與「parallax 才是 SNR 來源」兩項假說做對照,而非 sanity check。</li><li><strong>Submap Partitioning (Table 5)</strong>:比較 Temporal Slicing (ATE 26.98 m / Drift 1.58%)、Parallax-Triggered (28.15 m / 1.62%)、Topology-Aware Turning Encapsulation (24.56 m / 1.41%)。Parallax-Triggered 反而退化,因為 parallax 在轉彎處累積最快、會把高曲率段切碎,結果反證 Turning Encapsulation 的必要性,屬 diagnostic。</li><li><strong>Submap Alignment (Figure 6)</strong>:比較 Dense overlap registration (VGGT-Long 之 baseline) 與 ADSR,在 overlap size $\in \{1,3,5,7\}$ 上同時繪製 ATE、Drift、alignment time。ADSR 在所有 overlap size 都同時降低 ATE/Drift 與時間,直接針對「context-balanced anchor + confidence filter 是否優於 dense 平均」做驗證,屬 diagnostic。</li><li><strong>Loop Keyframe Reuse Direction (Table 6, Appendix B.1)</strong>:比較 Bidirectional (ATE 18.31 m / Drift 0.930%) 與 Unidirectional (18.26 m / 0.928%)。差距極小,接近 sanity check;雖支持「avoid corrupting historical context」之論述,但結論相對缺乏強訊號。</li><li><strong>Foundation Model Swap (Table 7, Appendix B.2)</strong>:在 Waymo 上以 VGGT / Pi3 / DepthAnything-v3 替換骨幹,平均 ATE 分別為 1.59 / 1.49 / 1.13 m。屬 modularity 驗證,而非診斷新元件本身。</li></ul>
+<p>整體而言,前三項 ablation 是診斷性實驗、能直接支撐方法論斷;Loop reuse 方向消融較像 sanity check;骨幹替換則屬 generality 驗證。論文未提供 §3.2 中 sky mask 與 confidence threshold $\tau_{\text{conf}}$ 的單獨 ablation,亦未對 pose graph 中 inlier-ratio 加權做拆解。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 與當前 foundation-model SLAM SOTA VGGT-Long、VGGT-SLAM、MASt3R-SLAM 直接對比,並補上 calibrated 上界 ORB-SLAM2 / DPVO / DROID-SLAM。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 跨 5 個自駕資料集 (KITTI、Waymo、4Seasons、Complex Urban、A2D2) 加上附錄 TUM-Mono 手持資料集,涵蓋 calibrated 標準集與 zero-shot 長序列。</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — Tables 4–5 與 Figure 6 分別診斷 MASP 之 Redundancy Filtering、Topology-Aware Partitioning、ADSR 三個核心元件,並設計反直覺對照(Parallax-Triggered 反而變差)而非僅去除單一開關。</li><li>[partial] Has a scaling study (size, length, or compute) — 跨序列長度從 198 frames (Waymo) 到 28,425 frames (4Seasons Old Town) 隱含長度尺度研究,Figure 1 直接展示 frame count vs. RMSE/time;但未做模型大小或 compute budget 的系統性 scaling 曲線。</li><li>[covered] Has an efficiency / wall-clock comparison — §4.4 與 Figure 5 報告 total runtime (log scale) 與 per-frame runtime,並量化 $18\text{–}36\times$ 加速。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 全文僅報告單次 RMSE,未提供多 seed 平均或標準差;系統推論為確定性流程,但 VGGT 推論本身的隨機性與 pose graph 收斂變異未量化。</li><li>[missing] Releases code / weights / data sufficient for reproducibility — 論文未提及程式碼、權重或復現資料的釋出 (the paper does not specify),只描述演算法與超參數。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1: Motion-aware submap construction 抑制 zero-motion drift 並保留 turn 完整性。</strong> 部分支持。Table 4 的 Static Pruning 在所有 sampling 策略上都帶來提升,Table 5 的 Topology-Aware 較 Temporal Slicing 改善 ATE(26.98→24.56 m)、Drift(1.58%→1.41%),方向正確但 KITTI 上的絕對改善幅度有限;真正的大幅改善發生在長序列(Table 3),但作者沒有在這些 dataset 上 ablate Turning Encapsulation 與 Static Pruning 的個別貢獻,因此 Claim 與其量化幅度只算 partially supported。</li><li><strong>Claim 2: Anchor-driven direct Sim(3) registration 達到 search-free dense alignment 且 $O(N)$ 複雜度。</strong> 支持。Figure 6 同時顯示 ATE/Drift/Align Time 三條曲線在 ADSR 下全面優於 dense baseline,且不論 overlap size 從 1 到 7 都成立;複雜度宣稱在公式定義上(Eq. 6–8)為 pixel-indexed 直接對應,理論上即 $O(HW)$ 線性。</li><li><strong>Claim 3: 一個 calibration-free SLAM 框架達到 km 級全域一致性與 zero-shot 泛化。</strong> 支持。Table 3 與 Figure 4 在 4Seasons/Complex Urban/A2D2 三個 VGGT 預訓練之外的 dataset 上都顯示相對 baseline 大幅領先;附錄 TUM-Mono(Table 8)進一步擴展到非駕駛場景,這條 claim 有最完整的實驗背書。</li><li><strong>Claim 4: 「state-of-the-art performance in zero-shot, long-range calibration-free monocular SLAM」(Abstract)。</strong> 過度宣稱。在長序列上實際能跑完的 calibration-free baseline 只剩 VGGT-Long 與 VGGT-SLAM,其他競爭者(MASt3R-SLAM、Fast3R、Cut3R)全數 OOM/TL(Table 3),所以「SOTA」是基於極小的 valid baseline 集合,缺乏與 calibrated 上界(DROID-SLAM、ORB-SLAM3)在同一長序列上的可比公平比較。</li><li><strong>Claim 5: $O(N)$ 整體複雜度。</strong> 部分支持。Pose graph 在 submap 層級為稀疏(Eq. 11–12),Sim(3) 對齊在 pixel 層級為線性,但 backbone VGGT 對單一 submap 內 frame 數的 self-attention 仍是 $O(M^2)$;整體系統的線性是建立在「Nmax=12 與 keyframe pruning 把 M 壓低」的工程選擇上,而非演算法本身的 asymptotic 結果。</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>對單一 anchor 的集中依賴。</strong> Context-balanced anchor 只取 overlap 中點周圍的窄 temporal window,使整個 submap 對齊的精度被綁定在一個 frame 的幾何品質上。雖然這設計刻意對抗 Transformer 的 receptive field 偏置,但同時也把單點失敗的風險放大;在 anchor 落於曝光劇變、強動態物體、或低紋理 frame 時,Sim(3) 解會直接退化,而論文目前沒有 anchor 多選或 anchor 信心評估機制。</p>
+<p><strong>Motion state 是離散三類的硬切。</strong> Eq. 3 將 frame 強制歸類為 $\{S, T, L\}$,以 τstatic、τturn 為硬閾值。實際駕駛中存在「低速繞行」、「靜止中橫向車流」、「直行中輕微轉彎」等混合狀態,硬切會把連續 dynamics 折疊成三個 bin,在邊界附近觸發 partition 抖動。框架本身缺少對 confidence 進行軟性融合的機制,使得這個分類器的偏差會直接傳給 submap 結構。</p>
+<p><strong>無 backend bundle adjustment 的代價。</strong> 系統刻意以 sparse submap-level Sim(3) PGO 取代 dense BA(§3.3),這在計算上有優勢,但也代表一旦 submap 內部 pose 來自 VGGT 預測且未被全域 BA 修正,所有 intra-submap 誤差都會凍結並在 submap 邊界以 Sim(3) 累積。這個設計上的取捨意味著最終精度的天花板被 backbone 的 per-submap 預測誤差直接決定,沒有後端 optimization 可以挽救——這正是作者在 §B.3 自承「需要 IMU」的根因。</p>
+<p><strong>Loop closure 與 SALAD retrieval 的緊耦合。</strong> 整個 long-range consistency 假設能在歷史 submap 中找到正確的 loop keyframe,但 SALAD 是純 visual descriptor,在跨季節、跨光照的 4Seasons 場景下,retrieval 失誤會直接污染 pose graph,而論文的 unidirectional reuse(Table 6)只能避免 noise 反向傳染,無法偵測 retrieval 本身錯誤。對於沒有 loop 的長段落,系統退化為純 odometry,無內建機制限制 drift。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>VGGT (Wang et al., 2025a).</strong> 整個系統的 backbone,所有「為什麼 sharp turn 切碎會破壞 self-attention」的論證都建立在 VGGT 的 attention 行為上;若要嚴肅評估本文,必先理解 VGGT 的 receptive field 與 confidence 輸出語意。</li><li><strong>VGGT-Long (Deng et al., 2025).</strong> 最直接的 baseline 與診斷對象,作者三條 failure mode 都是針對它提出;Table 1 還能看到作者重跑(VGGT-Long*)與原報告差異,值得對照原文釐清實驗細節。</li><li><strong>MASt3R-SLAM (Murai et al., 2025).</strong> 另一條主流 foundation-model SLAM 路線(streaming + 3D-grounded matching),它在所有長序列上 OOM 是本文「motion-aware 切分必要性」的隱含證據;讀完可以判斷這是 architecture 限制還是工程實作限制。</li><li><strong>InfiniteVGGT (Yuan et al., 2026).</strong> 論文在 §1 引用其「&gt;0.95 frame similarity」數據以支持 redundancy filtering 的論點,值得讀其量化分析;若該結論不穩,整個 redundancy 章節的動機也會動搖。</li><li><strong>MapAnything (Keetha et al., 2025) 與 DepthAnything-v3 (Lin et al., 2025).</strong> §B.2 顯示換用後 ATE 立即下降,且可改用 SE(3) 對齊;它們是判斷「motion-aware 切分能否被更強 backbone 吸收」的關鍵 reference。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 near-metric backbone(MapAnything、DepthAnything-v3)下,motion-aware partitioning 的相對貢獻是否會縮小?Table 7 只報告整體 ATE,沒有在新 backbone 上重做 ablation,因此切分策略的必要性沒被獨立驗證。</li><li>[ ] τflow=0.7、τturn=5、τpalx=15 等閾值的 sensitivity 範圍是多少?跨 dataset 的相機 FOV、解析度、車速差異很大,但論文宣稱「single set of hyperparameters」卻無 sweep 數據。</li><li>[ ] SALAD-based loop retrieval 在 4Seasons 跨季節的 precision/recall 為何?整篇論文用「bridge appearance gaps」描述但沒有 retrieval-level 的量化。</li><li>[ ] Anchor 失效率有多少?即 mid-frame 落在天空、強動態或低紋理時,Sim(3) inlier ratio $\eta_{ij}$ 跌破 τin 而被丟棄的比例,以及這些丟棄如何影響全局一致性。</li><li>[ ] 在沒有 loop 的長段落(例如 KITTI Seq.01 高速無 loop),drift 隨 trajectory 長度的增長率是線性、亞線性還是超線性?Table 1 雖列出 Seq.01 ATE=83.29 m,但沒做尺度延伸性實驗。</li><li>[ ] $O(N)$ 複雜度宣稱在 Nmax 增大時是否仍成立?單一 submap 內 VGGT self-attention 為 $O(M^2)$,Nmax=12 是 hyperparameter 而非 architectural property。</li><li>[ ] 系統對 dynamic objects(busy intersection)的劣化曲線為何?作者在 §B.3 自承這是限制,但既無 dynamic-heavy benchmark(如 nuScenes 路口序列)結果,也無動態物比例與 ATE 的關聯分析。</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>Multi-anchor robust selection.</strong> 將單一 mid-frame anchor 改為 top-k frame 的 confidence-weighted aggregation(以 $C_i(u) \cdot C_j(u)$ 排序),用多 anchor 估計加權 Sim(3)。依據:現方法把整個 submap 對齊綁定在一個 frame 的預測品質上,Eq. 9 已有 pixel-level confidence,延伸到 frame-level 是低成本改動,可顯著降低 anchor 失效的尾部風險。</li><li><strong>Soft motion-state probability 取代硬閾值.</strong> 將 Eq. 3 的階層分類器改為 $p(s|S_{\text{static}}, S_{\text{turn}})$ 的 soft assignment,讓 partition 觸發條件變成期望值積分。依據:邊界 frame 在硬閾值下會引發 partition 抖動,soft 分類同時提供不確定性,可在 PGO 中作為邊權重來源。</li><li><strong>Loop retrieval 加 geometric verification 雙閘.</strong> 在 SALAD 之外加一道 anchor-driven Sim(3) 的 inlier-ratio 預檢,只有 $\eta_{ij} &gt; \tau_{\text{loop}}$ 的候選 loop 才被注入 pose graph。依據:現方法已有 inlier ratio 機制(§3.2),但只用於丟棄而非作為 loop 候選 gate;對跨季節 retrieval 的 false positive 防護幾乎為零。</li><li><strong>針對 backbone 切換的 ablation 重做.</strong> 在 Pi3、DepthAnything-v3、MapAnything 三個 backbone 下,各自重跑 Table 4–5 的 redundancy filtering 與 partitioning ablation,並在 SE(3) 模式下重評。依據:§B.2 已顯示 backbone 升級會改變誤差結構,若不重做 ablation,「motion-aware 切分」的必要性會隨 backbone 演進而失去支持。</li><li><strong>Dynamic-object aware filtering.</strong> 在 $\Omega_{\text{valid}}$ 中加入 instance segmentation 對移動物的遮罩(類似 sky mask 的處理方式)。依據:作者已經在 Eq. 9 用 sky mask 處理 infinite-depth 偏差,將同一個 mask-and-filter pattern 推廣到動態物是自然延伸,且能直接回應 §B.3 自承的 rigid-scene 假設限制。</li><li><strong>Submap-level confidence-aware BA.</strong> 在 sparse Sim(3) PGO 之上,選擇性地對 inlier ratio 最低的數個 submap 觸發局部 frame-level BA。依據:現系統完全沒有 frame-level optimization 能修正 backbone 的 per-submap 預測誤差,選擇性 BA 在 amortized 成本上仍可保持線性,卻可去除最壞 submap 的誤差天花板。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

@@ -1,0 +1,620 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# INSPATIO-WORLD — INSPATIO-WORLD: A Real-Time 4D World Simulator via Spatiotemporal Autoregressive Modeling
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | INSPATIO-WORLD |
+| Paper full title | INSPATIO-WORLD: A Real-Time 4D World Simulator via Spatiotemporal Autoregressive Modeling |
+| arXiv ID | 2604.07209 |
+| Release date | 2026-04-13 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2604.07209 |
+| PDF link | https://arxiv.org/pdf/2604.07209v2 |
+| Code link | https://github.com/inspatio/inspatio-world |
+| Project page | https://inspatio.github.io/inspatio-world/ |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Donghui Shen | InSpatio | — | team member (alphabetical first listed) |
+| Guofeng Zhang | InSpatio (Founder); State Key Lab of CAD&CG, Zhejiang University | http://www.cad.zju.edu.cn/home/gfzhang/ | founder / senior author |
+| Haomin Liu | InSpatio (Co-Founder); formerly Zhejiang University & SenseTime | — (https://www.inspatio.com/about) | co-founder / senior author |
+| Haoyu Ji | InSpatio | — | team member |
+| Hujun Bao | InSpatio; State Key Lab of CAD&CG, Zhejiang University | http://www.cad.zju.edu.cn/home/bao/ | senior advisor / senior author |
+| Hongjia Zhai | InSpatio | — | team member |
+| Jialin Liu | InSpatio | — | team member |
+| Jing Guo | InSpatio | — | team member |
+| Nan Wang | InSpatio | — | team member |
+| Siji Pan | InSpatio | — | team member |
+| Weihong Pan | InSpatio | — | team member |
+| Weijian Xie | InSpatio | — | team member |
+| Xianbin Liu | InSpatio | — | team member |
+| Xiaojun Xiang | InSpatio | — | team member |
+| Xiaoyu Zhang | InSpatio | — | team member |
+| Xinyu Chen | InSpatio | — | team member |
+| Yifu Wang | InSpatio | — | team member |
+| Yipeng Chen | InSpatio | — | team member |
+| Zhenzhou Fan | InSpatio | — | team member |
+| Zhewen Le | InSpatio | — | team member |
+| Zhichao Ye | InSpatio | — | team member |
+| Ziqiang Zhao | InSpatio | — | team member |
+
+### 1.2 Keywords
+
+world model, 4D scene generation, autoregressive video diffusion, spatiotemporal cache, camera-controllable generation, distribution matching distillation, real-time interactive generation, novel view synthesis
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| Wan2.1 [80] | base model | 開源的 transformer-based 影片擴散模型，作為 INSPATIO-WORLD 的生成骨幹 |
+| Self-Forcing [39] | predecessor | 以 KV cache 銜接 train-test gap 實現串流式自回歸生成；提供 chunk-wise 條件機率分解的基礎 |
+| CausVid [99] | predecessor | 以 causal attention 將雙向擴散模型轉為自回歸式生成，是 STAR 架構的關鍵前驅 |
+| DMD [98] | influence | Distribution Matching Distillation 蒸餾範式；JDMD 將其延伸為雙教師聯合形式 |
+| InSpatio-WorldFM [77] | predecessor | 團隊先前工作，首次提出顯式空間約束概念；本文將其推廣至影片生成並加入空間記憶 |
+| Gen3C [69] | baseline | 代表性 rendering-based 相機可控生成方法（用 depth lifting 與點雲渲染做幾何條件） |
+| Matrix-Game 2.0 [32] / Genie 3 [5] / RTFM [86] | concurrent | 面向無界場景探索的互動式世界模型，作為實時/互動方法 SOTA 對照 |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本論文探討如何從單支參考影片即時重建並生成可自由漫遊的高保真 4D 動態世界。INSPATIO-WORLD 以時空自回歸 (Spatio-Temporal Autoregressive, STAR) 架構為核心，搭配兩個緊密耦合的元件：隱式時空快取 (Implicit Spatiotemporal Cache) 將參考影格與歷史生成資訊聚合成潛在世界表徵以維持長距離一致性；顯式空間約束模組 (Explicit Spatial Constraint Module) 透過深度反投影將使用者控制轉換為精確且物理合理的相機軌跡。此外作者提出聯合分布匹配蒸餾 (Joint Distribution Matching Distillation, JDMD)，以真實世界資料分布作為正則化指引，緩解合成資料導致的保真度退化。系統在 WorldScore-Dynamic 基準上取得實時/互動類方法第一，並可達到 24 FPS 的即時推理，目標是支援具身智能與自動駕駛等下游應用。
+
+### 2.2 Domain Tags
+
+- computer vision
+- generative models
+- world models / 4D scene generation
+- video diffusion
+- novel view synthesis
+
+### 2.3 Core Architectures Used
+
+- **Spatio-Temporal Autoregressive (STAR) framework (proposed)**: 本文提出的核心架構，將 chunk-wise autoregressive video diffusion 與隱式記憶、顯式幾何條件耦合起來，以 $\hat z_i = \text{Denoise}_\theta(z_{i,\sigma} \mid z_{<i}, z^{ref}_i, [z^{warp}_i, m_i])$ 形式同時注入歷史、參考與幾何三類條件。
+- **Implicit Spatiotemporal Cache (proposed)**: STAR 的記憶元件，以固定容量的 sliding window 同時維護短期歷史 latent 與長期 reference anchor 的 KV cache，搭配 RoPE position index fixing 維持長序列下的數值穩定。
+- **Explicit Spatial Constraint Module (proposed)**: 透過 Feed-Forward Reconstruction (FFR) 取得 $D^{ref}$ 與相機內參 $K$，再以 6-DoF 相對位姿 $\Delta T_i$ 進行 reprojection，產生 $z^{warp}_i$ 與 valid pixel mask $m_i$，提供 deterministic 的相機軌跡幾何指引。
+- **Joint Distribution Matching Distillation (JDMD, proposed)**: 提出的雙教師多任務蒸餾架構，以權重共享方式同時優化合成資料上的 V2V 控制蒸餾損失 $\mathcal{L}_{ctrl}$ 與真實資料上的 T2V 視覺蒸餾損失 $\mathcal{L}_{vis}$，校準合成資料造成的視覺保真度退化。
+- **Chunk-wise Backpropagation (proposed)**: 將前向推理與反向優化解耦的訓練策略，先以 gradient-free 完成完整序列推理計算 DMD loss，再 chunk-by-chunk 重新前向以觸發反向傳播，使 KV cache 構建可微分而不爆記憶體。
+- **Multi-Conditional Causal Initialization (proposed)**: 取代 CausVid 的 static causal mask，改用在 ground-truth 或教師 ODE 軌跡上做 chunk-wise autoregressive 多步預演，建立穩定的多條件因果依賴後再進入蒸餾階段。
+- **Diffusion Transformer (DiT, inherited)**: 作為 denoising 主幹，承接 STAR 的多重條件並對單一 chunk 執行 denoising。
+- **Wan2.1 (inherited backbone)**: 開源 transformer-based 影片擴散模型，作為 INSPATIO-WORLD 的生成 backbone；T2V 教師也使用其原始版本。
+- **Self-Forcing paradigm (inherited)**: 提供 chunk-wise conditional probability 分解 $p(Z_{1:I} \mid C^{ref}, T) = \prod_i p(z_i \mid z_{<i}, c^{ref}_i, \tau_i)$ 與 KV cache streaming 推理範式。
+- **DMD (inherited)**: 蒸餾基礎，採用 KL 散度梯度 $\nabla_\theta \mathbb{E}_t[D_{KL}(p_{\theta,t} \| p_{data,t})]$ 由 $s^{real}$ 與 $s^{fake}$ 分數網路定義；JDMD 在其單教師形式上延伸為雙教師聯合形式。
+- **Tiny-VAE (inherited)**: 替換 Wan-VAE 的輕量 VAE，犧牲少量品質換取 24 FPS 的即時推理。
+
+### 2.4 Core Argument
+
+作者主張當前生成式世界模型在長期互動漫遊上有三個根本瓶頸：(1) 空間持久性退化—自回歸框架缺乏有效記憶機制與顯式幾何指引，長序列下場景結構會漂移；(2) 合成到真實的鴻溝—訓練嚴重依賴合成資料造成光照、紋理、材質與真實統計分布不符；(3) 控制精度不足—模型無法精確執行使用者軌跡，反映底層空間幾何推理的缺陷。作者指出這三者必須在架構與學習機制兩個層面同時處理，單點改進不可能成立。
+
+架構面提出 STAR：以滑動視窗式的隱式時空快取同時保存短期歷史與長期參考錨點，並用 RoPE 位置索引固定 (position index fixing) 避免長序列外推下的數值不穩；再把使用者意圖透過深度反投影轉成顯式幾何條件 zwarp 與有效像素遮罩 m_i，在去噪時提供決定性的空間結構指引。這直接針對瓶頸 1 與 3。同時提出 chunk-wise backpropagation，將前向推理與反向優化解耦，讓 KV Cache 構建可微分，避免既有方法被迫使用 gradient-free 模式而退化為被動特徵擬合。
+
+學習機制面提出 JDMD：將蒸餾拆成 V2V 與 T2V 兩個共享權重的任務，前者從合成資料學運動控制與時空一致性、後者從真實資料學紋理與光照保真度。透過權重共享，T2V 真實分布的梯度可校準共用特徵空間，讓 V2V 在保有精準控制的同時自動繼承真實感；兩任務輸入結構不同也避免了運動控制與視覺保真之間的梯度干擾。這直接針對瓶頸 2，並避開單教師蒸餾必然引入合成域偏移的零和困境。整體論證是：唯有把記憶、幾何與分布三條約束同時嵌入自回歸生成流程，才能在即時推理下兼顧空間一致性、控制精度與真實感。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(220 words)
+
+標題 "INSPATIO-WORLD: A Real-Time 4D World Simulator via Spatiotemporal Autoregressive Modeling" 直接點出三個核心定位：real-time（即時）、4D（空間 + 時間）、以及方法學主軸 spatiotemporal autoregressive modeling。標題刻意把「4D world simulator」放在主詞位置，暗示作者希望讀者把這份工作視為一個 simulator/engine，而非僅是 video generation model；這也對應到 Figure 1 中強調的下游應用（Embodied Intelligence、Autonomous Driving）。
+
+Abstract 採用「問題 → 限制 → 方法 → 結果」的標準結構。開場以 "spatial consistency and real-time interactivity remains a fundamental challenge" 把問題定位在 world model 的雙重痛點：既要長期空間一致，又要互動即時。接著用一句話概括既有 video generation paradigm 的不足（缺乏 spatial persistence、視覺真實度不夠），為後文鋪路。
+
+方法描述上，Abstract 引入兩個成對的命名實體：(1) Spatiotemporal Autoregressive (STAR) 架構，由 Implicit Spatiotemporal Cache 與 Explicit Spatial Constraint Module 兩個 tightly coupled components 組成；(2) Joint Distribution Matching Distillation (JDMD)，定位為「以 real-world data distribution 作為 regularizing guide」來解決 synthetic data over-reliance 帶來的 fidelity degradation。這種 implicit/explicit 與 synthetic/real 的雙軸對比，是整篇論文反覆出現的修辭骨架。
+
+結果宣稱集中在三點：spatial consistency 與 interaction precision 上 outperform SOTA、在 WorldScore-Dynamic benchmark 中於 real-time/interactive 類別排名第一、以及確立一條 "from monocular video to navigable 4D environment" 的 practical pipeline。Abstract 的功能即是讓讀者在閱讀 Introduction 之前，就建立「兩個技術發明 + 兩個資料/數值結果」的記憶錨點。
+
+### 3.2 Introduction
+
+(360 words)
+
+Introduction 採三段論：研究目標 → 三個 bottleneck → 對應的兩層創新。第一段以 "developing world models with spatial consistency and real-time interactivity is a fundamental goal" 重申 abstract 的命題，並把背景接到 video diffusion 的近期進展與 interactive video generation 的興起，藉此將本工作放進「real-time navigation within generated environments」的研究脈絡中。
+
+第二段是論文的問題框架核心，明確列舉三個 bottleneck，且每一條都會在後文找到對應解法：
+1. **Spatial Persistence Degradation**：autoregressive framework 缺 memory mechanism 與 explicit geometric guidance，long-term 操作會 drift；對應 §3.2 的 STAR + ST-Cache。
+2. **Synthetic-to-Real Gap**：過度依賴 synthetic data，造成 illumination/texture/material 上的 distribution shift；對應 §3.3 的 JDMD。
+3. **Insufficient Control Precision**：無法精準執行 user-defined trajectory，反映 spatial geometric reasoning 的不足；對應 §3.2 的 explicit geometric constraint。
+
+第三段宣告 INSPATIO-WORLD 是 real-time 4D world model，差異化點在於它不只支援 text/image，而是把 reference video 轉成 "living world"。隨後把貢獻拆成 architectural 與 learning mechanism 兩個層次：架構層的 STAR 包含 implicit spatiotemporal cache（fixed sliding window，長短期 memory coupled）與 explicit spatial constraint（把使用者互動轉為 6-DoF 軌跡）；並承認 explicit constraint 的概念源自先前作品 InSpatio-WorldFM，本篇將它一般化到 video generation 並加上 optional spatial memory。
+
+學習機制層詳述 JDMD 的設計動機：透過 V2V 與 T2V 兩個 task 共享 weight，由 T2V 提供 real-world distribution 的 gradient guidance 以對齊特徵空間，由 V2V 維持精準的 motion control；並強調兩 task 輸入結構不同，可避免 motion-control 與 visual-fidelity 的 gradient interference。
+
+最後以四點 contribution 條列收束：開源系統、STAR 架構（明確指 Sec. 3.2）、JDMD（明確指 Sec. 3.3）、24 FPS real-time 與 SOTA 表現。Introduction 的功能是在讀者進入冗長的 Method 之前，先把問題、創新、結果三者鎖在 "三 bottleneck → 兩創新 → 一具體 FPS" 的記憶結構中，並透過 Sec. 3.2/3.3 的指標明確告訴讀者後續閱讀路徑。
+
+### 3.3 Related Work / Preliminaries
+
+(540 words)
+
+Related Work 分為四個子主題，按照「從通用 backbone → 控制機制 → 生成範式 → 加速/蒸餾」的邏輯排列，每一節都以「先承認既有貢獻、再點出缺陷、最後對比本作如何補足」的修辭收尾，為 Method 的設計選擇提供合法性。
+
+**Video diffusion models** 段交代背景與 backbone 選型：U-Net 到 transformer-based DiT 的演進，最後直接點名選用 Wan2.1 作為 backbone，理由是其作為 open-source model 的 superior generation capability。這節的功能很單純——交代後續實作為何站在 Wan2.1 之上。
+
+**Novel view synthesis and camera-controllable generation** 段把既有 camera control 方法分為三類：直接注入 camera 參數（cross-attention、Plücker embedding）、rendering-based（lift depth to point cloud，例如 Gen3C、TrajectoryCrafter、MVGenMaster）、以及 training-free 控制法。對 open-ended 與 dynamic scene exploration 類，作者列舉 Infinite-World、CameraCtrl II、LingBot-World、Genie 3、RTFM、Matrix-game 2.0 等代表，再用一段集中砲火指出這些 prior method 同時具有三個與 Introduction 完全對應的缺陷：spatial persistence degradation、synthetic-to-real gap、insufficient control precision。隨即用 "In contrast, INSPATIO-WORLD systematically overcomes these bottlenecks..." 把 reference frame 注入 KV cache 與 JDMD 的雙重設計連結回 Related Work 的攻擊面。
+
+**Autoregressive video diffusion** 段建立本作的 generation paradigm 譜系。先回顧 next-token prediction 的傳統 AR、再到 hybrid AR + diffusion 的近期方向、再到 rolling diffusion 變體（指出其 premature commitment to future frames 限制了 real-time responsiveness）。重點落在 CausVid（causal attention mask）與 Self-Forcing（KV caching、bridging train-test gap）這兩個直接前驅，並指出它們缺乏 dynamic control signal injection 的機制，因此無法做 interactive 4D roaming。本作的差異化定位是 "multi-condition autoregressive pathway"，把 passive streaming generation 升級為 controllable, long-horizon interactive navigation。
+
+**Distribution matching distillation** 段為 §3.3 (JDMD) 鋪路。先回顧加速 diffusion 的歷史線索：DDIM 與 sampler optimization、progressive distillation、consistency model，最後到 DMD 帶來的 paradigm shift。作者指出 DMD 過往應用主要是 single-teacher，並具體點出 camera-controlled generation 中如果只蒸餾 motion-conditioned teacher（多訓在 synthetic data），會把 student 推進 synthetic domain shift，造成 texture smoothing、plastic-like artifact。為了打破 "geometric control vs. visual quality 的零和賽局"，本作將 DMD 擴展為 dual-teacher（perceptual + motion）formulation，這一句直接把讀者導入 §3.3 的設計動機。
+
+整段 Related Work 的功能不僅是文獻回顧，更是論文反派陣容的編排——每個子節都建立一個敵人（缺記憶、缺幾何、缺即時控制、缺真實感），並承諾 Method 章節將以特定模組逐一擊破，這種 one-to-one mapping 讓讀者進入 Method 時已經帶有明確期待。
+
+### 3.4 Method (overview narrative)
+
+(1300 words)
+
+Method 章節以 §3.1 Problem Formulation 開場，把整個生成過程定位為 chunk-wise conditional autoregressive task：每個 chunk 由 K 個連續 frame 組成，給定全域 reference context $C_{\text{ref}}$ 與 user interaction instruction $T$，目標是建模 latent 序列 $Z_{1:I}$ 的分佈。沿用 Self-Forcing 的 probability chain rule 因式分解為 $p(Z_{1:I} \mid C_{\text{ref}}, T) = \prod_i p(z_i \mid z_{<i}, c^{\text{ref}}_i, \tau_i)$，明確標示三個條件來源——歷史 context、reference guidance、interaction term，這個三元組就是後續 STAR 架構要逐一具體化的對象。
+
+§3.2 Spatiotemporal Autoregressive Framework 是論文的架構主幹，宣告兩個 key components：implicit ST-Cache（aggregating historical and reference frames，提供短期歷史 memory 與長期 reference anchor 的 coupled guidance）與 explicit spatial constraint（把 user command 轉為 deterministic spatial structural guidance）。Method 緊接著用單一 denoising 公式 $\hat{z}_i = \text{Denoise}_\theta(z_{i,\sigma} \mid z_{<i}, z^{\text{ref}}_i, [z^{\text{warp}}_i, m_i])$ 把 §3.1 的三個條件對應到具體 tensor：historical condition 提供 motion smoothness 與 inter-block continuity；reference condition 作為 global spatial anchor 確保 long-horizon roaming 後仍能 trace back 原場景的 texture 與語義；geometric condition 由 reprojection feature $z^{\text{warp}}_i$ 與 valid pixel mask $m_i$ 組成，提供 deterministic structural guidance 防止 scene distortion。
+
+§3.2.1 Spatiotemporal Cache Mechanism with Differentiable Recomputation 處理「如何在常數 KV cache 開銷下維持端到端 fidelity」的工程問題。設計三步：(a) 從 reference video 即時取出 $z^{\text{ref}}_i$ 作為 globally stable anchor，並把上一個 block $z_{i-1}$ 以 sliding window 存入 cache 維持 local 連續；(b) RoPE 在長序列下會因 position index 增長而 distribution shift，作者採 position index fixing strategy，把 $z_i$、$z^{\text{ref}}_i$、$z_{i-1}$ 的起始 index 都錨在預設絕對原點 $f_i, f^r_i, f^h_i$，限制 receptive field 在 stable representation space；(c) 提出 Chunk-wise Backpropagation，將 forward inference 與 backward optimization 解耦——Stage 1 以 gradient-free mode 跑完 full-length inference 算 DMD loss，Stage 2 再 chunk-by-chunk 重做 forward 觸發反傳並即釋放中間表示，把 peak memory 壓到單一 chunk 的尺度，從而打破 prior AR diffusion 在 long-context 下被迫 non-differentiable 的瓶頸。
+
+§3.2.2 Geometry-Aware Explicit Constraints 把 user command 顯式幾何化：先做 pose evolution，把使用者的 rotation/translation/perspective shift 映成 6-DoF 相對位姿 $\Delta T_i$，並以 $T_i = T_{i-1} \cdot \Delta T_i$ 累積為全局位姿；再做 geometric feature projection，使用 Feed-Forward Reconstruction（VGGT、$\pi^3$、Depth Anything V3 等）從 reference latent 抽 depth $D_{\text{ref}}$ 與 intrinsics $K$，依據 $T_i$ 執行 $z^{\text{warp}}_i, m_i = \text{Proj}(z^{\text{ref}} \mid \text{FFR}(z^{\text{ref}}), T_i)$ 的 reprojection；mask $m_i$ 用以區分 black texture 與 invisible region。額外提供 optional 的 explicit structural memory：透過動態擴張的 point cloud map 提供 spatial memory proxy，作為長期生成的結構錨。
+
+§3.2.3 Multi-Condition Causal Initialization 解決 student 在 multi-condition 蒸餾起點不穩的問題。作者批評 CausVid 式 static causal mask 不足以建模 preceding frame、reference image、geometric constraint 之間的異質 causal interplay，因此提出在 ground-truth 或 teacher ODE trajectory 上做 chunk-wise multi-step rehearsal，先建立 robust causal dependency，再在 distillation phase 專注於 sampling acceleration（multi-to-few）與 fidelity refinement（coarse-to-fine）。同時為確保 history cache 只攜帶純圖像資訊，對歷史 block 的幾何 channel 做 zero-padding，禁止過去幾何訊號滲入當前 denoising，保護 controlled AR 流程的 robustness。
+
+§3.3 Joint Distribution Matching Distillation 完成「如何在 synthetic 訓練資料下仍取得 real-world fidelity」的學習機制設計。先簡述 DMD 的 KL 梯度形式 $\nabla_\theta \mathbb{E}_t[D_{\text{KL}}(p_{\theta,t} \| p_{\text{data},t})] = -\mathbb{E}\big[(s_{\text{real}} - s_{\text{fake}}) \partial \hat{x}/\partial \theta\big]$，再宣告 JDMD 的核心動作：以兩個 frozen teacher 交替啟動 V2V 與 T2V 兩個任務。V2V 任務由 fine-tuned-on-synthetic teacher 提供 $p_{\text{syn}}$，學 motion control 與 spatio-temporal consistency，產生 $L_{\text{ctrl}}$；T2V 任務由原始 Wan-T2V foundation model 代表 $p_{\text{real}}$，捕捉 real-world fidelity，產生 $L_{\text{vis}}$；總損失為 $L_{\text{JDMD}} = L_{\text{vis}} + \lambda_{\text{ctrl}} L_{\text{ctrl}}$。Method 最後 §3.4 Implementation Details 補充訓練流程的三階段（teacher training、initialization、JDMD distillation）、學習率設定（teacher 與 init 為 $2 \times 10^{-5}$，distillation 階段 student 為 $4.0 \times 10^{-6}$、fake score discriminator 為 $8.0 \times 10^{-7}$）、資料來源（RealEstate10K、UE 渲染、ReCamMaster）以及兩個推論加速策略（Tiny-VAE 取代 Wan-VAE、torch.compile 圖層級編譯），讓 1.3B 模型在 H 系 GPU 上達 24 FPS、RTX 4090 上達 10 FPS。整個 Method 的敘事邏輯就是「先把問題形式化 → 再用 implicit cache 解 memory → 再用 explicit projection 解 control → 再用 multi-condition init 解蒸餾起點 → 最後用 JDMD 解 fidelity」，每一節都精準對應 Introduction 的 bottleneck。
+
+### 3.5 Experiments (overview narrative)
+
+(720 words)
+
+Experiments 章節遵循「設計三個互補任務 → 報告各自的 SOTA → 用定性圖補強 failure mode 對比」的標準骨架，目標是同時驗證 STAR 帶來的 spatial/control 改善與 JDMD 帶來的 visual fidelity 改善。
+
+§4.1 Experimental Setup 一開始就明確列出三項評估任務：(1) WorldScore Benchmark，採其官方 10 個 core metrics，重點是 instruction control precision、spatial structure stability、physical dynamics authenticity；(2) Long-term Image-to-Video Generation，使用 RealEstate10K（RE10K）測長期 camera control 與 distribution consistency；(3) Camera-Controlled Generative Video Rerendering，於 real-world OpenVid 與 synthetic Blender（PostCam）資料集評估 camera control 與 reference video adherence。為支援後兩個任務，作者建立 multi-dimensional 評估框架，涵蓋 Control Accuracy（rotation/translation error）、Generative Distribution Quality（FID、FVD）、Visual Quality（VBench 六指標：Aesthetic、Image、Flickering、Motion Smoothness、Subject、Background Consistency）。比較對象則跨多條技術路線：WorldScore 類的 FantasyWorld、TeleWorld；商業大模型 CogVideoX-I2V、Gen-3、LTX-Video、Hailuo；open-source world model Infinite-World、LingBot-World、HY-WorldPlay；以及 video rerendering baseline TrajectoryCrafter、ReCamMaster、NeoVerse。
+
+§4.2 WorldScore Benchmark 是論文第一個重磅戰場。Table 1 顯示 INSPATIO-WORLD（1.3B）在 real-time/interactive 類別中於 overall dynamic（68.72）與 camera control（81.51）拿下最佳，並在多項分數下接近或領先非即時 baseline。Fig. 3 用 bubble chart 呈現 dynamic score vs. params × steps 的折衷，視覺上強調本作以更低算力換取更高品質。作者特別點名其為 leaderboard 上唯一達 24 FPS real-time 的 world model，這個 claim 直接呼應 Introduction 的即時性宣言。
+
+§4.3 Long-term Image-to-Video Generation 是 STAR 的長期一致性壓力測試。作者從 RE10K 抽 100 條超過 150 frame 的序列，與 LingBot-World 為了公平採用 14B 版本對比。Table 2 顯示 INSPATIO-WORLD 在 FID（42.68）、FVD（100.55）以及 rotation/translation error 上對 SOTA 都呈壓倒性領先，特別是 trajectory error 比 runner-up LingBot-World 顯著更低。Fig. 4 補上定性 failure mode 對照：Infinite-World 隨序列變長出現 structural distortion 與 geometric warping、HY-WorldPlay 退化為 static frame、LingBot-World 因 camera pose 估計不準而 trajectory drift；INSPATIO-WORLD 則靠 global spatial reference 維持 geometric integrity 與精準 camera control。這節在敘事上同時驗證了 ST-Cache 的長期 memory 設計與 explicit constraint 的 trajectory fidelity。
+
+§4.4 Camera-Controlled Generative Video Rerendering 把 reference video 條件下的 rerendering 拉出來單獨檢驗，Blender 集 100 樣本（含 GT 與精確軌跡）、OpenVid 集 240 樣本（40 影片 × 6 軌跡），由於 OpenVid 缺 GT target，採用 VBench 評估生成品質；為與 NeoVerse 公平對比同樣使用 14B 版本。Table 3 顯示 INSPATIO-WORLD 在 FID、FVD 與 VBench overall 上 SOTA，camera control accuracy 與當前最強模型相當；NeoVerse 雖然品質與控制都不錯，但對輸入 reference 的 spatio-temporal coherence 保持不夠，導致 FID/FVD 較差。Fig. 5 從 reference frame、warped final frame、四種方法生成 final frame 的逐列對比中，視覺上展示本作在結構保真與 textural detail 上的優勢。作者最後加上一句 positioning 性質的宣稱：INSPATIO-WORLD 是目前唯一可即時執行的 open-source generative video rerendering 方案。
+
+整體而言，§4 的敘事邏輯是把 §3 的兩個技術主張（STAR 與 JDMD）拆成三個任務維度進行互補驗證——WorldScore 驗整體 world simulator 能力與即時性；RE10K-Long 驗長期一致性；Blender/OpenVid 驗精確 camera 控制與 reference fidelity——每個任務都同時觀察 control accuracy 與 visual fidelity 兩個面向，形成「方法宣稱 ↔ 實驗證據」的對齊。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(330 words)
+
+§5 Discussion and Conclusions 採三段結構（總結、限制、展望），語氣從工程成果回到開放問題，整體偏 technical report 而非典型 conference paper 的收束。
+
+第一段是收束總結，重申 INSPATIO-WORLD 是專為 real-time interactive roaming 設計的 4D generative world model。作者把整篇工作的核心精煉成兩個 architectural claim：(1) 透過 spatio-temporal autoregressive framework 整合 implicit ST-Cache（long-term spatio-temporal anchoring）與 explicit spatial constraint，緩解 interactive video generation 中 spatial persistence loss 與 imprecise control 的雙重痛點；(2) 透過 Joint Distribution Matching Distillation 的 dual-teacher paradigm 同時 decouple 並 optimize motion fidelity 與 perceptual realism，bridge 掉 synthetic simulation 與 physical reality 之間的 domain gap。實驗成果以「new SOTA in spatial continuity and visual precision」+「24 FPS 高效運行」這對「品質 + 速度」雙宣稱收尾，並把這套系統定位為 high-DoF navigation 的 robust foundation。
+
+§5.1 Limitation 段誠實揭露兩個缺口：一是長期記憶不足——雖然 external spatio-temporal anchor 與 explicit point-cloud memory 維持了 spatial consistency，但目前的方法主要扮演 structural backbone，未能 persistently encode 自主生成區域的 fine-grained textural detail；二是 360 度動態 roaming 不夠——explicit geometric scheme 在靜態場景的大位移上有效，但在 wide-angle、omnidirectional 視角轉換中，dynamic element 的 multi-view consistency 與 spatio-temporal coherence 仍是 open challenge。這兩個 limitation 巧妙地把 §3.2 explicit constraint 的設計選擇也暴露為當前範式的成本——以結構保真換取細節記憶與動態連續。
+
+§5.2 Future Work 段對應上述兩個 limitation 提出兩條路徑：(a) 發展更深層的 semantic memory system，深度耦合 geometric structure 與 high-dimensional textural feature，達成生成區域的 full spatio-temporal recording 與 reconstruction；(b) 探索 long-range dynamic constraint mechanism，在 autoregressive 過程中注入更強的 physical prior，目標是大尺度高複雜度動態場景的 closed-loop simulation under physical guidance。最後一句把研究方向推向 "higher dimensions and broader application horizons"，與 Figure 1 底部展示的 Embodied Intelligence 與 Autonomous Driving 應用前景遙相呼應，形成全文收尾的閉環。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- STAR 架構同時整合 implicit ST-Cache 與 explicit geometric constraint，把長序列 spatial drift 與相機指令誤差兩個瓶頸放進同一個自回歸 denoise 流程處理 (§3.2, p.5–6)。
+- Position index fixing 將 current block、reference anchor $z^{ref}_i$ 與 historical block $z_{i-1}$ 的 RoPE 起點錨到固定原點，緩解長序列下 RoPE 數值外推不穩 (§3.2.1, p.6)。
+- Chunk-wise Backpropagation 解耦 forward inference 與 backward optimization，使 KV cache 構建可微分、peak memory 縮到單個 chunk 等級，避免既有方法被迫使用 gradient-free 模式 (§3.2.1, p.6)。
+- 透過 FFR (depth + intrinsics) + reprojection 將使用者 6-DoF $\Delta T_i$ 轉成 $z^{warp}_i$ 與 valid mask $m_i$，提供 deterministic 的幾何指引；此 mask 還區分黑色 texture 與不可見區域 (§3.2.2, p.7)。
+- JDMD 採共享權重的 V2V (合成資料) + T2V (真實資料) 雙任務蒸餾，由 dual-teacher 提供 motion 與 perceptual 兩條梯度，loss 為 $\mathcal{L}_{JDMD} = \mathcal{L}_{vis} + \lambda_{ctrl}\mathcal{L}_{ctrl}$ (§3.3, p.8)。
+- WorldScore-Dynamic 上 1.3B 模型取得 dynamic score 68.72，camera control 81.51 為 Table 1 中所有方法最高 (Table 1, p.10)。
+- RE10K-Long 上 FID 42.68 / FVD 100.55，rotation error 2.8762、translation error 0.1398，相對 LingBot-World (11.98 / 0.2064) 為大幅領先 (Table 2, p.11)。
+- Blender + OpenVid rerendering 上 FID 從 NeoVerse 的 103.23 降至 44.46、FVD 從 230.87 降至 110.11，VBench overall 0.8507 為表內最高 (Table 3, p.12)。
+- 1.3B 模型在 H-series NVIDIA GPU 上達 24 FPS、RTX 4090 上 10 FPS；作者宣稱為 leaderboard 上唯一達 24 FPS 即時的 world model (§3.4, §4.2, p.9–10)。
+- Multi-conditional Causal Initialization 用 GT 或 teacher ODE trajectory 做 chunk-wise rehearsal，先建立多條件 causal dependency 再進入蒸餾階段，避免 static causal mask 在多異質條件下退化 (§3.2.3, p.7)。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- 對「自主生成區域」的 fine-grained textural detail 缺乏 persistent memory，explicit point cloud 僅作為結構骨架不編碼外觀 (§5.1, p.13)。
+- 大幅 wide-angle / 360-degree 視角轉換下，dynamic 元素的 multi-view consistency 與 spatio-temporal coherence 仍是 open challenge (§5.1, p.13)。
+
+#### 4.2.2 Phyra-inferred
+
+- WorldScore Table 1 只放 TeleWorld 一個 real-time 對照，「ranking first among real-time/interactive methods」實質是 n=1 的比較；Fig. 3 的 bubble plot 雖列更多方法，但未提供與 Table 1 對齊的數值 (Table 1, p.10)。
+- 跨實驗使用不同模型大小：WorldScore 用 1.3B、RE10K-Long 與 video rerendering 為了對齊 LingBot/NeoVerse 改用 14B，使三張表的數字無法相互換算 (§4.3, §4.4, p.11–12)。
+- 全文沒有任何 ablation：JDMD 拆 V2V/T2V 的個別貢獻、ST-Cache 中 reference vs historical 兩路、position index fixing、Chunk-wise BP、Multi-conditional Causal Init 都未單獨驗證，無法判斷哪個元件實際撐起增益。
+- 關鍵超參數未公開：chunk size $K$、sliding window 長度、$\lambda_{ctrl}$ 之值、student inference 步數、teacher iteration 規模均未在 §3 或 §3.4 給出。
+- 沒有任何 human study，但 interactive roaming 本身是 perceptual 任務；FID / FVD / VBench 對於相機控制下的視覺品質敏感度有限，特別是 Table 3 OpenVid 一欄完全沒有 GT，VBench 為 reference-free，卻被當作主要視覺指標。
+- 全表為單次 run，沒有多 seed 的 variance：Table 1 中 INSPATIO-WORLD overall 68.72 vs TeleWorld 66.73，差距是否在雜訊內無從判斷。
+- 引用 [23] VGGT 與 [95] Depth Anything V3 之 arXiv ID 為「2512.xxxxx」「2511.xxxxx」之 placeholder 形式 (References 頁 p.15、p.19)，意味著這兩個關鍵 FFR 依賴在投稿時尚未公開或尚未鎖定。
+- Table 3 OpenVid 一欄 NeoVerse 的 Rot 0.1340、Trans 1.5780 略優於 INSPATIO-WORLD 的 0.1240、1.6000；作者只強調自家在 FID/FVD 的大勝，camera-control 真實優勢可能僅在合成 Blender 集成立 (Table 3, p.12)。
+- 訓練資料以 RealEstate10K (室內、短廊道) + UE 合成 + ReCamMaster 為主；但 Fig. 1 把 Embodied Intelligence 與 Autonomous Driving 列為應用，全文卻沒有任何 outdoor / driving 場景的定量結果。
+- WorldScore overall 75.81 仍低於非 real-time 的 FantasyWorld 80.45 (Table 1, p.10)，顯示「即時化」相對「最佳化整體分數」依然存在尚未克服的代價，但作者只在 dynamic 子分數比較。
+
+### 4.3 Phyra's Judgment (summary)
+
+真正具新意者有二：把 single reference video 直接灌進 KV cache 作為 global spatiotemporal anchor，並以 chunk-wise differentiable BP 讓蒸餾過程能反傳到 cache 構建；以及 JDMD 用共享權重的雙任務、雙教師蒸餾繞開合成資料的 domain shift。其餘如 RoPE position fixing、Tiny-VAE 替換、`torch.compile` 都屬於工程整合層級的優化。核心未解之題是缺 ablation：所有架構/訓練決策都打包成「一起貢獻最終成績」的黑箱，沒有實證告訴讀者哪個元件能單獨拿掉、哪個是增益主力。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+INSPATIO-WORLD 將「從單支參考影片即時生成可漫遊 4D 世界」這項任務形式化為 chunk-wise conditional autoregressive 過程：每個 chunk 由 $K$ 個連續影格組成，目標分布為 $p(Z_{1:I} \mid C_{ref}, T) = \prod_{i=1}^{I} p(z_i \mid z_{<i}, c^{ref}_i, \tau_i)$（式 1）。整體系統以 Wan2.1 [80] 為 1.3B DiT backbone，由兩個彼此緊密耦合的元件構成：**Spatio-Temporal Autoregressive (STAR) 框架** 與 **Joint Distribution Matching Distillation (JDMD)** 學習機制。STAR 透過隱式時空快取（Implicit ST-Cache）聚合滑動視窗內的歷史 latent 與從參考影片檢索的 latent 錨點，並以 RoPE position index fixing 將三類 latent 的起始索引釘在絕對座標原點 $f_i, f^r_i, f^h_i$，避免長序列 RoPE 外推導致的數值不穩。使用者互動 $\tau_i$ 經 6-DoF 累積轉成全域相機姿態 $T_i$，再以 FFR (Feed-Forward Reconstruction) [23, 81, 95] 從 $z^{ref}$ 抽出深度 $D^{ref}$ 與內參 $K$，透過 $z^{warp}_i, m_i = \text{Proj}(z^{ref} \mid \text{FFR}(z^{ref}), T_i)$（式 3）反投影為幾何對齊的引導特徵與有效像素遮罩，作為顯式幾何約束注入 DiT 的當前 chunk。
+
+訓練上提出 **Chunk-wise Backpropagation**：Stage 1 以 gradient-free 模式進行 full-length 推理只保留最後輸出計算 DMD loss；Stage 2 重新 chunk-by-chunk 執行前向以觸發反向，將 peak memory 壓到單 chunk 規模、同時讓 KV Cache 構建可微分。**Multi-Condition Causal Initialization** 取代傳統 CausVid [99] 靜態 causal mask，直接在 ground-truth 或 teacher ODE 軌跡上做 chunk-wise multi-step rehearsal，並對歷史 chunk 的幾何通道做 zero-padding，避免幾何訊號污染歷史快取。**JDMD** 把蒸餾拆成共享權重的兩支：V2V 任務從合成資料學運動控制、計算 $\mathcal{L}_{ctrl}$；T2V 任務從真實資料分布（原始 Wan-T2V）學紋理與光照保真、計算 $\mathcal{L}_{vis}$，總損失 $\mathcal{L}_{JDMD} = \mathcal{L}_{vis} + \lambda_{ctrl} \mathcal{L}_{ctrl}$（式 5）。透過權重共享，T2V 的 gradient 對共享特徵空間做 distribution calibration，讓 V2V 在維持精準控制的同時自動繼承真實感，避開單教師蒸餾的合成域偏移困境。
+
+最終以 Tiny-VAE [10] 取代 Wan-VAE 並施加 `torch.compile` graph-level 編譯加速，使 1.3B 模型在 H 系列 NVIDIA GPU 達到 24 FPS、在消費級 RTX 4090 達到 10 FPS 的串流式即時推理。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input Preparation
+─────────────────
+User Input (text/cam ops τ_i) ──────────────────────┐
+Reference Video V_ref [B, T_ref, 3, H, W]           │
+   │                                                 │
+   ├─→ Wan-VAE Encoder ──→ z^ref [B, T_ref, c, h, w] │
+   │                                                 │
+   └─→ Depth Estimation (FFR) ─→ D^ref [B, T_ref, 1, h, w], K [B, 3, 3]
+                                                     │
+                                                     ▼
+                                       6-DoF Pose Accumulation
+                                       T_i = T_{i-1} ∘ ΔT_i  [B, 4, 4]
+                                                     │
+                                                     ▼
+                                  Proj(z^ref | FFR(z^ref), T_i)  (Eq. 3)
+                                                     │
+                                       z^warp_i [B, K, c, h, w]
+                                       m_i      [B, K, 1, h, w]
+                                                     │
+                                                     ▼
+                                       Channel Concat
+                                       [z_{i,σ} ∥ z^warp_i ∥ m_i]
+                                       [B, K, c+c+1, h, w]
+
+Spatiotemporal Cache (ST-Cache, sliding window)
+───────────────────────────────────────────────
+z_{<i} (history latent)   [B, K, c, h, w]   pos idx fixed @ f^h_i
+z^ref_i (anchor, retrieved) [B, K, c, h, w]  pos idx fixed @ f^r_i
+z_{i,σ} (current noisy)   [B, K, c, h, w]   pos idx fixed @ f_i
+   │
+   └─→ KV Cache (constant memory)
+
+Spatiotemporal Autoregressive Framework (STAR / DiT)
+────────────────────────────────────────────────────
+   Concatenated tokens [B, N_tok, d]           (N_tok = 3·K·h·w/p², d = backbone dim)
+        │
+        ▼
+   ┌───────────────────────────────────┐
+   │  DiT Block × L  (Wan2.1, 1.3B)    │
+   │   - RoPE (position-index fixed)   │
+   │   - Self-Attention over ST-Cache  │
+   │   - Cross-cond on [z^warp_i, m_i] │
+   │   - FFN                           │
+   └───────────────────────────────────┘
+        │
+        ▼
+   Denoise_θ(z_{i,σ} | z_{<i}, z^ref_i, [z^warp_i, m_i])  (Eq. 2)
+        │
+        ▼
+   ẑ_i  [B, K, c, h, w]   ──→ append to cache (sliding window)
+
+JDMD (alternating two-task distillation, shared weights)
+────────────────────────────────────────────────────────
+   ┌─ V2V branch (synthetic data) ────────────────┐
+   │   inputs: ref video + geom [z^warp_i, m_i]   │
+   │   Motion (Fake) Critic → s_fake_motion       │
+   │   Motion Teacher (synthetic-FT) → s_real_mot │
+   │   ∇θ ∝ E[(s_real - s_fake) ∂x̂/∂θ]  (Eq. 4)  │
+   │   ──→ L_ctrl                                  │
+   └──────────────────────────────────────────────┘
+   ┌─ T2V branch (real-world data) ───────────────┐
+   │   inputs: text only                           │
+   │   Perceptual (Fake) Critic → s_fake_perc     │
+   │   Perceptual Teacher (Wan-T2V) → s_real_perc │
+   │   ──→ L_vis                                   │
+   └──────────────────────────────────────────────┘
+        │
+        ▼
+   L_JDMD = L_vis + λ_ctrl · L_ctrl   (Eq. 5)
+
+Inference Output
+────────────────
+Accumulated Latent Blocks  ẑ_{1:I}  [B, I·K, c, h, w]
+        │
+        ▼
+   Tiny-VAE Decoder [10] (replaces Wan-VAE @ inference)
+        │
+        ▼
+   Output Video  [B, I·K, 3, H, W]   @ 24 FPS (H-GPU) / 10 FPS (RTX 4090)
+```
+
+> 維度註記：$B$ = batch；$T_{ref}$ = 參考影片影格數；$K$ = 每 chunk 影格數；$c$ = VAE latent 通道；$h, w$ = latent 空間解析度（$H/8, W/8$ 量級，論文未明列，標為 `?` 之具體數值）；$d$ = DiT hidden dim；$L$ = DiT block 數；$N_{tok}$ = 拼接後 token 數。論文未明確指定 $K$、$c$、$d$、$L$、`patch size p` 之具體數值，於 §5.3 對應模組以 `?` 註記。
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Implicit Spatiotemporal Cache
+
+**Function:** 以固定 KV cache 記憶體成本同時保存短期歷史 latent 與長期參考錨點，建立 long-and-short-range 雙路記憶機制，緩解自回歸 state drift。
+
+**Input:**
+- Name: `z_{<i}`（生成歷史 latent，sliding window）, `z^ref_i`（從參考影片檢索的 latent 錨點）, `z_{i,σ}`（當前 chunk 的初始噪聲 latent）
+- Shape: 各為 `[B, K, c, h, w]`（$K$、$c$、$h$、$w$ 之具體數值論文未指定，標為 `?`）
+- Source: 歷史 latent 來自先前 chunk 輸出；錨點來自參考影片之 Wan-VAE 編碼；當前 latent 為 noise schedule 在層級 $\sigma$ 採樣
+
+**Output:**
+- Name: KV cache（含三類 latent 之 token 表徵與固定的 RoPE 起始索引 $f_i$, $f^r_i$, $f^h_i$）
+- Shape: token 數 `[B, N_tok, d]`，常數記憶體佔用
+- Consumer: STAR DiT Block 之 self-attention
+
+**Processing:**
+
+每生成第 $i$ 個 chunk 時：(1) 從參考影片檢索對應的 $z^{ref}_i$ 作為全域錨點；(2) 將前一 chunk 輸出 $z_{i-1}$ 以 sliding window 更新到 cache；(3) 對三類 latent 套用 **position index fixing**：把每類 latent 的起始 RoPE 索引固定到絕對座標原點（$f_i$, $f^r_i$, $f^h_i$），讓模型的接收場限制在穩定表徵空間，消除長序列外推下的數值不穩。
+
+**Key Formulas:**
+
+$$
+\hat{z}_i = \text{Denoise}_\theta\big(z_{i,\sigma} \mid z_{<i},\ z^{ref}_i,\ [z^{warp}_i,\ m_i]\big) \quad \text{(Eq. 2)}
+$$
+
+**Implementation Details:**
+
+KV cache 採固定大小的 sliding window 設計，總記憶體開銷為常數，與序列長度無關。位置索引固定為 relative pose-fixed encoding，避免溫度 RoPE 在長序列下的數值不穩。論文未具體公開 sliding window 之 chunk 數、$K$ 大小、cache 分桶策略與檢索演算法。
+
+#### 5.3.2 Geometry-Aware Explicit Constraints
+
+**Function:** 將離散使用者操作（旋轉、平移、視角變換）轉成 6-DoF 累積姿態，再經深度反投影產生幾何對齊的引導特徵與有效像素遮罩，提供決定性的空間結構約束。
+
+**Input:**
+- Name: 互動指令 $\tau_i$（每 chunk 的相機操作）, $z^{ref}$（參考影片 latent）
+- Shape: $\tau_i$ 為使用者輸入序列；$z^{ref}$ 為 `[B, T_ref, c, h, w]`
+- Source: 使用者即時輸入；參考影片 Wan-VAE 編碼
+
+**Output:**
+- Name: $z^{warp}_i$（幾何對齊的引導特徵）, $m_i$（有效像素 binary mask）
+- Shape: $z^{warp}_i$ 為 `[B, K, c, h, w]`；$m_i$ 為 `[B, K, 1, h, w]`
+- Consumer: STAR DiT 之當前 denoising chunk（透過 channel concatenation 注入）
+
+**Processing:**
+
+(1) 將 $\tau_i$ 映射為 6-DoF 相對姿態變換 $\Delta T_i$；(2) 全域姿態以遞迴累積取得：$T_i = T_{i-1} \cdot \Delta T_i$；(3) 用 FFR 方法 [23, 81, 95]（如 VGGT 系列）從 $z^{ref}$ 萃取深度 $D^{ref}$ 與相機內參 $K$；(4) 執行 reprojection 取得 $z^{warp}_i$ 與 $m_i$（式 3）；(5) 將 $[z^{warp}_i, m_i]$ 沿 channel 維拼接到當前 chunk 之 noisy latent 上輸入 DiT。$m_i$ 用以區分「黑色紋理」與「不可見區域」，引導模型在確定結構約束下生成。
+
+**Key Formulas:**
+
+$$
+z^{warp}_i,\ m_i = \text{Proj}\big(z^{ref} \mid \text{FFR}(z^{ref}),\ T_i\big) \quad \text{(Eq. 3)}
+$$
+
+**Implementation Details:**
+
+FFR 採 feed-forward 重建模型（論文引 [23, 81, 95]）對每段影片 clip 估計深度，於資料前處理階段完成。系統原生支援 optional explicit structural memory：透過 dynamic point-cloud expansion 構造場景的結構化表徵，作為長距離生成的幾何記憶代理。論文未公開 FFR 模型權重來源、深度解析度、內參估計方式之具體細節。
+
+#### 5.3.3 Chunk-wise Backpropagation
+
+**Function:** 解耦前向推理與反向優化，使 KV Cache 構建可微分，避免既有自回歸擴散方法被迫使用 gradient-free 模式而退化為被動特徵擬合。
+
+**Input:**
+- Name: 完整序列 latents $\{z_i\}_{i=1}^{I}$, 教師分布輸出（real / fake score）
+- Shape: latent 為 `[B, K, c, h, w]` × $I$ chunks
+- Source: STAR forward pass 之輸出；JDMD 雙 critic
+
+**Output:**
+- Name: 對 $\theta$（student 權重）與 fake critic 權重的梯度
+- Shape: 與模型參數同形
+- Consumer: optimizer 更新
+
+**Processing:**
+
+**Stage 1（Gradient-free Full Inference）**：以 `no_grad` 模式跑完整序列推理，僅保留最終輸出計算 DMD 全域監督訊號 $\mathcal{L}_{vis}$、$\mathcal{L}_{ctrl}$，計算開銷可忽略。**Stage 2（Chunk-wise Backward）**：重新 chunk-by-chunk 執行前向以觸發反向傳播，整個 pipeline（含 KV Cache 構建與 denoising）皆可微；每完成一個 chunk 的梯度更新後立即釋放中間表徵，將 peak memory 壓到單 chunk 規模。此 time-space tradeoff 確保每個 chunk 內 full-link differentiability，模型得以精準學到更具表達力的時空特徵。
+
+**Key Formulas:**
+
+$$
+\nabla_\theta \mathbb{E}_t\big[D_{KL}(p_{\theta,t} \| p_{data,t})\big] = -\mathbb{E}_{t,\hat{x}_t}\Big[\big(s_{real}(\hat{x}_t, t) - s_{fake}(\hat{x}_t, t)\big)\,\frac{\partial \hat{x}}{\partial \theta}\Big] \quad \text{(Eq. 4)}
+$$
+
+**Implementation Details:**
+
+論文敘明此策略為訓練階段使用，未公開 chunk 數量上限、Stage 1/Stage 2 之記憶體實測數值與 wall-clock 開銷。核心動機是擺脫 DMD Loss 在自回歸長序列下的 prohibitive memory pressure。
+
+#### 5.3.4 Multi-Condition Causal Initialization
+
+**Function:** 取代 CausVid [99] 之靜態 causal attention masking，以 chunk-wise multi-step rehearsal 在 ground-truth / teacher ODE 軌跡上建立穩固的 multi-conditional 因果關係，並隔離歷史 chunk 的幾何訊號。
+
+**Input:**
+- Name: ground-truth latents 或 teacher ODE 軌跡輸出, multi-condition inputs（preceding frames、reference、geometry）
+- Shape: 與 STAR 輸入相同
+- Source: 訓練資料 / teacher model 取樣
+
+**Output:**
+- Name: 初始化後之 student model 權重 $\theta_{init}$
+- Shape: 與 backbone 同
+- Consumer: 後續 JDMD 蒸餾階段
+
+**Processing:**
+
+(1) 直接於 ground-truth 或 teacher ODE 軌跡上做 chunk-wise autoregressive multi-step rehearsal，讓 student 在初始化階段就建立與多種條件（前序影格、參考影像、幾何約束）的精確關聯；(2) 對歷史 chunk 之幾何約束通道（即 $z^{warp}$ 與 $m$ 對應通道）施加 zero-padding，確保歷史快取只提供純影像資訊、防止過去幾何訊號滲透到當前生成；(3) 進入 JDMD 後 student 重點轉向 sampling acceleration（multi-to-few steps）與 fidelity refinement（coarse-to-fine）。
+
+**Key Formulas:**
+
+論文未提供獨立公式表述，本模組為訓練流程設計而非新增損失項。
+
+**Implementation Details:**
+
+Initialization 階段 student 與 teacher 共用 $2 \times 10^{-5}$ 學習率（與 teacher training 相同）。論文未公開 rehearsal 的具體 step 數與資料採樣比。
+
+#### 5.3.5 Joint Distribution Matching Distillation (JDMD)
+
+**Function:** 以權重共享的雙任務蒸餾（V2V + T2V）同步引入合成資料的精準運動控制與真實資料的紋理／光照保真，破除單教師蒸餾在合成域的零和困境。
+
+**Input:**
+- Name: V2V 分支：reference video + 幾何條件 $[z^{warp}_i, m_i]$；T2V 分支：text prompt
+- Shape: 同 STAR 輸入
+- Source: 合成資料集（UE rendered + ReCamMaster [4]）；真實資料集（RealEstate10K [110]）
+
+**Output:**
+- Name: 損失 $\mathcal{L}_{ctrl}$, $\mathcal{L}_{vis}$, $\mathcal{L}_{JDMD}$
+- Shape: scalar
+- Consumer: optimizer（更新共享 student 權重）
+
+**Processing:**
+
+訓練時交替啟用兩支任務：(1) **V2V (Controllable Video Re-rendering)**：student 接收 reference video 與幾何條件，學習精準的 motion control 與時空一致性；以 motion teacher（在合成資料上 fine-tune 的版本）為目標分布 $p_{syn}$，計算 conditional control loss $\mathcal{L}_{ctrl}$。(2) **T2V (Text-to-Video)**：student 僅以文字為條件，學習真實資料的 fidelity 與多樣性；以原始 Wan-T2V foundation model 為 perceptual teacher，目標分布為 $p_{real}$，計算 vision distillation loss $\mathcal{L}_{vis}$。透過權重共享，T2V 的 gradient 對共享特徵空間做 distribution calibration，讓 V2V 在保有精準控制的同時自動繼承真實感；兩任務輸入結構不同（V2V 含幾何通道、T2V 不含），自然避開 motion-control 與 visual-fidelity 之間的 gradient interference。
+
+**Key Formulas:**
+
+$$
+\mathcal{L}_{JDMD} = \mathcal{L}_{vis} + \lambda_{ctrl}\,\mathcal{L}_{ctrl} \quad \text{(Eq. 5)}
+$$
+
+**Implementation Details:**
+
+Student 學習率 $4.0 \times 10^{-6}$、fake score discriminator 學習率 $8.0 \times 10^{-7}$；teacher 與 initialization 階段學習率為 $2 \times 10^{-5}$。Backbone 為 Wan2.1 [80]。論文未公開 $\lambda_{ctrl}$ 之具體數值、兩任務之 batch ratio 與總訓練 iteration 數。資料來源含 RealEstate10K [110]、Unreal Engine 渲染序列、ReCamMaster [4]。
+
+#### 5.3.6 Inference Acceleration（Tiny-VAE + torch.compile）
+
+**Function:** 以輕量 VAE 與 graph-level compilation 將 1.3B 模型壓到即時推理門檻，同時維持串流式自回歸架構天生的 latency-friendly 特性。
+
+**Input:**
+- Name: 累積 latent blocks $\hat{z}_{1:I}$
+- Shape: `[B, I·K, c, h, w]`
+- Source: STAR DiT 輸出
+
+**Output:**
+- Name: 解碼影片 frames
+- Shape: `[B, I·K, 3, H, W]`
+- Consumer: 終端使用者 / 下游應用（embodied intelligence、autonomous driving）
+
+**Processing:**
+
+(1) 以 Tiny-VAE [10] 取代 Wan-VAE 進行 latent → pixel 解碼，犧牲少量重建品質換取低延遲；(2) 對整個推理 graph 套用 `torch.compile`，融合算子並降低 Python overhead；(3) 串流式自回歸架構天生支援 frame-by-frame 輸出，不需要等待整段序列完成。
+
+**Key Formulas:**
+
+論文未提供額外公式。
+
+**Implementation Details:**
+
+H 系列 NVIDIA GPU 上達 24 FPS，消費級 RTX 4090 上達 10 FPS。模型總參數 1.3B（WorldScore 評測使用 1.3B 版本；RE10K-Long 為公平對照 LingBot-World 改用 14B 版本）。論文未公開 H GPU 之確切型號（H100/H200）與 Tiny-VAE 之 reconstruction PSNR drop 數值。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| RealEstate10K [110] | Training (real-world internet videos) + Long-term I2V evaluation | 100 sequences > 150 frames sampled for evaluation (training scale not specified) | Train + Test |
+| Unreal Engine (UE) rendered sequences | Synthetic training data for novel-view video rerendering | The paper does not specify | Train |
+| ReCamMaster [4] dataset | Synthetic training data for novel-view video rerendering | The paper does not specify | Train |
+| WorldScore Benchmark [20] | Next-scene generation evaluation (10 official metrics) | Full official benchmark set | Test |
+| OpenVid [65] | Camera-controlled generative video rerendering (real-world) | 240 samples (40 videos × 6 trajectories) | Test |
+| Blender (from PostCam [16]) | Camera-controlled generative video rerendering (synthetic) | 100 samples with precise trajectories and GT videos | Test |
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+|---|---|---|
+| WorldScore Dynamic Overall | Aggregate score over WorldScore-Dynamic 10 metrics | yes |
+| WorldScore Camera | Camera-control accuracy sub-score on WorldScore | yes |
+| Rot | Rotation error between generated sequence and preset trajectory | yes |
+| Trans | Translation error between generated sequence and preset trajectory | yes |
+| FID | Image-level distributional similarity to real data | yes |
+| FVD | Video-level distributional similarity to real data | yes |
+| 3D Consistency / Motion Accuracy / Smoothness | WorldScore-Dynamic sub-metrics for spatial structure stability and motion realism | no |
+| Object / Photometric / Content (WorldScore-Static) | Static-scene WorldScore sub-metrics | no |
+| VBench Aesthetic / Image / Flickering / Smoothness / Subject / Background | Six VBench [40] dimensions, used on OpenVid where no GT video exists | no |
+| FPS | Real-time inference throughput (24 FPS on H-series GPU, 10 FPS on RTX 4090) | yes |
+
+### 6.3 Training and Inference Settings
+
+The paper specifies a three-stage training schedule (§3.4) keyed to learning rates rather than iteration counts. Teacher Training uses learning rate $2 \times 10^{-5}$; the Initialization Phase reuses the same learning rate to warm up the student's autoregressive inference capability; Student Distillation (JDMD) sets the student network to $4.0 \times 10^{-6}$ and the fake-score discriminator to $8.0 \times 10^{-7}$. The backbone is `Wan2.1` [80], following the `Self-Forcing` [39] paradigm; for fair comparison against `LingBot-World` and `NeoVerse`, the 14B variant is used in §6.3 and §6.4 evaluations, while the headline real-time deployment is the 1.3B model.
+
+For inference, `Wan-VAE` is replaced by the lightweight `Tiny-VAE` [10] and `torch.compile` graph-level compilation is applied. The deployed `INSPATIO-WORLD` (1.3B) reaches 24 FPS on an H-series NVIDIA GPU and 10 FPS on a consumer-grade RTX 4090. Training uses a Chunk-wise Backpropagation strategy that decouples gradient-free full-length forward inference (Stage 1) from chunk-by-chunk re-execution with backprop (Stage 2), reducing peak memory to single-chunk scale.
+
+The paper does not specify: optimizer choice, batch size, total training steps or wall-clock training time, GPU count for training, denoising step count of the distilled student at inference, or seed/repetition protocol.
+
+### 6.4 Main Results
+
+WorldScore benchmark (Dynamic Overall ↑, Camera ↑, Static Overall ↑):
+
+| Method | Real-time | Dynamic Overall ↑ | Camera ↑ | Static Overall ↑ | Notes |
+|---|---|---|---|---|---|
+| FantasyWorld-1.0 | No | 71.39 | 81.45 | 80.45 | Best dynamic overall but offline |
+| CogVideoX-I2V | No | 59.12 | 38.27 | 62.15 | — |
+| Gen-3 | No | 57.58 | 29.47 | 60.71 | — |
+| LTX-Video | No | 56.54 | 25.06 | 55.44 | — |
+| Hailuo | No | 56.36 | 22.39 | 57.55 | — |
+| TeleWorld | Yes | 66.73 | 76.58 | 78.23 | Prior real-time SOTA |
+| **INSPATIO-WORLD (1.3B)** | **Yes** | **68.72** | **81.51** | **75.81** | **SOTA among real-time/interactive; best Camera overall** |
+
+RE10K-Long (Long-term I2V; 14B variant):
+
+| Method | FID ↓ | FVD ↓ | Rot ↓ | Trans ↓ |
+|---|---|---|---|---|
+| HY-WorldPlay | 129.46 | 387.50 | 25.050 | 0.6725 |
+| Infinite-World | 89.44 | 215.96 | 16.518 | 0.4715 |
+| LingBot-World | 64.84 | 173.02 | 11.981 | 0.2064 |
+| **INSPATIO-WORLD** | **42.68** | **100.55** | **2.8762** | **0.1398** |
+
+Camera-Controlled Video Rerendering (OpenVid VBench Overall ↑, Rot ↓, Trans ↓ / Blender FID ↓, FVD ↓, Rot ↓, Trans ↓; 14B variant):
+
+| Method | OpenVid VBench Overall ↑ | OpenVid Rot ↓ | OpenVid Trans ↓ | Blender FID ↓ | Blender FVD ↓ | Blender Rot ↓ | Blender Trans ↓ |
+|---|---|---|---|---|---|---|---|
+| TrajectoryCrafter | 0.8105 | 2.1650 | 0.1710 | 256.69 | 818.73 | 4.1780 | 0.2015 |
+| ReCamMaster | 0.8455 | 3.8640 | 0.2310 | 116.53 | 311.06 | 3.5062 | 0.2001 |
+| NeoVerse | 0.8486 | 1.5780 | 0.1340 | 103.23 | 230.87 | 1.2148 | 0.0636 |
+| **INSPATIO-WORLD** | **0.8507** | 1.6000 | **0.1240** | **44.46** | **110.11** | 1.2386 | 0.0667 |
+
+### 6.5 Ablation Studies
+
+The paper does not present a dedicated ablation section that isolates STAR's components (ST-Cache vs. explicit geometric constraint vs. position-index fixing) or the JDMD dual-teacher design (V2V-only vs. T2V-only vs. joint). The bubble plot in Fig. 3 contrasts compute (parameters × inference steps) against WorldScore-Dynamic across competing systems, but this is a cross-method comparison rather than a controlled ablation of `INSPATIO-WORLD`'s own modules. Likewise, the 1.3B-vs-14B distinction across §6.2 and §6.3-§6.4 is driven by fairness with baselines of different scale, not by an internal scaling sweep. No ablation evidence is offered for: removing the reference-frame KV anchor, disabling Chunk-wise Backpropagation, replacing Multi-Condition Causal Initialization with the standard `CausVid` causal mask, dropping the binary mask $m_i$ in the geometric channel concatenation, or varying $\lambda_{\text{ctrl}}$ in $L_{\text{JDMD}} = L_{\text{vis}} + \lambda_{\text{ctrl}} L_{\text{ctrl}}$. The Tiny-VAE substitution is acknowledged as a quality–latency trade-off but is not quantified. In short, the experimental section answers "does the full system beat baselines?" but does not diagnose which proposed component is load-bearing.
+
+### 6.6 Phyra Experiment Assessment
+
+- [covered] Has at least one strong baseline — `LingBot-World`, `NeoVerse`, `TeleWorld`, `FantasyWorld`, `Gen-3`, `Hailuo`, `LTX-Video`, and `CogVideoX-I2V` are compared against, including current real-time and offline SOTA on each task.
+- [covered] Has cross-task / cross-dataset evaluation — three distinct tasks (WorldScore, RE10K-Long I2V, OpenVid + Blender rerendering) are evaluated.
+- [missing] Has ablations that diagnose the new components — no internal ablation of ST-Cache, explicit geometric constraint, Multi-Condition Causal Initialization, Chunk-wise Backprop, or JDMD's dual-teacher decomposition is reported.
+- [partial] Has a scaling study — both 1.3B and 14B variants appear, but they are deployed selectively for fair-comparison reasons rather than swept as a controlled scaling curve; Fig. 3 plots compute vs. quality across competing methods, not across `INSPATIO-WORLD` sizes.
+- [partial] Has an efficiency / wall-clock comparison — 24 FPS (H-series) and 10 FPS (RTX 4090) are reported and Fig. 3 shows a parameters × steps axis, but no head-to-head FPS table against `LingBot-World`/`NeoVerse`/`TeleWorld` on identical hardware is given.
+- [missing] Reports variance / standard deviation / multiple seeds — all metrics in Tables 1–3 are single point estimates with no error bars or seed protocol.
+- [partial] Releases code / weights / data sufficient for reproducibility — the abstract and contributions claim "publicly released code and models" with a GitHub link, but training data mixture proportions, optimizer, batch size, and total iterations are not specified, limiting end-to-end reproducibility.
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Claim 1：STAR 架構同時提升 spatial consistency 與 control precision (§1, p.3)** — 部分支持。Table 2 RE10K-Long 上 rotation error 從 LingBot 的 11.98 降到 2.88、FID 從 64.84 降到 42.68，數字明確；但 ST-Cache (reference vs historical) 與 explicit constraint 兩條路徑沒有 ablation，無法分辨增益是來自 reference anchor、explicit warp、還是 position index fixing。
+- **Claim 2：JDMD 透過 real-world 分布校準 student 特徵空間以提升保真度 (§1, §3.3)** — 部分支持。Table 3 Blender FID 從 NeoVerse 103.23 → 44.46 是強證據，但「保真度提升源自 T2V 任務的 gradient 校準」這個機制性 claim 沒有 single-teacher baseline 對照；FID 改善也可能來自 V2V-only + 更好的 teacher 或更長訓練。
+- **Claim 3：1.3B 模型在 H-series GPU 達 24 FPS、RTX 4090 維持 10 FPS (§3.4)** — 支持，前提是 release 的 code/checkpoint 一致；前提條件 (Tiny-VAE 取代 Wan-VAE、`torch.compile`) 已被聲明。
+- **Claim 4：在 WorldScore-Dynamic 上排名 real-time/interactive 第一 (§4.2)** — 部分支持但有過度延伸。Table 1 中真正 real-time 的對照僅 TeleWorld 一者，「first」是 n=1 的比較；Fig. 3 雖列更多 bubble，但未在表中對齊。同時 overall 75.81 仍輸給非即時的 FantasyWorld 80.45，宣告中刻意只比 dynamic 子分數。
+- **Claim 5：Chunk-wise Backpropagation 讓 KV cache 構建可微分，超越既有 gradient-free 蒸餾 (§3.2.1)** — 機制描述清晰但實證不足。沒有把同樣模型在「gradient-free KV cache + DMD」設定下訓練做對照，無法量化「可微分」對最終分數的貢獻。
+
+### 7.2 Fundamental Limitations of the Method
+
+**Reference video 作為 global anchor 的覆蓋限制。** $z^{ref}_i$ 是從同一支 reference video 的 latent 中檢索；當使用者指令把相機帶離 reference 拍攝過的空間 (例如往參考影片從未出現的房間轉)，此 anchor 退化為「最近鄰」的近似而非真實 anchor。此時系統只能依賴 sliding-window historical cache 與 explicit point cloud，後者只記錄幾何不記錄外觀；這正是 §5.1 所承認 fine-grained texture 無法 persist 的根本原因，無法靠加大 cache 解決。
+
+**Explicit constraint 受限於 FFR 的單目深度品質。** $z^{warp}_i, m_i$ 完全由 $\text{Proj}(z^{ref} \mid \text{FFR}(z^{ref}), T_i)$ 推得；對 transparent / reflective / 細結構 / 大面積 textureless 區域，monocular depth 系統性失準，warp 結果便系統性錯誤，valid mask $m_i$ 也標不出該區域為「不可信」。換言之，方法的 control precision 上限被 off-the-shelf FFR 的失敗模式鎖死。
+
+**JDMD 的 synergy 預設「梯度共享空間能跨域對齊」。** V2V 與 T2V 雖共享權重，但兩任務輸入結構不同 (V2V 接 reference video + geometry，T2V 接純 text)。論證中 T2V 的真實分布梯度能透過共享 backbone「校準」V2V 的特徵空間，前提是兩任務的特徵幾何近似可對齊。一旦合成域與真實域語義差距過大 (例如 UE 渲染與真實室內 RE10K 的物件分布)，T2V 的 gradient 校準很可能落到 V2V 不會被觸發的子空間，使得「共享」變成「平均」。論文未提供這項假設成立的證據。
+
+**長期記憶仍是 sliding window + explicit point cloud。** ST-Cache 為「constant memory overhead」，亦即一定容量上限；超出 window 的歷史只能仰賴 explicit point cloud，而 point cloud 又只存幾何。對 dynamic 元素 (運動中的人、物) 此 explicit 記憶完全無效，因為點雲假設靜態場景。這是論文宣稱的 4D 但實作上仍偏 3D 靜態 + 動態前景 generation 的根本張力。
+
+### 7.3 Citations Worth Tracking
+
+- **[39] Self-Forcing (Huang et al., 2025)** — 直接前驅，提供 chunk-wise probability factorization $p(Z_{1:I} \mid C_{ref}, T) = \prod_i p(z_i \mid z_{<i}, c^{ref}_i, \tau_i)$ 與 KV-cache streaming 的訓練範式；INSPATIO-WORLD 的整個 §3.1 與訓練流程都建立在此之上。
+- **[99] CausVid (Yin et al., 2025)** — causal attention masking 把雙向 diffusion 轉 AR 的關鍵設計；§3.2.3 的 Multi-conditional Causal Initialization 是對它的直接修補，理解其侷限才能評估本文 init 策略的價值。
+- **[98] DMD (Yin et al., 2024)** — JDMD 的母方法；式 (4) 的 score-difference 形式 $(s_{real} - s_{fake}) \partial \hat{x}/\partial \theta$ 直接搬自此處，閱讀 DMD 才能判斷 dual-teacher 是否真的解決了 single-teacher 的合成域偏移。
+- **[20] WorldScore (Duan et al., 2025)** — 主要 benchmark，閱讀其 metric 設計可以判斷 dynamic / control / static 三組分數的實際語意，以及 real-time 子表的取樣是否本身就稀疏 (這對 §4.2 「first」的解讀很重要)。
+- **[80] Wan2.1** — 整個系統的 backbone 與 T2V teacher；在 Wan 架構下哪些行為是 base model 自帶、哪些是 STAR 帶來的，需回到 Wan 才能拆得乾淨。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 訓練/推理的 chunk size $K$、sliding-window 長度、reference anchor 抽取頻率為何？這些是論文整套機制的關鍵超參，但 §3 全未指定。
+- [ ] $\lambda_{ctrl}$ 的具體值與其敏感度？式 (5) 是 V2V 與 T2V 之間的張力總開關，但作者既未給值也未做 sweep。
+- [ ] Student 在 inference 時的 sampling step 數？Fig. 3 橫軸是 `params × steps`，但 INSPATIO-WORLD 的 step 數從未明寫。
+- [ ] 為何 OpenVid Rot 0.1240 / Trans 1.6000 落後 NeoVerse (0.1340 / 1.5780)，但在 Blender 上反過來大勝？是 OpenVid 的 GT camera 噪訊還是方法在真實視訊上的 control 退化？
+- [ ] 當 reference video 涵蓋的空間被使用者軌跡走出後，系統在第幾個 chunk 開始 drift？論文未提供此 stress test。
+- [ ] FFR 在反射/透明/低紋理區域失效時，$z^{warp}_i, m_i$ 如何降級？是否會把錯誤幾何當作 deterministic guidance 餵進 DiT？
+- [ ] Embodied / Autonomous Driving 為宣稱的下游應用 (Fig. 1, p.1)，但實驗無一在戶外駕駛資料上跑；該方法在 Waymo / nuScenes 等 sequence 上的真實表現如何？
+- [ ] [23] VGGT 與 [95] Depth Anything V3 引用 ID 為 placeholder，實際使用的 FFR 模型版本與權重檢查點是哪一個？
+
+### 8.2 Improvement Directions
+
+1. **加上完整 ablation 矩陣 (高 ROI、低工程成本)**：分別關閉 (a) reference path of ST-Cache、(b) historical path、(c) position index fixing、(d) explicit warp+mask、(e) JDMD T2V 分支、(f) Chunk-wise BP，於 RE10K-Long 與 Blender 兩集上跑相同 setup。這是讀者驗證所有 design claim 的最低成本方式，且不需增加任何資料。
+2. **為 explicit point cloud 加上 appearance embedding (直接針對 §5.1 acknowledged limitation)**：在每個 reconstructed 3D point 旁掛一個低維 latent，由生成過程 read/write，使 texture 能 persist。理由：點雲已經建好結構，加 appearance attribute 是自然延伸，能補 fine-grained texture forgetting。
+3. **把 monocular FFR 換成帶 uncertainty 的深度估計**：將 confidence map 串接進 $m_i$ 以外的另一通道，讓 DiT 對低信度區域降低 explicit guidance 權重；可避免反射/透明區的硬性錯誤幾何注入。
+4. **針對 outdoor / driving 場景做有限規模微調與評估**：用 KITTI-360 或 Waymo Open Motion 的子集，驗證 Fig. 1 所宣稱的 autonomous driving 適用性。即使結果略遜於 indoor，也能誠實界定方法適用邊界。
+5. **加入 multi-seed variance reporting 與 user study**：3-seed mean ± std 對 Table 1–3 成本可控，但會大幅提高 claim 可信度；user study 對「long-horizon roaming 是否流暢」此類 perceptual judgement 不可由 FID/FVD 替代。
+6. **將 JDMD 推廣為 N-teacher mixture (難度較高)**：現有公式只有 perceptual + motion 兩端，加入第三 teacher (例如 outdoor real-driving teacher) 並以 task-conditional weight 做 dynamic gating，可在不換架構下漸進涵蓋更多分布；前提是 JDMD 的 weight-sharing 假設先在 ablation 中被驗證成立。

@@ -1,0 +1,477 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Geometric Context Transformer for Streaming 3D Reconstruction</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">Geometric Context Transformer for Streaming 3D Reconstruction</h1>
+          <p class="cover-meta">Lin-Zhuo Chen, Jian Gao, Yihang Chen, Ka Leong Cheng, Yipengjing Sun, Liangxiao Hu, Nan Xue, Xing Zhu, Yujun Shen, Yao Yao, Yinghao Xu</p>
+          <p class="cover-meta">2604.14141 · arXiv preprint · 2026-04-16</p>
+          <div class="cover-tagline"><p>本研究關注串流式 (streaming) 3D 重建:給定連續視訊輸入,逐幀即時估計相機位姿與稠密深度/點雲,同時維持幾何精度、時序一致性與計算效率。作者指出此任務的核心挑戰是「選擇性地管理幾何上下文」——既要保留足夠長距離的觀測以避免漂移,又要讓串流狀態足夠精簡以支援長序列即時推論。論文提出 LingBot-Map,一個基於 Geometric Context Transformer (GCT) 與 Geometric Context Attention (GCA) 的前饋式 3D 基礎模型,將傳統 SLAM 中的「參考座標、局部視窗、全域地圖」結構抽象為三類學習式注意力上下文:anchor context (錨點上下文)、pose-reference window (位姿參考視窗) 與 trajectory memory (軌跡記憶)。該方法可在 518×378 解析度、超過一萬幀的長序列上以約 20 FPS 穩定推論,並於 Oxford Spires、7-Scenes、Tanks and Temples、ETH3D、NRGBD 等基準上同時超越串流式與迭代優化式既有方法。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本研究關注串流式 (streaming) 3D 重建:給定連續視訊輸入,逐幀即時估計相機位姿與稠密深度/點雲,同時維持幾何精度、時序一致性與計算效率。作者指出此任務的核心挑戰是「選擇性地管理幾何上下文」——既要保留足夠長距離的觀測以避免漂移,又要讓串流狀態足夠精簡以支援長序列即時推論。論文提出 LingBot-Map,一個基於 Geometric Context Transformer (GCT) 與 Geometric Context Attention (GCA) 的前饋式 3D 基礎模型,將傳統 SLAM 中的「參考座標、局部視窗、全域地圖」結構抽象為三類學習式注意力上下文:anchor context (錨點上下文)、pose-reference window (位姿參考視窗) 與 trajectory memory (軌跡記憶)。該方法可在 518×378 解析度、超過一萬幀的長序列上以約 20 FPS 穩定推論,並於 Oxford Spires、7-Scenes、Tanks and Temples、ETH3D、NRGBD 等基準上同時超越串流式與迭代優化式既有方法。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張,既有串流式 3D 重建方法之所以在長序列與複雜場景下崩壞,根本原因不是模型容量不足,而是「上下文管理機制」設計失當。他們將既有路線歸納為三類失敗模式:(1) CUT3R 等以 RNN 維護單一持久狀態,壓縮過於激進造成幾何先驗遺忘;(2) StreamVGGT、Stream3R 等用 causal attention 加快取保留近乎完整歷史,但未做選擇性過濾,記憶體與計算隨序列線性膨脹,且把有用幾何訊號淹沒在冗餘中;(3) VGGT-SLAM、MASt3R-SLAM 等混合派以手工 keyframe 啟發式與 pose-graph 後端做選擇,擺脫不了非端到端與迭代最佳化的即時性瓶頸。作者由此抽出設計原則:串流狀態應「選擇性保留最重要的東西」,而選擇本身應從資料端到端學得,並以幾何先驗為結構約束。基於此,他們從經典 SLAM 的功能解構出發——必須同時維持「座標與尺度錨定」、「局部稠密配準」與「全域漂移修正」三種互補上下文——並一一對應為 GCA 中的 anchor context、local pose-reference window、trajectory memory。anchor 用前 n 幀建立尺度與座標系並作為固定參照;局部視窗保留最近 k 幀的完整影像 token 以提供稠密相對位姿線索;軌跡記憶則對更早的幀僅保留每幀 6 個壓縮 token,使每幀新增 token 數從 causal 的 (M+6) 降到 6,長序列下記憶體與計算近乎常數成長。如此既不放棄長距離一致性,也不犧牲即時性,邏輯上必然優於只能擇一犧牲的既有設計;再輔以漸進式訓練、context parallelism 與相對位姿損失,模型才得以在端到端框架下穩定學會「該記什麼、該丟什麼」。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>GCA 將每幀的串流 KV 上下文從 causal attention 的 $(M+6)$ tokens 壓到 $6$ tokens($M\!\approx\!500$),長序列下增量約 $80\times$ 降幅,理論上做到「近常數」per-frame 成本(§3.2 Complexity Analysis,page 6)。</li><li>Oxford Spires sparse(320 frames)上 AUC@15 達 $61.64$,大幅超越最強 offline DA3 的 $49.84$、最強 optimization-based VIPE 的 $45.35$、最強 online CUT3R 的 $5.98$(Table 2)。</li><li>Oxford Spires 從 sparse 到 dense(3,840 frames),ATE 僅由 $6.42 \to 7.11$($+0.69$),而 CUT3R $+14.31$、Wint3R $+11.80$,長序列穩定性差距達一個量級(Table 3)。</li><li>在 ETH3D 上 F1 衝到 $98.98$,較第二名 Wint3R 的 $77.28$ 高出 $+21.70$,Acc 與 Comp 同步領先($0.09/0.03$ vs $0.28/0.21$)(Table 5)。</li><li>7-Scenes ATE $0.08$、Tanks and Temples ATE $0.20$、AUC@30 $92.80$,在三個風格迥異基準上同時奪冠,顯示非單一場景特化(Table 4)。</li><li>64-frame 的 bounded pose-reference window 反而打敗 full causal attention:ATE $5.98$ vs $6.60$,且推論速度 $1.7\times$、記憶體 $2.7\times$ 改善(Table 7),作者解讀為過遠 image tokens 反而引入雜訊。</li><li>端到端 ablation 把每個元件貢獻拆得乾淨:anchor 帶來 AUC@3 $+3.83$,context tokens 帶來 $+2.12$,Video RoPE 帶來 ATE $-1.48$(Table 6,page 18)。</li><li>工程上採用 FlashInfer 的 paged KV-cache 替代 contiguous layout,使 PyTorch baseline 從 $\sim\!10.5$ FPS 提升到 $\sim\!20$ FPS($518\!\times\!378$,1000 frames,window=64,§3.4 page 7)。</li><li>訓練配方完整:兩階段(各 $160$K iter)、progressive view curriculum 將 view 數從 $24$ 線性加到 $320$、Ulysses context parallelism dim=$16$,合計 $\sim\!36{,}860$ GPU hours(§4.1, §4.2)。</li><li>NRGBD F1 達 $64.26$,較 Wint3R 的 $56.96$ 高 $+7.30$,在 cluttered 室內細節場景中漂移控制最為突出(Table 5)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(160 words)</p>
+<p>標題「Geometric Context Transformer for Streaming 3D Reconstruction」直接點出三個關鍵字:GCT 這個新架構、streaming 設定、以及 3D 重建任務,暗示作者要把 offline 3D foundation model 的成功推廣到 online 場景。Abstract 隨即把 streaming 3D reconstruction 的目標收斂到三個同時必須兼顧的指標──geometric accuracy、temporal consistency、computational efficiency,這三點正好對應後文方法設計的三條主軸,也預示 baseline 方法被批評的方向。</p>
+<p>接著 abstract 把方法定位成「受 SLAM 啟發的 feed-forward foundation model」,並命名為 LingBot-Map。這個定位很關鍵:它一方面承接 VGGT、DUSt3R 等 feed-forward 路線(no test-time optimization),另一方面把 SLAM 的 reference frame / local map / global map 三層空間記憶結構搬到 attention 裡,因此核心貢獻不是 backbone 而是 attention pattern。Abstract 列出三類 context──anchor context、pose-reference window、trajectory memory,分別對應 coordinate grounding、dense geometric cues、long-range drift correction,這三個對齊關係幾乎逐字出現在 §3.2,讀者可以把 abstract 視為後文 Method section 的 1:1 索引。</p>
+<p>最後 abstract 給出兩個量化承諾用於誘發讀者繼續讀下去:518 × 378 解析度下約 20 FPS、可處理超過 10,000 frames 的序列;並聲稱在多個 benchmark 上勝過 streaming 與 iterative optimization-based 方法。這句話為 §6 的 Oxford Spires sparse / dense 兩個設定預先鋪好「速度 + 長序列」雙軸論述。Figure 1 同步以 ATE 與 reconstruction accuracy 兩個雷達圖視覺化此宣稱,讓讀者在進入正文前已經建立「LingBot-Map 在所有軸都領先」的第一印象。</p>
+<h3>3.2 Introduction</h3>
+<p>(720 words)</p>
+<p>Introduction 用一個認知科學的譬喻開場:人類的空間記憶並不忠實地保留每一刻觀察,而是稀疏、結構化、有效率地保留關鍵 cue。作者藉此提問:能不能讓機器以同樣的「選擇性、有效率」方式做 streaming 3D reconstruction?這個 framing 為後文「不是儲存多少,而是儲存什麼」的設計哲學立下基調。</p>
+<p>第二段把問題定位到當前研究脈絡。VGGT、Depth Anything 3 等 3D foundation model 已能在單次 feed-forward 中預測 camera pose、depth、point map,但都侷限在 offline、需要存取整個影像集合的設定。最近開始有方法試圖把這套能力 adapt 到 streaming,但長序列與複雜場景的 robustness 仍不足。作者把核心難題濃縮成一句話「selective context management」:在長期一致性所需的豐富 geometric context 與高效推論所需的緊湊 state 之間取得平衡。</p>
+<p>第三段是分類批評,用來建立自家方法的差異化空間。作者把 prior streaming 工作分三類並各自指出缺陷:(1) CUT3R 用 persistent recurrent state,壓縮過於激進導致 state forgetting;(2) StreamVGGT、Stream3R 用 causal attention + caching,幾乎保留全部歷史,造成 memory / computation 線性甚至更高速增長,且無法分辨關鍵與冗餘;(3) VGGT-SLAM、MASt3R-SLAM 把 learned 3D model 接到 classical SLAM backend,雖然有結構化的 keyframe / pose graph,但依賴 hand-crafted heuristic 並依賴 iterative optimization,難以 real-time。這三類缺陷恰好對應方法要解決的三個面向。作者由此抽出設計原則:streaming state 應該選擇性保留「最重要的」而非「最多的」,並且這個選擇應該是在 geometric prior 上 grounded、但 end-to-end 從資料學出來的。</p>
+<p>第四段引入 LingBot-Map 與其核心元件 Geometric Context Attention (GCA)。論述策略是把 classical SLAM 的洞見「robust real-time reconstruction 需要三種 spatial context:reference frame、local window、global map」直接映射到三個 learned attention 機制:anchor context (coordinate / scale grounding)、local pose-reference window (dense local geometry)、trajectory memory (drift correction)。關鍵宣稱是這個結構化但 learned 的表徵能在任意長序列下維持 nearly constant memory and computation per frame──作者特別點出 trajectory memory 把 local window 之外的 context 壓成 compact per-frame token,這正是 §3.2 複雜度分析(每幀只增加 6 tokens)的伏筆。</p>
+<p>第五段補上訓練端的支援:progressive training + context parallelism (Ulysses) + relative loss formulation,讓模型能穩定地在大規模 long-sequence 資料上學習。這段為 §4.2 與 §4.3 預先打底,並暗示「光有架構不夠,還必須有對應的 scaling recipe」。</p>
+<p>最後 contribution bullets 把全文 take-away 收成三點:(1) GCA 三層 context 的 streaming foundation model;(2) progressive + context-parallel + relative loss 的訓練 recipe;(3) 在 Oxford Spires、Tanks and Temples、ETH3D、7-Scenes 等 benchmark 上 SOTA。值得注意的是 contribution 同時宣稱 reconstruction quality 與 inference speed 兩軸領先,這直接對應 §6.2 dense setting 的 ATE + FPS 雙軸表格,顯示 introduction 的 contribution claim 與 experiment 設計是有意對齊的。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(620 words)</p>
+<p>Related Work 分三段組織,從 traditional pipeline 走到 3D foundation model,再聚焦到 streaming 3D reconstruction,逐步把比較對象與設計缺口收斂到自家方法的 niche。</p>
+<p>第一段「Traditional 3D Reconstruction」回顧 SfM、SLAM、MVS 三條傳統路線。作者強調這些 pipeline 通常 modular 且以 bundle adjustment 為核心,並指出深度學習過去十年主要是「替換 component」(如 feature extractor、matcher),而 VGGTSfM、DROID-SLAM、MVSNet 才開始嘗試 end-to-end。這段的潛台詞是:LingBot-Map 屬於 end-to-end 路線,但要保留 SLAM 的結構化記憶觀念──這也呼應 introduction 「SLAM 啟發但 learned」的口號。</p>
+<p>第二段「3D Foundation Model」勾勒 LingBot-Map 直接繼承的家系。DUSt3R 是 paradigm shift,但只支援 two-view 並需要 alignment optimization;VGGT 用 cross-view attention 突破多視角限制並證明大規模資料 + 強架構能顯著提升品質。隨後作者列舉一系列後續方向(reconstruction accuracy、efficiency、dynamic scenes、novel view synthesis、multi-modal),刻意展示這條路線生態繁茂,但用一句結語收束「這些方法主要為 offline 設計,並未處理 streaming 特有的長期一致性與資源管理挑戰」,把 niche 留給自己。</p>
+<p>第三段「Streaming 3D Reconstruction」是真正的競品分析。作者把現有 streaming 工作切成兩類:hybrid SLAM-based(整合 3D foundation model 與 SLAM pipeline,如 VGGT-Long、VGGT-SLAM、MASt3R-SLAM)與 end-to-end feed-forward。前者批評是依賴 hand-crafted component 與 careful tuning,後者再細分:CUT3R 用 RNN 維持 persistent state、TTT3R 透過 test-time training 緩解 forgetting、StreamVGGT 與 Stream3R、Wint3R 則改用 causal attention + caching。這個逐一點名的策略讓讀者在進入 experiment 表格前就已經對每個 baseline 的設計缺陷有預期──之後 §6 直接看到這些方法在長序列上 drift 嚴重,就會在故事邏輯上被解釋為「課文已預告」。</p>
+<p>最後作者特別處理 concurrent works(LoGeR、Scal3R、ZipMap),這些方法和 LingBot-Map 一樣關心 long-sequence scaling。但作者強調它們都依賴 test-time parameter update(TTT 層、sliding window TTT、TTT compression),這帶來額外計算負擔且限制 real-time。對比之下 LingBot-Map 是純 feed-forward streaming,不需 test-time training 或 post-optimization,透過 compact geometric context 設計達成 real-time。這段話幾乎是在 introduction 的 claim 之外再開一個 differentiation axis:不只是「比現有 streaming 好」,而是「在 scaling 路線上選了 feed-forward 而非 TTT」,這個立場在 §6.4 ablation 中以「bounded window 反而比 full attention 在 ATE 上更好」的 counterintuitive 結果再次強化。整段 Related Work 的功能不只是 literature survey,而是逐步把 LingBot-Map 在設計光譜上的位置(end-to-end + structured context + feed-forward)精確定位出來。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(2800 words)</p>
+<p>Method narrative 涵蓋 §3 Method 與 §4 Training &amp; Inference,故事邏輯是「先把 streaming 表徵設計好(§3),再說明如何把它從 short-sequence 訓練 scale 到 long-sequence 並部署成 streaming 服務(§4)」。</p>
+<p>§3.1 Overview 把問題形式化:給定影像串流 $I = \{I_1, I_2, \dots\}$,模型在每個新 frame $I_t$ 抵達時,僅依賴 $\{I_1, \dots, I_t\}$ 預測 camera pose $\hat{P}_t$ 與 depth map $\hat{D}_t$,不存取未來觀察。架構繼承 feed-forward 3D model 的 ViT backbone 加上交替的 frame-wise attention 與 GCA layer,最後接 task-specific head。這個 overview 的關鍵訊息是:GCA 是讓 streaming 變得可行的核心組件,而 anchor / pose-reference window / trajectory memory 三層 context 是 GCA 的內部結構──後續三個 subsection 就分別展開這三層。</p>
+<p>§3.2 GCA 是整篇方法的核心。作者先重述 streaming 重建的核心 trade-off,再用 classical SLAM 的三層 spatial context 作為 prior,把 streaming state 切成三個 learned attention 機制。Anchor Context:取前 $n$ 個 frame 作為 anchor frame,在它們之間用 full attention 並加上 learnable anchor token,後續所有 frame 都以這些 anchor 為固定座標 / scale 參考;訓練時以 anchor frame 點雲到原點的平均距離 $s$ 把 ground-truth depth 與 translation 標準化到 canonical scale。Local Pose-Reference Window:維持最近 $k$ 個 frame 的完整 image token,提供 dense visual overlap 以利新 frame 註冊,並透過 §3.3 的 relative pose loss 強化 local consistency。Trajectory Memory:對於落在 anchor set 與 sliding window 之外的 frame,僅保留 camera + anchor + register 共 6 個 context token,丟棄 $M$ 個 image token,並注入 video temporal positional encoding。這節最後給出複雜度分析:per-frame context 由 $(n+k)\cdot M + 6T$ 構成,其中 $(n+k)\cdot M$ 為常數、$6T$ 線性增長,但每幀新增僅 6 tokens,相對 causal attention 的 $M+6$(典型 $M\approx 500$)減少約 80×;以 $n=3$、$k=16$、$T=10{,}000$ 計算,causal 累積約 $5\times 10^6$ tokens 而 GCA 僅約 $7\times 10^4$。Figure 3 視覺化四種 attention pattern 對比,把 GCA 的設計動機完整總結。</p>
+<p>§3.3 GCT Framework 把三層 context 整合進完整架構並定義損失。每個 frame 的 image token 來自 DINOv2 初始化的 ViT,加上 camera token、4 個 register token、1 個 learnable anchor token,經多層 frame attention 與 GCA 交替處理,最後 camera head 與 depth head 預測 $\hat{P}_t$、$\hat{D}_t$。損失由三項組成:$L = \lambda_{\text{depth}} L_{\text{depth}} + \lambda_{\text{abs-pose}} L_{\text{abs-pose}} + \lambda_{\text{rel-pose}} L_{\text{rel-pose}}$,前兩項沿用 VGGT,但作者特意用 camera-to-world 而非 world-to-camera 參數化,理由是後者在長序列下 rotation 與 translation 強耦合導致 translation 對 rotation 誤差過於敏感。Relative pose loss 仿 $\pi^3$,在 sliding window 內所有 frame pair 上計算 geodesic rotation error 與 $\ell_1$ translation error;由於 window 只含已觀察 frame,這個 loss 天然滿足 causality。Progressive View Training 從短子序列開始、訓練中逐步增加 view 數,以避免早期 pose 誤差沿軌跡傳播導致發散。Context Parallel 採 Ulysses 策略把不同 view 分散到多 GPU、用 all-to-all 通訊計算 cross-frame attention,以解決 quadratic memory bottleneck。</p>
+<p>§3.4 Inference System Design 把訓練好的模型部署成 streaming 系統。類比 autoregressive LLM 的 KV cache,但在 sliding window + trajectory eviction 下需要頻繁 append / discard,標準 contiguous layout 會反覆 reallocate 記憶體。作者改用 paged KV-cache(借鏡 vLLM)讓更新只影響新 append 的 token,並基於 FlashInfer 提供的 paged / sparse attention kernel;在 518 × 378、1000 frames、window 64 的設定下從 PyTorch baseline 的 10.5 FPS 提升到 20 FPS。為支援超長序列推論,額外每 $m$ frame 選一個 keyframe 保留進 KV cache。</p>
+<p>§4 Training &amp; Inference 把訓練拆成兩階段 curriculum。§4.1 Base Model 用 global attention 在短序列(2–24 views)、29 個資料集(包含 unordered multi-view 與 video,balanced sampling)上訓練 160K iter,建立通用 geometric prior,共耗 21,500 GPU hours。§4.2 Streaming Model 從 base model 直接接續(因為 GCA 與 global attention 共用 QKV 參數),把 view 數從 24 線性增長到 320、window size $k$ 在 16–64 間隨機抽樣,以 Ulysses parallelism dim 16、TorchTitan + Magi Attention 跑 15,360 GPU hours。§4.3 Training Data 區分 Stage 1(diverse short-sequence,nearby sampler)與 Stage 2(long-trajectory video,foldback video sampler 來避免 forward-time bias 並產生多樣 frame rate)。§4.4 Inference Modes 提供 Direct Output(預設,單一 GCA 三層 context 連續累積,在 ~3,000 frames 內穩定)與 VO mode(把序列切成重疊 window,window 內 reset 並用 Sim(3) align 接合,可處理數萬 frame 但代價是 alignment drift)。預設配置為 Direct mode、$k=64$、$m=1$、518×378、bfloat16。整段方法敘事的內在邏輯是:GCA 提供 streaming 可行性 → GCT framework 定義可訓練的目標 → 兩階段 curriculum + parallelism 提供 scaling → paged KV cache + dual mode 提供部署彈性,層層相扣為 §6 的 long-sequence、20 FPS 結果鋪好理論基礎。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(2500 words)</p>
+<p>Experiments narrative 涵蓋 §5 Evaluation Benchmark 與 §6 Experiments,故事策略是「先把舞台搭好(benchmark + metric + baseline),再分三層敘述驗證:pose accuracy、reconstruction quality、ablation」,並透過 sparse / dense 雙設定把長序列當作核心戰場。</p>
+<p>§5.1 Datasets 一次性建構五個互補的測試集,涵蓋 indoor / outdoor、object-centric / multi-scene、short / long sequence、synthetic / real 等多軸組合。Oxford Spires 是新引入的旗艦 benchmark,提供 LiDAR-inertial SLAM 取得的 ground-truth trajectory,挑選 13 個 scene,並設計兩個關鍵設定:sparse(320 frames、stride 12)落在 training 範圍內、用以與 offline / optimization-based / online 三類方法公平對比;dense(3,840 frames)則 stress-test 長序列 streaming。ETH3D、7-Scenes、Tanks and Temples、NRGBD 用於跨場景泛化驗證。§5.2 Metrics 採用標準的 AUC@3、AUC@30、ATE、RPE-trans、RPE-rot 對 pose 評估,reconstruction 則以 F1、Acc、Comp(Umeyama + ICP align)評估,並按資料集特性調整 voxel size 與 threshold。</p>
+<p>§6.1 Baseline Methods 切成三類:offline feed-forward (VGGT、DA3、Fast3R、FastVGGT、Pi3)、optimization-based (DroidSLAM、MegaSAM、VIPE)、streaming (StreamVGGT、SLAM3R、InfiniteVGGT、Spann3R、Stream3R、CUT3R、TTT3R、Wint3R)。作者特別聲明所有 streaming 方法評測時不重置 internal state,確保公平比較長序列下的真實能力。</p>
+<p>§6.2 Camera Pose Estimation 是論文最重要的實驗段。Sparse Oxford Spires 的結論是 LingBot-Map 在 streaming 設定下不只擊敗所有 streaming baseline,還超越最強 offline (DA3) 與 optimization-based (VIPE):AUC@15 從 DA3 的 49.84 拉到 61.64、ATE 從 12.87 / 24.78 / 10.52 (DA3 / VGGT / VIPE) 降到 6.42。作者把 offline 表現不佳歸因於訓練資料 viewpoint 數量有限、frame 距離近,在 Oxford Spires 大跳轉下 prior 失效;optimization-based 雖然顯式 minimize reprojection error 但 iterative 成本高;streaming baseline 則普遍 memory forgetting。Dense 設定(3,840 frames)是真正的 stress test:CUT3R ATE 從 18.16 飆到 32.47(+14.31)、Wint3R 從 21.10 升到 32.90(+11.80),而 LingBot-Map 從 6.42 僅升到 7.11(+0.69),序列拉長 12× 而誤差幾乎不變,直接驗證 GCA 三層 context 的長期一致性宣稱;同時 FPS 達 20.29,壓過 Wint3R(3.88)、InfiniteVGGT(7.78)、Stream3R-w(13.66)。Generalization 段把同一套敘事複製到 ETH3D、7-Scenes、Tanks and Temples,LingBot-Map 在三個資料集所有 metric 全部第一,在 Tanks and Temples 上 ATE 0.20 vs Stream3R 0.76(3.8× 改善),確立「不是 large-scale outdoor 的特化模型,而是 general-purpose streaming pose estimator」。Figure 5 提供質性對比,顯示在 outdoor-to-indoor 過渡與黑暗樓梯中 LingBot-Map 仍精準,而 DA3-Giant 與 VIPE 都 drift。</p>
+<p>§6.3 3D Reconstruction 把 pose 改善延伸到 reconstruction 品質。ETH3D F1 從 Wint3R 的 77.28 跳到 98.98(+21.70),且 Acc(0.09 vs 0.28)與 Comp(0.03 vs 0.21)雙軸領先;7-Scenes 因 room-scale 提升空間有限,F1 80.39 仍排第一;NRGBD 上 F1 64.26 對 Wint3R 56.96 領先 7.30。Figure 6 質性圖呈現一個漸進式的對比結構:simple scene 中 baseline 還可接受、middle complexity 開始出現 duplicated structure 與 blurred surface、bottom 的 multi-building outdoor 則 baseline 完全失去 spatial coherence,而 LingBot-Map 始終保持銳利邊緣與連續 wall surface,把長序列 trajectory drift 對 reconstruction 的破壞性視覺化。</p>
+<p>§6.4 Ablation Study 是因果鏈條的 self-validation。在 TartanAir + TartanGround、320 frames stride 8(實際 ~2,400 frames span)上以 5×10⁻⁵ fine-tune,逐項加入元件:加 Anchor Init AUC@3 從 9.80→13.63(+3.83)、加 Context Tokens 13.63→15.75(+2.12)、加 Video RoPE 7.46→5.98 ATE(−1.48,單一最大 ATE 改善)、缺 Relative Pose Loss 則 RPE-rot 從 2.26 退化到 5.35(2.4×)。這個結果序列把 §3.2 每一個設計動機都對應到一個量化貢獻。最後一個對照表把 pose-reference window size 64 與 full causal attention 比較:bounded window 速度 1.7× (20.29 vs 11.87 FPS)、記憶體 2.7× 節省(13.28 vs 36.06 GB),且 ATE 反而更低(5.98 vs 6.60),作者解釋 distant token 引入噪音、而 GCA 的 6-token 摘要保留 essential geometric cue 並濾除冗餘──這個 counterintuitive finding 是整篇論文的論證高潮:它同時顛覆「context 越多越好」的直覺,也回扣 introduction 的設計原則「不是儲存多少,而是儲存什麼」。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(350 words)</p>
+<p>Conclusion 用三句話把全篇收束。第一句重申 LingBot-Map 是 streaming foundation model,核心在 GCA 把 streaming state 拆成 anchor / local pose-reference window / trajectory memory 三類 context,設計動機來自 classical SLAM 但完全 end-to-end 訓練。第二句把方法的量化承諾 anchor 在兩個數字上:per-frame context 增長量比 causal attention 減少約 80×,以及在 ~20 FPS 下穩定執行任意長序列。第三句把實驗結論定位:不只在 streaming 方法中拿到 SOTA,在 Oxford Spires 這類 large-scale dataset 上甚至超越 offline 與 optimization-based 方法,並把應用面延展到 autonomous navigation、AR、以及 embodied AI 等需要 persistent on-the-fly spatial understanding 的場景。</p>
+<p>Limitations 三點誠實列出。其一,模型沒有 explicit loop-closure detection,意味著在重訪舊區域時 accumulated drift 仍可能存在,而 trajectory memory 是 implicit 的 drift correction;其二,trajectory memory 把每幀壓成固定 token 數,在數萬 frame 等級的超長序列下可能丟失細粒度 geometric detail──這暗示 §4.4 VO mode 雖能延展長度,但 fidelity 仍有上限;其三,作為 feed-forward 方法不做 test-time optimization,在極端挑戰場景下沒有 refinement 後手。這三點正好對應 introduction 中區隔自家方法的三條軸(no SLAM backend、compact memory、no TTT)各自留下的 trade-off。</p>
+<p>Future Directions 把 limitations 轉成 roadmap:把 bundle-adjustment 風格的 refinement 與 explicit loop-closure 注入 attention 機制,在保持 end-to-end differentiability 前提下進一步逼近 classical SLAM backend;延伸到 dynamic scenes(處理移動物體);整合 LiDAR 或 IMU 的 multi-modal 輸入;以及把 LingBot-Map 當成 backbone 接到 novel view synthesis 或 navigation 等 downstream 任務。整段語氣保守,沒有承諾下一篇 paper,但把 LingBot-Map 從「streaming 重建模型」重新定位成「embodied 系統的空間 backbone」,呼應 conclusion 第一段對 embodied AI 的引用,讓讀者在離開時帶走「這不只是 streaming SLAM 的 learned 替代品,而是 spatial foundation model 的雛形」這個 take-away。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(720 words)</p>
+<div class="card"><p>Introduction 用一個認知科學的譬喻開場:人類的空間記憶並不忠實地保留每一刻觀察,而是稀疏、結構化、有效率地保留關鍵 cue。作者藉此提問:能不能讓機器以同樣的「選擇性、有效率」方式做 streaming 3D reconstruction?這個 framing 為後文「不是儲存多少,而是儲存什麼」的設計哲學立下基調。</p></div>
+<div class="card"><p>第二段把問題定位到當前研究脈絡。VGGT、Depth Anything 3 等 3D foundation model 已能在單次 feed-forward 中預測 camera pose、depth、point map,但都侷限在 offline、需要存取整個影像集合的設定。最近開始有方法試圖把這套能力 adapt 到 streaming,但長序列與複雜場景的 robustness 仍不足。作者把核心難題濃縮成一句話「selective context management」:在長期一致性所需的豐富 geometric context 與高效推論所需的緊湊 state 之間取得平衡。</p></div>
+<div class="card"><p>第三段是分類批評,用來建立自家方法的差異化空間。作者把 prior streaming 工作分三類並各自指出缺陷:(1) CUT3R 用 persistent recurrent state,壓縮過於激進導致 state forgetting;(2) StreamVGGT、Stream3R 用 causal attention + caching,幾乎保留全部歷史,造成 memory / computation 線性甚至更高速增長,且無法分辨關鍵與冗餘;(3) VGGT-SLAM、MASt3R-SLAM 把 learned 3D model 接到 classical SLAM backend,雖然有結構化的 keyframe / pose graph,但依賴 hand-crafted heuristic 並依賴 iterative optimization,難以 real-time。這三類缺陷恰好對應方法要解決的三個面向。作者由此抽出設計原則:streaming state 應該選擇性保留「最重要的」而非「最多的」,並且這個選擇應該是在 geometric prior 上 grounded、但 end-to-end 從資料學出來的。</p></div>
+<div class="card"><p>第四段引入 LingBot-Map 與其核心元件 Geometric Context Attention (GCA)。論述策略是把 classical SLAM 的洞見「robust real-time reconstruction 需要三種 spatial context:reference frame、local window、global map」直接映射到三個 learned attention 機制:anchor context (coordinate / scale grounding)、local pose-reference window (dense local geometry)、trajectory memory (drift correction)。關鍵宣稱是這個結構化但 learned 的表徵能在任意長序列下維持 nearly constant memory and computation per frame──作者特別點出 trajectory memory 把 local window 之外的 context 壓成 compact per-frame token,這正是 §3.2 複雜度分析(每幀只增加 6 tokens)的伏筆。</p></div>
+<div class="card"><p>第五段補上訓練端的支援:progressive training + context parallelism (Ulysses) + relative loss formulation,讓模型能穩定地在大規模 long-sequence 資料上學習。這段為 §4.2 與 §4.3 預先打底,並暗示「光有架構不夠,還必須有對應的 scaling recipe」。</p></div>
+<div class="card"><p>最後 contribution bullets 把全文 take-away 收成三點:(1) GCA 三層 context 的 streaming foundation model;(2) progressive + context-parallel + relative loss 的訓練 recipe;(3) 在 Oxford Spires、Tanks and Temples、ETH3D、7-Scenes 等 benchmark 上 SOTA。值得注意的是 contribution 同時宣稱 reconstruction quality 與 inference speed 兩軸領先,這直接對應 §6.2 dense setting 的 ATE + FPS 雙軸表格,顯示 introduction 的 contribution claim 與 experiment 設計是有意對齊的。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(620 words)</p>
+<div class="card"><p>Related Work 分三段組織,從 traditional pipeline 走到 3D foundation model,再聚焦到 streaming 3D reconstruction,逐步把比較對象與設計缺口收斂到自家方法的 niche。</p></div>
+<div class="card"><p>第一段「Traditional 3D Reconstruction」回顧 SfM、SLAM、MVS 三條傳統路線。作者強調這些 pipeline 通常 modular 且以 bundle adjustment 為核心,並指出深度學習過去十年主要是「替換 component」(如 feature extractor、matcher),而 VGGTSfM、DROID-SLAM、MVSNet 才開始嘗試 end-to-end。這段的潛台詞是:LingBot-Map 屬於 end-to-end 路線,但要保留 SLAM 的結構化記憶觀念──這也呼應 introduction 「SLAM 啟發但 learned」的口號。</p></div>
+<div class="card"><p>第二段「3D Foundation Model」勾勒 LingBot-Map 直接繼承的家系。DUSt3R 是 paradigm shift,但只支援 two-view 並需要 alignment optimization;VGGT 用 cross-view attention 突破多視角限制並證明大規模資料 + 強架構能顯著提升品質。隨後作者列舉一系列後續方向(reconstruction accuracy、efficiency、dynamic scenes、novel view synthesis、multi-modal),刻意展示這條路線生態繁茂,但用一句結語收束「這些方法主要為 offline 設計,並未處理 streaming 特有的長期一致性與資源管理挑戰」,把 niche 留給自己。</p></div>
+<div class="card"><p>第三段「Streaming 3D Reconstruction」是真正的競品分析。作者把現有 streaming 工作切成兩類:hybrid SLAM-based(整合 3D foundation model 與 SLAM pipeline,如 VGGT-Long、VGGT-SLAM、MASt3R-SLAM)與 end-to-end feed-forward。前者批評是依賴 hand-crafted component 與 careful tuning,後者再細分:CUT3R 用 RNN 維持 persistent state、TTT3R 透過 test-time training 緩解 forgetting、StreamVGGT 與 Stream3R、Wint3R 則改用 causal attention + caching。這個逐一點名的策略讓讀者在進入 experiment 表格前就已經對每個 baseline 的設計缺陷有預期──之後 §6 直接看到這些方法在長序列上 drift 嚴重,就會在故事邏輯上被解釋為「課文已預告」。</p></div>
+<div class="card"><p>最後作者特別處理 concurrent works(LoGeR、Scal3R、ZipMap),這些方法和 LingBot-Map 一樣關心 long-sequence scaling。但作者強調它們都依賴 test-time parameter update(TTT 層、sliding window TTT、TTT compression),這帶來額外計算負擔且限制 real-time。對比之下 LingBot-Map 是純 feed-forward streaming,不需 test-time training 或 post-optimization,透過 compact geometric context 設計達成 real-time。這段話幾乎是在 introduction 的 claim 之外再開一個 differentiation axis:不只是「比現有 streaming 好」,而是「在 scaling 路線上選了 feed-forward 而非 TTT」,這個立場在 §6.4 ablation 中以「bounded window 反而比 full attention 在 ATE 上更好」的 counterintuitive 結果再次強化。整段 Related Work 的功能不只是 literature survey,而是逐步把 LingBot-Map 在設計光譜上的位置(end-to-end + structured context + feed-forward)精確定位出來。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>LingBot-Map 的核心是 <strong>Geometric Context Transformer (GCT)</strong>，建立於 VGGT 的 ViT backbone（DINOv2 初始化）與交替的 frame attention / cross-frame attention 架構之上，但將 cross-frame attention 替換為 <strong>Geometric Context Attention (GCA)</strong>。GCA 將串流上下文顯式分解為三類互補的注意力子集：(1) <strong>Anchor Context</strong> — 前 $n$ 幀（通常 $n=3$）的完整 image tokens 加 learnable anchor token，建立座標系與絕對尺度，所有後續幀對其做 full attention 作為固定參照；(2) <strong>Local Pose-Reference Window</strong> — 最近 $k$ 幀（訓練時 $k \in [16, 64]$，預設推論 $k=64$）的完整 image tokens（每幀 $M+6$ tokens），提供稠密視覺重疊以支援局部相對位姿估計；(3) <strong>Trajectory Memory</strong> — 對視窗外的歷史幀僅保留 6 個 context tokens（1 camera + 4 register + 1 anchor），丟棄佔記憶體大宗的 image tokens，並注入 video temporal positional encoding 以維持時序順序，提供長距離漂移修正線索。</p>
+<p>複雜度上，causal attention 每幀新增 $(M+6)$ tokens，T 幀總量為 $T \cdot (M+6) = MT + 6T$；GCA 每幀僅新增 6 個 trajectory tokens，總量為 $(n+k)\cdot M + 6T$，第一項為常數，第二項以每幀 6 tokens 線性成長。論文於第 6 頁給出具體例子：當 $n=3, k=16, T=10{,}000, M\approx 500$ 時，causal attention 累積 $\sim 5\times 10^6$ tokens，GCA 僅 $\sim 7\times 10^4$ tokens，每幀成長率降低約 80×，使 518×378 解析度、超過 10,000 幀的長序列得以以約 20 FPS 穩定推論。</p>
+<p>訓練採兩階段策略：<strong>Stage 1 (Base Model)</strong> 使用標準 global attention 在 2–24 幀的多視角與短視訊資料上訓練 160K iterations（21,500 GPU hours），建立通用幾何先驗；<strong>Stage 2 (Streaming Model)</strong> 將 global attention 替換為 GCA（QKV 投影參數可直接遷移），以 progressive view curriculum 將訓練幀數從 24 線性增加至 320（受 context parallelism 之 GPU 記憶體上限限制），$k$ 在 $[16, 64]$ 隨機採樣，並透過 Ulysses context parallelism (parallelism dim=16) 分散注意力計算，再訓練 160K iterations（15,360 GPU hours）。Loss 為 $\mathcal{L} = \lambda_{\text{depth}} \mathcal{L}_{\text{depth}} + \lambda_{\text{abs-pose}} \mathcal{L}_{\text{abs-pose}} + \lambda_{\text{rel-pose}} \mathcal{L}_{\text{rel-pose}}$，其中相對位姿損失（受 π³ 啟發）僅在 sliding window 內所有 frame pairs 上計算，天然滿足 causal 約束。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input: video frames T_1, ..., T_i ∈ R^{H×W×3}, H=378, W=518, patch=14
+   │
+   │ [B, 3, H, W] per frame → DINOv2 ViT backbone (per-frame, frame attention)
+   ▼
+Image Tokens per frame:           [B, M, C]              (M = (H/14)×(W/14) ≈ 27×37 ≈ 999, paper uses M≈500 for default config; C = ?)
+   │
+   │ Augment with learnable tokens (per frame)
+   ▼
+Augmented Token Set per frame:    [B, M+6, C]
+   │   ├─ image tokens:           [B, M, C]
+   │   ├─ camera token c:         [B, 1, C]
+   │   ├─ register tokens r_1..4: [B, 4, C]
+   │   └─ anchor token a:         [B, 1, C]
+   │
+   │ Stack all frames in streaming KV-cache (paged layout, FlashInfer)
+   ▼
+Streaming Context for current frame T_i:
+   │
+   ├─→ Anchor Context             [B, n·(M+6), C]   (n=3, full image tokens, fixed reference)
+   ├─→ Local Pose-Reference Win.  [B, k·(M+6), C]   (k=64 default, recent frames T_{i-k}..T_{i-1})
+   ├─→ Trajectory Memory          [B, (i-n-k)·6, C] (only c, r_1..4, a per evicted frame, +temporal PE)
+   └─→ Current Frame T_i tokens   [B, M+6, C]       (Q source for cross-frame attention)
+   │
+   │ 24 alternating blocks (initialized from VGGT base):
+   │   ├─ Frame Attention: per-frame self-attention over [B, M+6, C]
+   │   └─ Geometric Context Attention (GCA):
+   │       Q from current frame [B, M+6, C]
+   │       K,V from concat(Anchor ∪ Local Window ∪ Trajectory Memory ∪ Current)
+   │       structured attention mask (Fig. 3d) restricts visibility
+   ▼
+Refined Tokens for T_i:           [B, M+6, C]
+   │
+   ├─→ Camera Token [B, 1, C] ──→ Camera Head ──→ P̂_i ∈ R^{B, 7 or 4×4}  (camera-to-world; rotation+translation)
+   │
+   └─→ Image Tokens [B, M, C] ──→ DPT-style Depth Head ──→ D̂_i ∈ R^{B, H, W}  + uncertainty Σ^D_i ∈ R^{B, H, W}
+
+Notes on `?`:
+  • Channel dim C and exact M not stated in the provided method excerpt; M depends on patch grid (≈ 27×37 = 999 tokens for 518×378 with patch=14, but the complexity analysis on p.6 uses M≈500 as a &quot;typical value&quot;, suggesting either token reduction or a different effective count). The paper does not specify C explicitly in the excerpt.
+  • Number of register tokens fixed at 4; anchor and camera tokens are 1 each, giving 6 context tokens per frame (matches paper).</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 ViT Backbone (DINOv2-initialized)"><h2 class="slide-title">Method — 5.3.1 ViT Backbone (DINOv2-initialized)</h2><div class="card"><p><strong>Function:</strong> 將每張輸入影像獨立編碼為 image tokens 序列，提供強幾何先驗的視覺表徵。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>T_i</code>（當前幀影像）</li><li>Shape: <code>[B, 3, H, W]</code>，其中 $H=378$, $W=518$</li><li>Source: 輸入視訊串流的當前幀</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>image_tokens_i</code></li><li>Shape: <code>[B, M, C]</code>，其中 $M$ 為 patch grid 大小（patch_size=14，理論上 $M = \lfloor H/14 \rfloor \times \lfloor W/14 \rfloor = 27 \times 37 = 999$，但論文 §3.2 複雜度分析使用 $M \approx 500$ 作為「typical value」），$C$ 為通道數（論文未明確指定）</li><li>Consumer: Token Augmentation 模組（§5.3.2）</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>將 $H \times W$ 影像切為 14×14 patches。</li><li>每個 patch 經 ViT 線性投影至 $C$ 維 token。</li><li>加上 positional encoding，經 24 個 transformer blocks 處理（與 VGGT 對齊）。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>每幀獨立編碼，無跨幀互動： $\text{image\_tokens}_i = \text{ViT}_{\text{DINOv2}}(T_i)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>ViT backbone 從 DINOv2 (Oquab et al.) 初始化，patch size = 14 pixels。輸入解析度標準化為最大邊 518 pixels（保持 aspect ratio）。Stage 1 訓練時的 photometric augmentation 包括 brightness/contrast/saturation ±0.5、hue ±0.1（probability 0.9），random grayscale (p=0.05)，spatial rescaling [0.8×, 1.2×]，aspect ratio [0.33, 1.0]。Co-jittering（同一場景所有幀套用相同色彩變換）以 p=0.3 啟用。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 Token Augmentation"><h2 class="slide-title">Method — 5.3.2 Token Augmentation</h2><div class="card"><p><strong>Function:</strong> 為每幀的 image tokens 附加 6 個 learnable context tokens（camera, register×4, anchor），承載跨幀幾何資訊與壓縮表徵。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>image_tokens_i</code></li><li>Shape: <code>[B, M, C]</code></li><li>Source: ViT Backbone (§5.3.1)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>augmented_tokens_i</code></li><li>Shape: <code>[B, M+6, C]</code></li><li>Consumer: Frame Attention / GCA blocks（§5.3.3, §5.3.4）</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每幀拼接 6 個 learnable tokens：</p>
+<ol><li>1 個 camera token $c \in \mathbb{R}^C$</li><li>4 個 register tokens $r_1, r_2, r_3, r_4 \in \mathbb{R}^C$</li><li>1 個 learnable anchor token $a \in \mathbb{R}^C$</li></ol>
+<p>Anchor token 用於讓網路識別並區分 anchor frames 與後續 streaming frames。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \text{augmented\_tokens}_i = [c; r_1; r_2; r_3; r_4; a; \text{image\_tokens}_i] \in \mathbb{R}^{B \times (M+6) \times C} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>所有 6 個 context tokens 為 learnable parameters。論文未指定 $C$ 的具體數值。Trajectory Memory 對 evicted frames 僅保留這 6 個 context tokens，丟棄 image tokens，這是 GCA 達成近常數每幀記憶體成長的關鍵。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 Frame Attention"><h2 class="slide-title">Method — 5.3.3 Frame Attention</h2><div class="card"><p><strong>Function:</strong> 在每幀內部執行 self-attention，refine 該幀的 token 表徵，不涉及跨幀資訊。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>augmented_tokens_i</code></li><li>Shape: <code>[B, M+6, C]</code></li><li>Source: Token Augmentation（首次）或前一個 GCA block（後續）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>frame_refined_tokens_i</code></li><li>Shape: <code>[B, M+6, C]</code></li><li>Consumer: 同層的 GCA block</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每幀獨立執行 multi-head self-attention： $\text{frame\_refined}_i = \text{MHSA}(\text{augmented\_tokens}_i)$ Q, K, V 皆來自同一幀的 $M+6$ tokens。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>與 VGGT 的 frame attention 設計一致。Frame Attention 與 GCA 在 24 個 blocks 中交替排列。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Geometric Context Attention (GCA)"><h2 class="slide-title">Method — 5.3.4 Geometric Context Attention (GCA)</h2><div class="card"><p><strong>Function:</strong> GCA 為本論文核心創新，以結構化 attention mask 將跨幀注意力分為 anchor、local window、trajectory memory 三類互補上下文，取代 VGGT 的 global cross-frame attention，使每幀計算與記憶體開銷近乎常數。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 當前幀 query tokens <code>Q_i</code>，以及上下文集合 <code>KV_context</code></li><li>Shape:</li><li><code>Q_i</code>: <code>[B, M+6, C]</code>（來自 Frame Attention 輸出）</li><li><code>KV_context</code>: 由四部分串接：</li><li>Anchor: <code>[B, n·(M+6), C]</code>，$n=3$</li><li>Local Window: <code>[B, k·(M+6), C]</code>，$k \in [16, 64]$，預設 $k=64$</li><li>Trajectory Memory: <code>[B, (i-n-k)·6, C]</code>（若 $i &gt; n+k$）</li><li>Current frame self: <code>[B, M+6, C]</code></li><li>Source: Anchor frames（初始化階段保留）、KV-cache、當前 Frame Attention 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>gca_output_i</code></li><li>Shape: <code>[B, M+6, C]</code></li><li>Consumer: 下一層 Frame Attention，或最終輸出至 prediction heads</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>從 KV-cache（FlashInfer paged layout）讀取 anchor、local window、trajectory memory 的 tokens。</li><li>將四部分串接為 K, V：</li></ol>
+<p>   $$    K = V = \text{concat}(\text{Anchor}, \text{LocalWin}, \text{TrajMem}, \text{Current}_i)    $$</p>
+<ol><li>套用結構化 attention mask（Fig. 3d）：當前幀 attend 到 anchor 全 tokens、最近 $k$ 幀全 tokens、所有更早幀的 6 個 context tokens。</li><li>計算 multi-head attention：</li></ol>
+<p>   $$    \text{gca\_output}_i = \text{softmax}\left(\frac{Q_i K^\top}{\sqrt{d_k}} \odot \text{mask}\right) V    $$</p>
+<ol><li>對於 anchor frames（前 $n$ 幀）內部，套用 full attention（彼此互相 attend），其餘幀對 anchor 為 read-only。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>每幀注意力上下文 token 總數： $$ N_{\text{GCA}} = n \cdot (M+6) + k \cdot (M+6) + (T - n - k) \cdot 6 = (n+k) \cdot M + 6T $對比 causal attention：$ N_{\text{causal}} = T \cdot (M+6) = MT + 6T $$</p>
+<p>新增單幀 token 比較：causal 為 $(M+6)$，GCA 為 $6$，比例約為 $(M+6)/6 \approx 84$（當 $M=500$），論文表述為「reduced by roughly 80×」。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Anchor frames 數 $n=3$（論文 §3.2 預設）。</li><li>Local window size $k$：訓練時隨機採樣自 $[16, 64]$，預設推論 $k=64$（§4.4）。</li><li>Trajectory Memory 的 6 tokens（1 camera + 4 register + 1 anchor，無 image tokens）注入 video temporal positional encoding（引用 [72]）以維持時序順序。</li><li>推論時實作於 FlashInfer，採 paged KV-cache layout 避免 contiguous re-allocation overhead。</li><li>Stage 2 訓練從 base model 權重初始化，QKV projections 參數可直接遷移（GCA 與 global attention 的參數化相同），加速收斂。</li><li>24 個 blocks 中 Frame Attention 與 GCA 交替排列（與 VGGT 一致）。</li></ul></div></section>
+<section class="slide" data-title="Method — 5.3.5 Camera Head"><h2 class="slide-title">Method — 5.3.5 Camera Head</h2><div class="card"><p><strong>Function:</strong> 從 GCA 處理後的 camera token 預測當前幀的絕對相機位姿（camera-to-world transformation）。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>camera_token_i</code></li><li>Shape: <code>[B, 1, C]</code>（從 <code>gca_output_i</code> 提取第 0 個 token）</li><li>Source: 最終 GCA block 的輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>P̂_i</code></li><li>Shape: <code>[B, ?]</code>，論文未明確指定具體參數化（典型為 7-dim quaternion+translation 或 4×4 matrix）</li><li>Consumer: Loss 計算 / 下游應用</li></ul>
+<p><strong>Processing:</strong></p>
+<p>Camera Head 將 camera token 映射至位姿參數。論文採用 <strong>camera-to-world</strong> 參數化（與 VGGT 的 world-to-camera 不同），原因為 world-to-camera 中 rotation 與 translation 耦合，translation 對 rotation error 高度敏感，特別在長序列下會放大誤差。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>絕對位姿損失（沿用 VGGT [75]）： $\mathcal{L}_{\text{abs-pose}} = \sum_{i=1}^{N} \|\hat{P}_i - P_i\|_\epsilon$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>具體 head 架構（MLP 層數、輸出維度）論文未明確說明。參數化選擇 camera-to-world 是相對 VGGT 的改動。</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Depth Head (DPT-style)"><h2 class="slide-title">Method — 5.3.6 Depth Head (DPT-style)</h2><div class="card"><p><strong>Function:</strong> 從 GCA 處理後的 image tokens 預測當前幀的稠密深度圖與不確定性圖。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>image_tokens_i_refined</code></li><li>Shape: <code>[B, M, C]</code>（從 <code>gca_output_i</code> 提取後 $M$ 個 tokens）</li><li>Source: 最終 GCA block 的輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>D̂_i</code>, <code>Σ^D_i</code></li><li>Shape: <code>D̂_i: [B, H, W]</code>，<code>Σ^D_i: [B, H, W]</code>，其中 $H=378, W=518$</li><li>Consumer: Loss 計算 / 點雲重建</li></ul>
+<p><strong>Processing:</strong></p>
+<p>採 DPT-style 架構（如圖 4 所示，標記為 &quot;DPT&quot; 與 &quot;Dc&quot;），將 token grid 上採樣回原始解析度，輸出深度與 per-pixel uncertainty。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>深度損失（沿用 VGGT [75]）： $$ \mathcal{L}_{\text{depth}} = \sum_{i=1}^{N}\left[ \|\Sigma^D_i \odot (\hat{D}_i - D_i)\|_\epsilon + \|\Sigma^D_i \odot (\nabla \hat{D}_i - \nabla D_i)\|_\epsilon - \alpha \log \Sigma^D_i \right] $$</p>
+<p>其中 $\Sigma^D_i$ 為預測 uncertainty map，$\odot$ 為 element-wise 乘法，$\nabla$ 為深度梯度，$\alpha$ 為 uncertainty 正則項權重。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>DPT-style decoder 具體層數論文未列出。Loss 同時懲罰深度值與深度梯度誤差，並透過 uncertainty re-weighting 提升對 textureless 與遮擋區域的 robustness。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>BlendedMVS</td><td>Multi-view 3D 重建訓練</td><td>Multi-view, single-scene</td><td>Train (Stage 1: 1.1%, Stage 2: 1.9%)</td></tr><tr><td>HyperSim</td><td>Multi-view 室內合成</td><td>Multi-view, single-scene</td><td>Train (Stage 1: 5.8%, Stage 2: 5.7%)</td></tr><tr><td>MegaDepth</td><td>Multi-view 深度估計</td><td>Multi-view, multi-scene</td><td>Train (Stage 1: 3.9%)</td></tr><tr><td>Unreal4K</td><td>Video 合成場景</td><td>Video, single-scene</td><td>Train (Stage 1: 1.0%, Stage 2: 0.9%)</td></tr><tr><td>WildRGBD</td><td>Video 物件中心</td><td>Video, single-scene</td><td>Train (Stage 1: 5.8%, Stage 2: 1.9%)</td></tr><tr><td>TartanAir</td><td>Video 多場景軌跡</td><td>Video, multi-scene</td><td>Train (Stage 1: 3.9%, Stage 2: 7.6%); Ablation testbed</td></tr><tr><td>TartanAirV2</td><td>Video 多場景軌跡</td><td>Video, multi-scene</td><td>Train (Stage 1: 5.8%, Stage 2: 10.8%)</td></tr><tr><td>TartanGround</td><td>Video 地面機器人軌跡</td><td>Video, multi-scene</td><td>Train (Stage 1: 5.8%, Stage 2: 10.8%); Ablation validation set (320 frames @ stride 8)</td></tr><tr><td>Waymo</td><td>Video 戶外駕駛</td><td>Video, multi-scene</td><td>Train (Stage 2: 0.9%)</td></tr><tr><td>PointOdyssey</td><td>Video 動態場景</td><td>Video, single-scene</td><td>Train (Stage 1: 0.3%, Stage 2: 0.9%)</td></tr><tr><td>VirtualKITTI</td><td>Video 戶外駕駛合成</td><td>Video, multi-scene</td><td>Train (Stage 1: 0.8%, Stage 2: 1.9%)</td></tr><tr><td>Kubric</td><td>Video 合成</td><td>Video, single-scene</td><td>Train (Stage 1: 0.3%, Stage 2: 0.9%)</td></tr><tr><td>DL3DV</td><td>Video 多場景</td><td>Video, multi-scene</td><td>Train (Stage 1: 11.0%, Stage 2: 5.7%)</td></tr><tr><td>MVS-Synth</td><td>Multi-view 合成</td><td>Multi-view, single-scene</td><td>Train (Stage 1: 1.7%)</td></tr><tr><td>GTA-SFM</td><td>Multi-view SfM 合成</td><td>Multi-view, single-scene</td><td>Train (Stage 1: 1.7%)</td></tr><tr><td>CO3D</td><td>Multi-view 物件</td><td>Multi-view, single-scene</td><td>Train (Stage 1: 5.5%)</td></tr><tr><td>SceneRGBD</td><td>Video 室內合成</td><td>Video, single-scene</td><td>Train (Stage 1: 7.3%, Stage 2: 5.7%)</td></tr><tr><td>Mapfree</td><td>Video 重定位</td><td>Video, multi-scene</td><td>Train (Stage 1: 3.9%, Stage 2: 1.5%)</td></tr><tr><td>Aria Synthetic Environments</td><td>Video egocentric 合成</td><td>Video, single-scene</td><td>Train (Stage 1: 7.3%, Stage 2: 5.7%)</td></tr><tr><td>ADT (Aria Digital Twin)</td><td>Video egocentric</td><td>Video, single-scene</td><td>Train (Stage 1: 1.0%)</td></tr><tr><td>Objaverse</td><td>Mesh 物件</td><td>Mesh, single-scene</td><td>Train (Stage 1: 2.7%)</td></tr><tr><td>Texverse</td><td>Mesh 物件</td><td>Mesh, single-scene</td><td>Train (Stage 1: 2.7%)</td></tr><tr><td>ScanNet++</td><td>Video 室內</td><td>Video, single-scene</td><td>Train (Stage 1: 3.9%, Stage 2: 2.8%)</td></tr><tr><td>ScanNet</td><td>Video 室內</td><td>Video, single-scene</td><td>Train (Stage 1: 1.9%, Stage 2: 2.8%)</td></tr><tr><td>MatrixCity</td><td>Video 城市規模</td><td>Video, multi-scene</td><td>Train (Stage 1: 1.7%, Stage 2: 7.6%)</td></tr><tr><td>MidAir</td><td>Video 空拍合成</td><td>Video, multi-scene</td><td>Train (Stage 1: 2.9%, Stage 2: 5.7%)</td></tr><tr><td>KITTI-360</td><td>Video 戶外駕駛</td><td>Video, multi-scene</td><td>Train (Stage 2: 3.8%)</td></tr><tr><td>Internal Game</td><td>Video 多場景遊戲</td><td>Video, multi-scene</td><td>Train (Stage 1: 10.6%, Stage 2: 10.8%)</td></tr><tr><td>Gibson</td><td>Mesh 室內導航</td><td>Mesh, multi-scene</td><td>Train (Stage 2: 2.6%)</td></tr><tr><td>Matterport3D</td><td>Mesh 室內</td><td>Mesh, multi-scene</td><td>Train (Stage 2: 2.6%)</td></tr><tr><td>HM3D</td><td>Mesh 室內</td><td>Mesh, multi-scene</td><td>Train (Stage 2: 2.6%)</td></tr><tr><td>Oxford Spires</td><td>Camera pose + 3D 重建（戶外大規模）</td><td>13 scenes;  sparse 320 frames、dense 3,840 frames</td><td>Test</td></tr><tr><td>ETH3D</td><td>Camera pose + 3D 重建（室內外混合）</td><td>全部 frames</td><td>Test</td></tr><tr><td>7-Scenes</td><td>Camera pose + 3D 重建（室內 RGB-D）</td><td>7 scenes, stride 5 下採樣</td><td>Test</td></tr><tr><td>Tanks and Temples</td><td>Camera pose 估計（戶外多視角）</td><td>6 scenes (Barn, Caterpillar, Church, Ignatius, Meeting Room, Truck)</td><td>Test</td></tr><tr><td>NRGBD</td><td>3D 重建（室內 RGB-D）</td><td>stride 5 下採樣</td><td>Test</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>AUC@3 / AUC@15 / AUC@30</td><td>相對 pose error 在 $3°$、$15°$、$30°$ 角度閾值下的 Area Under the Curve，衡量 pose 估計準確度</td><td>yes</td></tr><tr><td>ATE (m)</td><td>Absolute Trajectory Error，經 Sim(3) 對齊後的全域軌跡一致性誤差</td><td>yes</td></tr><tr><td>RPE-trans</td><td>Relative Pose Error（translation），衡量 frame-to-frame 局部平移精度</td><td>no</td></tr><tr><td>RPE-rot</td><td>Relative Pose Error（rotation），衡量 frame-to-frame 局部旋轉精度</td><td>no</td></tr><tr><td>F1</td><td>重建點雲與 ground-truth 之 F1 score（ETH3D 用 $d=0.1$ m 或 $0.25$、voxel $0.039$ m；7-Scenes 與 NRGBD 用 voxel $4.0/512$、$F_1$ threshold $0.05$）</td><td>yes</td></tr><tr><td>Acc</td><td>Accuracy，重建點雲到 ground-truth 之距離</td><td>no</td></tr><tr><td>Comp</td><td>Completeness，ground-truth 點雲到重建點雲之距離</td><td>no</td></tr><tr><td>FPS</td><td>每秒處理幀數，衡量推論速度</td><td>no</td></tr><tr><td>Memory (GB)</td><td>GPU 記憶體佔用量</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p>訓練分為兩階段。<strong>Stage 1（base model）</strong>: ViT backbone 從 DINOv2 初始化（patch size 14），採 24 層交替的 frame attention 與 cross-frame attention（架構同 VGGT），全程使用 global attention 而非 GCA；optimizer 為 AdamW（base lr $2 \times 10^{-4}$、weight decay $0.05$），lr schedule 為前 5% 從 $10^{-8}$ 線性 warmup 至 base，後 95% cosine annealing 回 $10^{-8}$；訓練 160K iterations；每樣本隨機抽 2–24 views，dynamic batch sampler 每 GPU 最多 48 images。資料增強包含色彩抖動（brightness/contrast/saturation $\pm 0.5$、hue $\pm 0.1$，機率 0.9）、隨機灰階（機率 0.05）、空間 rescale ($[0.8\times, 1.2\times]$，aspect ratio $[0.33, 1.0]$)、co-jittering（機率 0.3）。分散式訓練採 FSDP + gradient checkpointing + bfloat16 mixed precision，總計約 21,500 GPU hours。</p>
+<p><strong>Stage 2（streaming model）</strong>: 從 base model 權重初始化，將 global attention 替換為 GCA；訓練 160K iterations，base lr $5 \times 10^{-4}$，warmup 與 cosine schedule 同 Stage 1；views 數採 progressive curriculum 從 24 線性增至 320；local pose-reference window $k$ 訓練時隨機從 $[16, 64]$ 抽樣。採用 Ulysses context-parallelism（並行維度 16），實作於 TorchTitan + Magi Attention，總計約 15,360 GPU hours。Loss 為 $L = \lambda_{\text{depth}} L_{\text{depth}} + \lambda_{\text{abs-pose}} L_{\text{abs-pose}} + \lambda_{\text{rel-pose}} L_{\text{rel-pose}}$，其中 $L_{\text{rel-pose}}$ 對 sliding window 內所有 frame pair 計算 geodesic rotation error 與 $\ell_1$ translation error；具體 $\lambda$ 數值 the paper does not specify。</p>
+<p><strong>Ablation 設定</strong>: 從 Stage 1 checkpoint 微調，lr $5 \times 10^{-5}$，progressive view curriculum 同主訓練，每組 ablation 約 3,840 GPU hours，於 TartanGround validation set（320 frames @ stride 8，時間跨度約 2,400 frames）評估。</p>
+<p><strong>Inference</strong>: 預設 Direct Output Mode，$k = 64$、keyframe interval $m = 1$、解析度 $518 \times 378$、bfloat16；KV-cache 採用 paged layout（基於 FlashInfer），於 1000 frames、window 64 設定下達 ~20 FPS（PyTorch contiguous baseline 為 ~10.5 FPS）。VO Mode 用於極長序列（數萬 frames），以 overlapping windows + 視窗間 Sim(3) 對齊。Direct mode 在 keyframe selection 下可穩定處理約 10× 訓練長度（~3,000 frames）。</p></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p><strong>Oxford Spires (sparse, 320 frames):</strong></p>
+<table><thead><tr><th>Method</th><th>Type</th><th>AUC@15 ↑</th><th>AUC@30 ↑</th><th>ATE ↓</th><th>Notes</th></tr></thead><tbody><tr><td>Fast3R</td><td>offline</td><td>1.20</td><td>2.99</td><td>34.80</td><td></td></tr><tr><td>VGGT</td><td>offline</td><td>23.84</td><td>35.09</td><td>24.78</td><td></td></tr><tr><td>DA3</td><td>offline</td><td>49.84</td><td>56.68</td><td>12.87</td><td>最強 offline baseline</td></tr><tr><td>Pi3</td><td>offline</td><td>38.64</td><td>48.65</td><td>14.03</td><td></td></tr><tr><td>DroidSLAM</td><td>optim</td><td>8.58</td><td>21.41</td><td>21.84</td><td></td></tr><tr><td>MegaSAM</td><td>optim</td><td>15.91</td><td>28.03</td><td>13.80</td><td></td></tr><tr><td>VIPE</td><td>optim</td><td>45.35</td><td>51.88</td><td>10.52</td><td>最強 optim baseline</td></tr><tr><td>CUT3R</td><td>online</td><td>5.98</td><td>14.95</td><td>18.16</td><td>最佳 online competitor</td></tr><tr><td>TTT3R</td><td>online</td><td>13.92</td><td>25.90</td><td>19.35</td><td></td></tr><tr><td>Wint3R</td><td>online</td><td>11.61</td><td>23.42</td><td>21.10</td><td></td></tr><tr><td>Stream3R</td><td>online</td><td>9.67</td><td>15.21</td><td>29.58</td><td></td></tr><tr><td><strong>LingBot-Map (Ours)</strong></td><td><strong>online</strong></td><td><strong>61.64</strong></td><td><strong>75.16</strong></td><td><strong>6.42</strong></td><td>較 DA3 提升 +11.80 AUC@15、ATE 降 50%；較 CUT3R AUC 提升 ~10×</td></tr></tbody></table>
+<p><strong>Oxford Spires (dense, 3,840 frames):</strong></p>
+<table><thead><tr><th>Method</th><th>ATEsparse ↓</th><th>ATEdense ↓</th><th>$\Delta$ ATE</th><th>FPS ↑</th></tr></thead><tbody><tr><td>CUT3R</td><td>18.16</td><td>32.47</td><td>+14.31</td><td>29.21</td></tr><tr><td>TTT3R</td><td>19.35</td><td>25.05</td><td>+5.70</td><td>28.97</td></tr><tr><td>Wint3R</td><td>21.10</td><td>32.90</td><td>+11.80</td><td>3.88</td></tr><tr><td>InfiniteVGGT</td><td>30.49</td><td>31.75</td><td>+1.26</td><td>7.78</td></tr><tr><td>Stream3R-w</td><td>33.03</td><td>33.73</td><td>+0.70</td><td>13.66</td></tr><tr><td><strong>LingBot-Map (Ours)</strong></td><td><strong>6.42</strong></td><td><strong>7.11</strong></td><td><strong>+0.69</strong></td><td><strong>20.29</strong></td></tr></tbody></table>
+<p><strong>ETH3D / 7-Scenes / Tanks &amp; Temples (camera pose):</strong></p>
+<table><thead><tr><th>Method</th><th>ETH3D AUC@30 ↑</th><th>ETH3D ATE ↓</th><th>7-Scenes AUC@30 ↑</th><th>7-Scenes ATE ↓</th><th>T&amp;T AUC@30 ↑</th><th>T&amp;T ATE ↓</th></tr></thead><tbody><tr><td>Stream3R</td><td>64.76</td><td>1.67</td><td>73.70</td><td>0.10</td><td>81.33</td><td>0.76</td></tr><tr><td>Wint3R</td><td>58.71</td><td>0.86</td><td>63.02</td><td>0.12</td><td>57.85</td><td>0.88</td></tr><tr><td>TTT3R</td><td>56.12</td><td>1.22</td><td>71.23</td><td>0.10</td><td>71.30</td><td>0.66</td></tr><tr><td>InfiniteVGGT</td><td>62.20</td><td>1.46</td><td>73.40</td><td>0.12</td><td>77.76</td><td>1.00</td></tr><tr><td><strong>LingBot-Map (Ours)</strong></td><td><strong>86.20</strong></td><td><strong>0.22</strong></td><td><strong>78.59</strong></td><td><strong>0.08</strong></td><td><strong>92.80</strong></td><td><strong>0.20</strong></td></tr></tbody></table>
+<p><strong>ETH3D / 7-Scenes / NRGBD (3D reconstruction F1):</strong></p>
+<table><thead><tr><th>Method</th><th>ETH3D F1 ↑</th><th>7-Scenes F1 ↑</th><th>NRGBD F1 ↑</th></tr></thead><tbody><tr><td>StreamVGGT</td><td>58.11</td><td>69.44</td><td>45.08</td></tr><tr><td>CUT3R</td><td>67.63</td><td>58.98</td><td>32.22</td></tr><tr><td>TTT3R</td><td>68.48</td><td>77.25</td><td>53.55</td></tr><tr><td>Wint3R</td><td>77.28</td><td>78.81</td><td>56.96</td></tr><tr><td>Stream3R</td><td>72.87</td><td>78.79</td><td>54.07</td></tr><tr><td><strong>LingBot-Map (Ours)</strong></td><td><strong>98.98</strong></td><td><strong>80.39</strong></td><td><strong>64.26</strong></td></tr></tbody></table></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>論文以 Tab. 6 進行四組元件 ablation（baseline 為僅含 relative pose loss 的 row 1），於 TartanGround 驗證集評估。</p>
+<ul><li><strong>Anchor Initialization (row 1 → row 2)</strong>: 加入 anchor frames 與 learnable anchor token，AUC@3 從 9.80 → 13.63（+3.83）、ATE 從 8.59 → 7.88。此 ablation 直接診斷 GCA 的「coordinate/scale grounding」角色，回答了「monocular streaming 是否需要顯式 reference frame」的問題，屬於診斷型實驗。</li><li><strong>Context Tokens / Trajectory Memory (row 2 → row 4)</strong>: 在 anchor 之上加入 6-token per-frame compact memory，AUC@3 從 13.63 → 15.75（+2.12）、ATE 從 7.88 → 7.46（−0.42）。直接驗證「lightweight trajectory memory 是否能對抗 long-range drift」，屬診斷型。</li><li><strong>Relative Pose Loss (row 3 vs row 4)</strong>: 移除 $L_{\text{rel-pose}}$ 後 RPE-rot 由 2.26 → 5.35（2.4× 惡化）、ATE 由 7.46 → 8.25。這個對照特別揭示 rotation 比 translation 對 pairwise 監督更敏感，屬於有資訊量的診斷實驗。</li><li><strong>Video RoPE (row 4 → row 5)</strong>: 加入 video temporal positional encoding，ATE 由 7.46 → 5.98（−1.48，整組 ablation 中最大單一改善）、AUC@3 +0.64、AUC@30 +1.95。此 ablation 回答「trajectory memory 是否需要時序順序」，是核心診斷而非 sanity check。</li><li><strong>Pose-Reference Window vs Full Causal Attention (Tab. 7)</strong>: $k = 64$ 對比保留所有歷史 image tokens 的 full causal attention。bounded window 在 ATE (5.98 vs 6.60)、RPE-trans (1.33 vs 1.50)、FPS（20.29 vs 11.87，1.7×）、memory（13.28 vs 36.06 GB，2.7×）皆勝出，僅 RPE-rot (1.93 vs 1.71) 略遜。此實驗同時量化效能與精度權衡，並佐證「過多歷史 image tokens 會引入噪音」的設計假設，屬有效診斷。</li></ul>
+<p>整體而言，五組 ablation 都對應 GCA 的具體設計選擇（anchor、memory、relative loss、temporal RoPE、bounded window），每組都改變 metric 並提供方向性洞察，沒有出現純 sanity check（例如「移除整個模型」之類的退化對照）。較弱之處是：缺少對 anchor 數量 $n$、window 大小 $k$、keyframe interval $m$ 的 sweep（僅在 Tab. 7 比較 $k=64$ 與 full），亦未對 trajectory memory 的 token 數（固定為 6）做敏感度分析。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 比較對象包含 offline SoTA（VGGT, DA3, Pi3）、optim SoTA（VIPE, MegaSAM, DroidSLAM）與 streaming SoTA（CUT3R, TTT3R, Wint3R, Stream3R, InfiniteVGGT, StreamVGGT, SLAM3R），多為 2025–2026 近期工作。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 同時評估 camera pose（Oxford Spires, ETH3D, 7-Scenes, Tanks &amp; Temples）與 3D reconstruction（ETH3D, 7-Scenes, NRGBD），跨室內/戶外、短/長序列。</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — Tab. 6 與 Tab. 7 對 anchor、context tokens、relative loss、video RoPE、bounded window 五個 GCA 元件分別作對照，每組都對應特定設計假設並產生方向性 metric 變化。</li><li>[partial] Has a scaling study (size, length, or compute) — Tab. 3 透過 sparse(320) vs dense(3,840) 評估 12× sequence length scaling 並與 baselines 比較 $\Delta$ ATE，正文亦聲稱可外推至 ~10,000 frames；但缺少模型尺寸或訓練 compute 的 scaling curve。</li><li>[covered] Has an efficiency / wall-clock comparison — Tab. 3 報告 FPS（LingBot-Map 20.29 vs 競品 3.88–29.21），Tab. 7 額外比較 FPS 與 GPU memory（13.28 vs 36.06 GB），Sec. 3.4 對比 FlashInfer paged 與 PyTorch contiguous KV-cache（20 vs 10.5 FPS）。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 所有表格皆為單次數值，未報告 std、信賴區間或多 seed 平均。</li><li>[covered] Releases code / weights / data sufficient for reproducibility — 論文首頁列出 GitHub (https://github.com/robbyant/lingbot-map) 與專案網站，附錄詳列 29 個訓練資料集與抽樣比例、optimizer/lr/iteration、context-parallel 設定、推論 hyperparameter，對重現具備充分文件層級的揭露（實際 release 內容需檢視 repo 才能確認）。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>模型未內建明確的 loop-closure detection,在重訪先前區域時無法主動修正累積漂移(§7 Limitations,page 19)。</li><li>軌跡記憶以每幀固定 $6$ tokens 壓縮,在數萬幀級別的超長序列下可能失去對 fine-grained 幾何細節的保留能力(§7 Limitations,page 19)。</li><li>純 feed-forward 設計不做 test-time optimization,缺乏 bundle-adjustment 級別的後續修正機制,在 challenging 場景下重建品質仍有提升空間(§7 Limitations,page 19)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>Direct mode 僅在訓練長度 $\sim\!10\times$($\sim\!3{,}000$ frames)內穩定,超過此範圍即降級;論文 abstract 與 demo 強調的「$&gt;\!10{,}000$ frames at 20 FPS」必須切換到 VO mode,而 VO mode 在 window 邊界 Sim(3) 對齊所引入的累積漂移雖在 §4.4 page 10 文字承認,但全篇沒有任何量化曲線——核心 headline 所依賴的場景沒有對應 benchmark。</li><li>Table 1 中 Internal Game 資料集在 Stage 1 / Stage 2 各佔 $10.6\%$ / $10.8\%$ 的取樣比重,屬於不可重現的私有資料,使得相當比例的監督訊號無法被外部讀者驗證或複製。</li><li>所有 ablation(Table 6, Table 7)只在 TartanAir / TartanGround 合成資料上做,序列長度約 $2{,}400$ frames;Oxford Spires 上對 DA3 多出 $\sim\!12$ AUC@15、對 CUT3R 多出 $\sim\!56$ 的巨大差距,無法乾淨地歸因到 GCA 結構,因為訓練資料分布、FlashInfer runtime、view 曲線都同時改變。</li><li>Related Work 明確定位為 baseline 的 hybrid 方法 VGGT-SLAM [42]、MASt3R-SLAM [46] 從未出現在 Tables 2/4/5,使「outperforms iterative optimization-based approaches」的主張其實只在 DroidSLAM/MegaSAM/VIPE 上成立。</li><li>軌跡記憶每幀保留 $6$ tokens(camera + anchor + $4$ register)從未做敏感度實驗——讀者無法判斷 $3$、$12$、$24$ tokens 是否會帶來更佳折衷,$6$ 是設計選擇而非實證最優。</li><li>Anchor frames 直接取前 $n$ 幀且全程不可重選;若起手幀為低紋理、運動模糊、或 baseline 不足,整段軌跡都繼承壞的座標基準,但論文無針對 anchor 品質劣化的 robustness 實驗。</li><li>$20$ FPS 的數字只在 $518\!\times\!378$、window=$64$ 的單一 setting 量測(§3.4),沒有 resolution、window size、batch 的 sweep;讀者無從推斷在 $1024$-frame window 或更高解析度下 $(n+k)\cdot M$ 主導項是否仍能維持即時性。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim 1: GCA 三層上下文(anchor + window + trajectory memory)以近常數 per-frame 成本維持長序列一致性。</strong> <em>Supported.</em> 複雜度推導(§3.2 page 6)+ Table 3 上 sparse→dense ATE 僅 $+0.69$ + Table 7 上 bounded window 同時優於 full causal 的 ATE 與速度,共同證實架構主張。</li><li><strong>Claim 2: Progressive training + context parallelism + relative pose loss 是穩定長序列訓練的有效配方。</strong> <em>Partially supported.</em> Table 6 拆解了 Rel. Loss、Anchor Init、Context Tokens、Video RoPE 各自的貢獻,但只在 TartanGround 上做;對 progressive curriculum 本身與 Ulysses dim 的選擇沒有對照組,讀者無法判斷其中哪個元件是必要的、哪個只是加速收斂。</li><li><strong>Claim 3: 在 Oxford Spires、T&amp;T、ETH3D、7-Scenes 上全面超越既有 streaming 方法。</strong> <em>Supported.</em> Tables 2/4/5 在所有列出的 streaming baselines 上皆領先,且差距遠大於度量噪聲。</li><li><strong>Claim 4: 同時超越 offline 與 iterative optimization-based 方法。</strong> <em>Partially supported / overclaimed.</em> 在 Oxford Spires sparse(Table 2)上確實打敗 DA3、Pi3、VGGT 與 DroidSLAM/MegaSAM/VIPE;但 Related Work 點名的 hybrid 派 VGGT-SLAM、MASt3R-SLAM 完全沒進表,且 offline 方法本身並非為 $320$+ frames 訓練,比較條件對 LingBot-Map 有利這點作者只當成優勢敘述而未充分加註。</li><li><strong>Claim 5: $\sim\!20$ FPS 在超過 $10{,}000$ frames 序列上穩定推論。</strong> <em>Partially supported.</em> Table 3 在 $3{,}840$ frames 上量到 $20.29$ FPS(Direct mode);超過 $\sim\!3{,}000$ frames 後 Direct mode 退化、必須切到 VO mode(§4.4 page 9–10),而 VO mode 的 throughput 與 boundary 漂移都沒單獨量化,所以 $10{,}000$+ 的 headline 並無對應 benchmark 數字。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Anchor 機制本質脆弱、不可重選。</strong> 座標系與絕對尺度由前 $n$ 幀一次性釘死,後續所有幀以這些 anchor 作為固定參照(§3.2 page 5)。若初始幀是低紋理、運動模糊或基線不足,scale $s$ 從一開始就有偏,而整條軌跡都繼承這個偏差;架構上沒有任何「重新評估或替換 anchor」的路徑,因此這不是訓練可以補的瑕疵,而是設計層級的單點故障。</p>
+<p><strong>軌跡記憶為內容無關的均勻壓縮,結構上排除真正的 loop closure。</strong> 每個被驅逐的幀都壓到固定 $6$ tokens(camera + anchor + 4 register),不論該幀是否觀察到日後會被重訪的關鍵地標(§3.2 page 5)。當相機真的回到舊區域時,當前 query 看到的歷史只是這些壓縮 summary,缺乏跨時間 dense correspondence 所需的 image tokens——也就是說,即便加上學習式 detection,attention 也無從以足夠資訊修正。作者把 loop closure 列為 future work(page 19),但成因是結構性,不是「還沒實作」。</p>
+<p><strong>Feed-forward 設計沒有 rewrite 過去預測的機制。</strong> 一旦 frame $t$ 給出有偏的 $\hat{P}_t$ 與 $\hat{D}_t$,後續幀只能透過 attention 回看 $t$ 的壓縮 token 做隱式平滑,但已輸出的 pose 與 depth 不可被覆寫。對於含顯著尺度模糊或長距離重訪的序列,這是相對於 bundle-adjustment-style 後端的硬上限,任何純 feed-forward 公式都無法跨越。</p>
+<p><strong>對 offline base model 的不可分割依賴。</strong> Stage 1 用了 $\sim\!21{,}500$ GPU hours 的 global attention 預訓練才把 GCA 換上去(§4.1, §4.2);query/key/value 投影權重從 global 直接遷移到 GCA。論文沒有任何 from-scratch GCA 的對照,因此「GCA 為何可行」這個問題的答案被預訓練吃掉了——讀者無法分辨贏面是 GCA 的結構紅利,還是 base model 本身的特徵紅利,這對未來把 GCA 套到其他 backbone 的可遷移性是個未驗證的前提。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>VGGT [75] (Wang et al.)</strong>——LingBot-Map 的 backbone 與 frame/global attention 範式直接繼承自此;許多 loss 定義(depth、abs-pose)沿用 VGGT 的形式,理解 VGGT 是復現本論文工程細節的前提。</li><li><strong>TTT3R [7] (Chen et al., ICLR 2026)</strong>——streaming 派中與本文設計哲學最對立的方案(用 test-time training 修補 RNN 遺忘);兩者一起讀可看清「learned selective context vs. test-time adaptation」這個分歧的關鍵實驗證據。</li><li><strong>MASt3R-SLAM [46] / VGGT-SLAM [42]</strong>——Related Work 標榜要超越的 hybrid 派,但實際從未進表;若要驗證 LingBot-Map 對 iterative optimization 的「全面勝出」主張,必須親自比對這兩篇的官方數字。</li><li><strong>π3 [83] (Wang et al.)</strong>——relative pose loss 的直接靈感來源(§3.3);其 camera-to-world 參數化與 pairwise rotation/translation 解耦設計是理解 LingBot-Map 為何在 RPE-rot 顯著領先的關鍵。</li><li><strong>DUSt3R [81] (Wang et al.)</strong>——feed-forward dense 3D regression 的開山之作,定義了所有後續方法被串流化前的 offline baseline 形式;不讀此篇就無法判斷 LingBot-Map 在「從 offline 走到 streaming」這條軸線上實際移動了多遠。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] VO mode 的 window-boundary Sim(3) 對齊每次到底引入多少漂移?在 $10{,}000$ / $30{,}000$ frames 量級下與 Direct mode 的可外推誤差曲線長什麼樣子?</li><li>[ ] Anchor 品質劣化(低紋理、模糊、低 baseline)時系統如何降級?是否存在自動偵測壞 anchor 並 fallback 的策略空間?</li><li>[ ] 軌跡記憶每幀 $6$ tokens 是否為最優?$3$、$12$、$24$ 在 ATE / 記憶體 / RPE-rot 上會畫出怎樣的 Pareto?</li><li>[ ] Oxford Spires 上 $\sim\!56$ AUC@15 的躍升,有多少能歸因到 GCA 結構,有多少來自 stage 2 加重的長軌跡資料(尤其 Internal Game)?</li><li>[ ] 若不從 VGGT-style 全 attention base 遷移,直接 from scratch 訓 GCA,收斂與最終效能會落在哪裡?</li><li>[ ] 在 $1024\!\times\!1024$ 解析度或 window=$256$ 時,$(n+k)\cdot M$ 主導項是否仍能維持 $\sim\!20$ FPS?還是 anchor + window 段才是真正的瓶頸?</li><li>[ ] 如何在不破壞 causal streaming 的前提下,把顯式 revisit detection 接到 GCA 的 attention mask 上而不引爆 KV 成本?</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>(易)為軌跡記憶 token 數加一組敏感度實驗。</strong> 既有的 TartanGround ablation 套件已就緒,只需把 $6$ 換成 $\{3, 12, 24\}$ 重跑 fine-tune;這直接回應 §4.2.2 中「為何是 $6$」的設計選擇,也讓 fine-grained 細節保留度有實證依據。</li><li><strong>(易)在 Tables 2 / 4 / 5 補上 VGGT-SLAM 與 MASt3R-SLAM。</strong> Related Work 已把它們框為 baseline,實驗框架對齊成本低;補完後「outperform optimization-based」的主張才成立完整版,而非只在 DroidSLAM/MegaSAM/VIPE 上。</li><li><strong>(中)以學習式 anchor-quality score 取代「固定取前 $n$ 幀」。</strong> 在 anchor 階段 attach 一個輕量 head 預測該幀 scale-grounding 可信度,允許串流前 $K$ 幀內延後或重選 anchor;這直接修補 §7.2 的「初始化單點故障」結構性問題,且不破壞 causal 性質。</li><li><strong>(中)為偵測到的 revisit 暫時恢復 image tokens。</strong> 當軌跡 token 之間相似度超過閾值時,在當下 decode step 把對應歷史幀的 image tokens 從 cache 中拉回 active context,推論完即釋放;這在不引入 bundle adjustment 的前提下提供類似 loop closure 的修正能力,且仍是 feed-forward 的。</li><li><strong>(難)做一次純 GCA from-scratch 訓練,把 base model 紅利拆乾淨。</strong> 若效能仍接近現有結果,GCA 結構的可遷移性與獨立貢獻才被釘住;若顯著退化,則必須把「結論依賴 VGGT 預訓練」明寫進方法假設,以正確界定後續工作的適用條件。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(350 words)</p>
+<div class="card"><p>Conclusion 用三句話把全篇收束。第一句重申 LingBot-Map 是 streaming foundation model,核心在 GCA 把 streaming state 拆成 anchor / local pose-reference window / trajectory memory 三類 context,設計動機來自 classical SLAM 但完全 end-to-end 訓練。第二句把方法的量化承諾 anchor 在兩個數字上:per-frame context 增長量比 causal attention 減少約 80×,以及在 ~20 FPS 下穩定執行任意長序列。第三句把實驗結論定位:不只在 streaming 方法中拿到 SOTA,在 Oxford Spires 這類 large-scale dataset 上甚至超越 offline 與 optimization-based 方法,並把應用面延展到 autonomous navigation、AR、以及 embodied AI 等需要 persistent on-the-fly spatial understanding 的場景。</p></div>
+<div class="card"><p>Limitations 三點誠實列出。其一,模型沒有 explicit loop-closure detection,意味著在重訪舊區域時 accumulated drift 仍可能存在,而 trajectory memory 是 implicit 的 drift correction;其二,trajectory memory 把每幀壓成固定 token 數,在數萬 frame 等級的超長序列下可能丟失細粒度 geometric detail──這暗示 §4.4 VO mode 雖能延展長度,但 fidelity 仍有上限;其三,作為 feed-forward 方法不做 test-time optimization,在極端挑戰場景下沒有 refinement 後手。這三點正好對應 introduction 中區隔自家方法的三條軸(no SLAM backend、compact memory、no TTT)各自留下的 trade-off。</p></div>
+<div class="card"><p>Future Directions 把 limitations 轉成 roadmap:把 bundle-adjustment 風格的 refinement 與 explicit loop-closure 注入 attention 機制,在保持 end-to-end differentiability 前提下進一步逼近 classical SLAM backend;延伸到 dynamic scenes(處理移動物體);整合 LiDAR 或 IMU 的 multi-modal 輸入;以及把 LingBot-Map 當成 backbone 接到 novel view synthesis 或 navigation 等 downstream 任務。整段語氣保守,沒有承諾下一篇 paper,但把 LingBot-Map 從「streaming 重建模型」重新定位成「embodied 系統的空間 backbone」,呼應 conclusion 第一段對 embodied AI 的引用,讓讀者在離開時帶走「這不只是 streaming SLAM 的 learned 替代品,而是 spatial foundation model 的雛形」這個 take-away。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

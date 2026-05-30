@@ -1,0 +1,581 @@
+<!-- type: paper-read-notes | generated: 2026-05-02 | lang: zh-TW -->
+
+# DynamicVGGT — DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | DynamicVGGT |
+| Paper full title | DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving |
+| arXiv ID | 2603.08254 |
+| Release date | 2026-03-09 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2603.08254 |
+| PDF link | https://arxiv.org/pdf/2603.08254 |
+| Code link | — |
+| Project page | — |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Zhuolin He | Fudan University; Yinwang Intelligent Technology | — | first author |
+| Jing Li | Huawei | — | co-author |
+| Guanghao Li | Fudan University; Shanghai Innovation Institute | — | co-author |
+| Xiaolei Chen | Fudan University | — | co-author |
+| Jiacheng Tang | Fudan University | — | co-author |
+| Siyang Zhang | Yinwang Intelligent Technology; CUHK | — | co-author |
+| Zhounan Jin | Huawei | — | co-author |
+| Feipeng Cai | Yinwang Intelligent Technology | — | co-author |
+| Bin Li | Fudan University | — | co-author |
+| Jian Pu | Institute of Science and Technology for Brain-inspired Intelligence (ISTBI), Fudan University | https://istbi.fudan.edu.cn/lnen/info/1158/1961.htm | corresponding author |
+| Jia Cai | Yinwang Intelligent Technology | — | co-author |
+| Xiangyang Xue | Fudan University | https://scholar.google.com/citations?user=DTbhX6oAAAAJ&hl=en | corresponding author |
+
+### 1.2 Keywords
+
+dynamic scene reconstruction, 4D reconstruction, feed-forward 3D model, point map, 3D Gaussian Splatting, scene flow, temporal attention, autonomous driving, VGGT
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| VGGT (Wang et al., CVPR 2025) | base model | 靜態 3D 感知的 feed-forward Transformer 主幹，本文以其為初始化並擴展至 4D 動態重建 |
+| StreamVGGT | predecessor | VGGT 的時序延伸，採堆疊 AA 區塊；本文指出其早期訓練不穩，提出 MTA 取代 |
+| DUSt3R (Wang et al.) | predecessor | Transformer 架構直接從像素回歸密集 3D 點圖的代表性 feed-forward 方法 |
+| MoVieS | concurrent | 將靜態 feed-forward 框架擴展至序列輸入的動態重建，但聚焦室內場景 |
+| STORM | baseline | feed-forward 動態場景重建與編輯管線，仍依賴校正後多視角輸入；本文於 4D 重建表格上比較 |
+| DrivingForward | baseline | 面向駕駛場景之 feed-forward 3DGS 框架，聯合訓練位姿、深度與 Gaussian 頭 |
+| AnySplat | influence | 將 3DGS 結合 feed-forward 模型以達高保真重建，啟發本文的 Dynamic 3DGS Head |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本文聚焦於自駕情境下的動態 4D 場景重建問題。傳統 feed-forward 3D 模型雖能從多視角影像直接回歸點雲、深度與相機參數，但在面對自駕場景中大量移動物體、長時序依賴與稀疏 LiDAR 監督時，往往無法兼顧幾何精度與時序一致性。作者以 VGGT 為基礎主幹，提出 DynamicVGGT，將靜態 3D 感知擴展為動態 4D 重建：透過共享參考座標下的當前與未來點圖聯合預測，使模型隱式學習點層級運動；並以 Motion-aware Temporal Attention (MTA)、Future Point Head 與 Dynamic 3D Gaussian Splatting Head，分別在特徵、點圖與 Gaussian 基元三個層級建模運動，最終以單一 feed-forward 模型完成多尺度的動態幾何與外觀重建。
+
+### 2.2 Domain Tags
+
+- computer vision
+- 3D reconstruction
+- autonomous driving
+- neural rendering
+
+### 2.3 Core Architectures Used
+
+- **VGGT backbone**：作為預訓練主幹提供靜態多視角幾何先驗，本文凍結其 Alternating-Attention (AA) blocks 並以其權重初始化整個 DynamicVGGT。
+- **DINOv2 encoder**：作為前端的 patch token 抽取器，將輸入多視角影像 $\{V_1, V_2, V_3\}$ 轉為供 AA 與 MTA 使用的 patch 與 camera tokens。
+- **Alternating-Attention (AA) blocks**：沿用 VGGT 的 frame-wise 與 global self-attention 交替架構，負責建模 intra-frame 空間幾何，被凍結以保留幾何先驗。
+- **Motion-aware Temporal Attention (MTA)**：本文提出的 $L=12$ 層 parallel 時序注意力支路，引入 learnable motion tokens $M_{v,t}^{(l)}$ 並結合 rotary 時間位置偏置 $B_{t,t'}^{\mathrm{time}}$，在不擾動 AA 空間注意力的情況下捕捉跨幀運動連續性。
+- **Future Point Head (FPH)**：基於 DPT 結構的點圖回歸頭，從 $TA_{v,t}$ 預測未來幀點圖 $\hat{P}_{v,t+\delta}^{\mathrm{fut}}$，以跨幀點一致性提供隱式運動監督。
+- **Dynamic 3D Gaussian Splatting Head (DGSHead)**：結合 RGB 外觀特徵 $F_{v,t}^{\mathrm{app}}$ 與幾何特徵 $F_{g,v,t}$，輸出 Gaussian 基元 $\{\mu_i, \sigma_i, r_i, c_i, \nu_i\}$，並用 motion tokens 解碼速度基底 $\nu_b \in \mathbb{R}^3$ 以支援 scene flow 監督下的顯式運動建模。
+- **Camera Head / Depth Head / Point Head**：沿用 VGGT 的三組標準預測頭，分別輸出相機參數、深度圖與當前幀點圖，作為 stage-1 監督的基礎結構。
+- **3D Gaussian Splatting renderer**：將 DGSHead 產生的時間相依 Gaussian 基元以恒速假設 $\mu_{i,t+\delta} = \mu_{i,t} + \delta \cdot \nu_{i,t}$ 推進並渲染，提供 RGB 與 novel view synthesis 結果。
+
+### 2.4 Core Argument
+
+作者認為，現有 feed-forward 視覺幾何模型之所以難以勝任自駕的動態重建，根因在於它們假設場景具時間不變性，僅在「靜態幾何」層面建模，缺乏一個統一且可學習的動態表徵；即便如 StreamVGGT 等方法以串接的 Alternating-Attention 區塊引入時序，仍會破壞 VGGT 既有的空間注意力幾何先驗，導致訓練不穩與精度退化。同時，將動態幀對齊到外部參考座標的傳統 Dynamic Point Map 公式，依賴顯式給定的幀間轉換，在無精確外參的真實駕駛資料上難以泛化；而稀疏且分布不均的 LiDAR 監督，也會破壞模型原有的密集預測能力。基於此，作者主張動態建模必須與 VGGT 的標準座標一致，並在多個層級提供互補監督：先以 MTA 以平行支路引入學習式 motion tokens，在不擾動空間注意力的情況下捕捉運動連續性；再以 Future Point Head 透過跨幀點圖一致性提供隱式運動監督，避免重新建立外部對齊；最後以 Dynamic 3DGS Head 在 Gaussian 基元層級用 scene flow 顯式約束速度，並引入深度蒸餾以緩解 LiDAR 稀疏帶來的雜訊。這套「點圖隱式 + Gaussian 顯式」的雙層運動監督，配合由合成到真實的兩階段課程化訓練，是其方法在邏輯上必要的設計，因為它同時保留了預訓練幾何先驗、補上原模型缺失的時序與運動軸，並在缺乏密集標註的真實駕駛資料上維持穩定優化。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(220 words)
+
+標題 "DynamicVGGT: Learning Dynamic Point Maps for 4D Scene Reconstruction in Autonomous Driving" 直接點出三個關鍵設定:延伸 VGGT、以 dynamic point map 為核心表示、目標場景是自駕的 4D 重建。Abstract 的敘事線索可拆成「問題-既有限制-提案-機制-結果」五段。
+
+開篇先定義問題:自駕場景的動態重建因為時序變化大、移動物體多、場景動力學複雜而困難。接著指出 gap:現有 feed-forward 3D 模型 (例如 VGGT 系列) 在靜態重建表現強勁,卻無法捕捉動態運動。這個對比把論文定位在「把 feed-forward 靜態重建擴展到動態」這條路線上。
+
+提案部分以三個構件鋪陳:(i) 在共享 reference 座標系下同時預測 current 與 future point map,讓模型透過 temporal correspondence 隱式學到 dynamic point representation;(ii) Motion-aware Temporal Attention (MTA) 模組以學習運動連續性的方式捕捉時序依賴;(iii) Dynamic 3D Gaussian Splatting Head 使用 learnable motion tokens、由 scene flow 監督,顯式建模 Gaussian velocity 並透過連續 3DGS 優化精修動態幾何。
+
+收尾以 autonomous driving datasets 上的廣泛實驗作結,聲稱在重建精度上顯著超越現有方法,實現複雜駕駛情境下穩健的 feed-forward 4D 動態重建。Abstract 的鋪陳替後續章節埋好三條線:DPM 表示 (§3.1)、MTA 與 FPH (§3.2-3.3)、DGSHead 與 scene-flow 監督 (§3.4-3.5),也提示讀者 §4 的實驗會以「比 VGGT/StreamVGGT 更好」作為主要對照軸。
+
+### 3.2 Introduction
+
+(430 words)
+
+Introduction 的故事邏輯分四步推進:領域定位 → feed-forward 路線的成功 → 自駕場景的特殊困難 → 本文的對策與貢獻。
+
+第一步將 visual geometry learning 定位為電腦視覺基礎問題,並指出它是 robotics 與 autonomous driving 的核心地基。緊接著第二步點出近年 feed-forward 3D 模型的進展,可直接從影像預測 point cloud 與 3D Gaussian 等幾何表示,這讓讀者理解 VGGT 這類架構為什麼是合理的延伸基礎。Fig. 1 在此處作為視覺錨點,展示 DynamicVGGT 同時輸出 camera、depth map、point map、future point、3D Gaussian,且不需顯式 camera extrinsic alignment。
+
+第三步引入問題的特殊性:真實駕駛場景具有移動物體多、長距時序依賴等特性,使得 feed-forward 架構雖在靜態 dataset 強勁,卻難以同時兼顧 geometric accuracy 與 temporal consistency。作者進一步補充兩個 gap:(a) 自駕資料 large-scale、high-noise、sparse-depth 的特性,直接訓練會傷害模型既有的 dense prediction 能力;(b) 即便有 MoVieS、StreamVGGT 等近期工作探索動態建模,輸出仍以 static point map 為主,缺乏可直接支援下游自駕任務的 unified dynamic representation。這兩點明確界定了 "unified feed-forward framework" 為何必要,而不是只是把現成模型套上時序 head。
+
+第四步提出 DynamicVGGT,呼應 Fig. 1 的功能總覽,並列出三項貢獻:(i) MTA 模組,在不破壞 VGGT spatial attention 的前提下捕捉時序依賴,以維持訓練穩定性與幾何先驗;(ii) 將 point-based representation 擴展為 unified DPM,引入 Future Point Head 與 DGSHead,讓模型同時透過 inter-frame 一致性的隱式監督與 scene flow 的顯式監督學習 point-wise motion;(iii) 採用 stage-wise 訓練策略以緩和真實駕駛資料造成的效能退化,Waymo 上相對 VGGT 與 StreamVGGT 在 Accuracy 增益 0.5、Completeness 增益 0.2。
+
+這個 Introduction 的功用是把整篇論文的論點 frame 為「在 VGGT 基礎上,用 DPM 統一動態幾何表示、用 MTA 加入時序、用 DGSHead 補上顯式運動監督、用 stage-wise training 適配真實資料」,為 §2 的相關工作對照與 §3 的方法設計提供清晰的契機。
+
+### 3.3 Related Work / Preliminaries
+
+(370 words)
+
+Related Work 由兩條軸線構成:Feed-Forward Visual Geometry Learning (§2.1) 與 3DGS Reconstruction for Driving Scenes (§2.2)。這個切法明顯對應論文兩個技術賣點 — 把 VGGT 路線延伸到動態 (§2.1 對話對象),以及把 driving-scene 3DGS 從 per-scene optimization 推到 feed-forward (§2.2 對話對象)。
+
+§2.1 從傳統 multi-view geometry pipeline 起手,點出舊方法依賴 optimization-based correspondence matching;對照之下,DUSt3R 等 transformer-based 架構展示了直接從 pixel 學習 3D coordinate field 的可行性。後續工作把這個 paradigm 擴到 multi-view 與 sequential 設定,VGGT 進一步以 alternating attention (在 spatial 與 temporal 維度交替) 達成多種幾何量的聯合預測。Anysplat 把 3DGS 帶進 feed-forward。然後話鋒轉向動態:MoVieS、StreamVGGT 把 VGGT 類架構擴到 sequential input,但主要為 indoor 設計,在大規模、動態的駕駛場景仍力有未逮。這段把 gap 收斂到「需要可在駕駛場景捕捉時序動態的 generalizable 4D feed-forward framework」,正好接到 §3 的提案。
+
+§2.2 處理 dynamic urban scene reconstruction 的另一條脈絡。先以 closed-loop training/evaluation 的需求論述為何要 photorealistic 動態重建,然後批評多數方法 (OmniRe、Street Gaussians、HUGS 類) 依賴 dense annotation 且需要 per-scene optimization,難以利用大規模資料先驗、重建速度慢。再點名兩個 feed-forward 取向:STORM 提供 dynamic scene reconstruction 的 feed-forward pipeline 但仍需 calibrated multi-view input;DrivingForward 以 flexible surround-view input 聯合訓練 pose、depth、Gaussian head,不需 depth GT 或外部 extrinsics。最後將 DynamicVGGT 的差異化定位寫清:在真實自駕場景做 feed-forward,聯合建模幾何與運動,且不需 camera parameter 與 dense annotation。
+
+整節並未獨立寫 Preliminaries — 對 DUSt3R、VGGT、DPM (Sucar et al. [22])、3DGS (Kerbl et al. [10]) 的概念說明分別插在 §2.1 與 §3.1 起手段,使得讀者在進入 §3 時已具備 point map、alternating attention、3D Gaussian primitive 的基礎背景。這個安排把比較對象 (VGGT、StreamVGGT、STORM、DrivingForward) 在 §4 表格中要對照的對手提前點名,為實驗章鋪好 narrative 落點。
+
+### 3.4 Method (overview narrative)
+
+(330 words)
+
+Method 章 (§3) 採「先立統一表示、再加時序模組、再做兩個下游任務、最後寫訓練策略」的層層展開結構。它的敘事軸是把整套設計綁回一個核心概念 — Dynamic Point Map (DPM) — 並讓 MTA、FPH、DGSHead 三個模組各司其職地補完這個表示在不同層級的不足。
+
+§3.1 Dynamic Point Map and Task Formulation 先把符號 (camera index $v$、frame index $t$、temporal offset $\delta$) 與既有 static / dynamic point map 的定義說清,並對比兩種建模路線:傳統 DPM 把所有 frame 對齊到 reference frame 來表示位移,而 VGGT 直接在 learned canonical frame 預測 point map。本文採用的是後者的延伸:從 multi-view clip 同時預測當前與未來 frame 的 point map,讓 $\Delta\hat{P}_{v,t}$ 自然作為隱式運動量。這個選擇避開外部指定的 frame-to-reference transformation,同時保留 VGGT backbone 的幾何先驗,並替後續兩個任務 (FPH 與 DGSHead) 立下統一座標基礎。
+
+§3.2 MTA 接在「點層位移不夠」的問題上,提出在 VGGT 的 alternating attention 之外平行掛上 motion-aware temporal attention,並引入 learnable motion tokens 引導 attention 聚焦在 motion-consistent 區域,藉此回避 StreamVGGT 順序堆疊 AA block 造成的訓練不穩。
+
+§3.3 Future Point Head 把 MTA 的 temporal feature 餵進 DPT head 直接迴歸下一 frame point map,並加上 temporal consistency 正則 $\mathcal{L}_{\mathrm{temp}}$,在 point-map 層級隱式監督運動。
+
+§3.4 DGSHead 把 MTA feature 與 RGB appearance 融合,初始化 Gaussian primitive,並用 motion tokens 解碼 velocity bases,在短 clip 內以 constant velocity 假設讓 Gaussian center 隨時間移動;運動由 scene flow 顯式監督,與 $\mathcal{L}_{\mathrm{temp}}$ 互補。
+
+§3.5 Training Objective 收束為 stage-wise 訓練:Stage 1 在 synthetic data (Virtual KITTI、MVS-Synth) 上學幾何先驗與時序一致性;Stage 2 在 Waymo 等真實資料 fine-tune,引入 3DGS loss 與 depth distillation,用 stage-1 的 point-map depth 當 teacher 緩和 LiDAR 稀疏帶來的退化。整章在進入 §4 前已把 "為什麼這四件事要一起做" 的因果鏈交代完整。
+
+### 3.5 Experiments (overview narrative)
+
+(360 words)
+
+Experiments 章 (§4) 圍繞「DynamicVGGT 是否在真實自駕場景同時兼顧 geometric accuracy 與 temporal consistency」這一中心問題,以四個量化任務加兩種視覺化結果鋪陳。整體 narrative 從 implementation/data 開始,逐項比較 point map reconstruction、4D scene reconstruction、depth estimation,再以 ablation 與 visualization 收尾,展示 stage-wise 設計與 MTA、FPH、DGSHead 的疊加效益。
+
+§4.1 Implementation Details 給出規模與訓練細節:$L=12$ MTA layer、總約 1.4B 參數、800M 可訓練參數,Stage 1 於 10 epoch 用 1e-6 peak LR 訓練,Stage 2 用 50 epoch、5e-5 peak LR 並開啟 Gaussian head;temporal offset $\delta$ 在 1-3 隨機,每 batch 18 張影像,$\lambda_{\mathrm{temp}}=0.01$、$\lambda_{\mathrm{gs}}=\lambda_{\mathrm{dis}}=0.1$、$\lambda_{\mathrm{flow}}=0.01$。§4.2 Training Data 把資料集對應到兩個 stage:Stage 1 用 Virtual KITTI 與 MVS-Synth,Stage 2 加入 Waymo,評估在 Waymo validation 與 KITTI 上進行。
+
+§4.3 Point Map Reconstruction 為主要對照:在 KITTI 單目三連續 frame、Waymo 三相機 stride-4 設定下,以 Accuracy / Completeness / Normal Consistency 對 VGGT 與 StreamVGGT 比較,DynamicVGGT 在多數指標上勝出,KITTI 達到 0.901 / 0.939、Waymo 達到 4.021 / 0.603,證實提案的動態建模在大規模駕駛場景的可遷移性。§4.4 4D Scene Reconstruction 在 Waymo 上以 PSNR / SSIM 對比 per-scene optimization (3DGS、DeformableGS) 與 feed-forward 方法 (GS-LRM、STORM);DynamicVGGT 雖在 dynamic-only 上低於 STORM (18.07 vs. 21.26),但其使用 image-only supervision、不依賴 camera parameter,作者把這視為公平性與 scalability 的優勢。
+
+§4.5 Monocular and MVS Depth Estimation 把模型放到 KITTI、NYU-v2 上做 depth estimation,證明動態建模並未犧牲基礎 depth 性能 — KITTI mono Abs Rel 0.070、NYU-v2 0.064、KITTI MVS Abs Rel 0.051,在多個 benchmark 與 DUSt3R、MASt3R、MonST3R、VGGT、StreamVGGT 競爭。
+
+§4.6 Ablation 把 baseline VGGT、+TA & FPH (stage 1)、+DGSHead (stage 2) 三層疊加列在同一表,KITTI Accuracy 從 1.489 → 0.927 → 0.901,Waymo 從 4.635 → 4.330 → 4.021,直接對應 §3 三個模組的貢獻。§4.7 Visualization 透過 single/multi-frame point map (Fig. 5) 與 scene reconstruction + novel view synthesis (Fig. 6) 補充質性證據。整章為 §5 的結論主張提供量化與質性雙重支撐。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(110 words)
+
+Conclusion 篇幅短,僅一段。主張 DynamicVGGT 是一個 unified feed-forward framework,把 VGGT 從 static geometry perception 擴到 4D 動態重建,核心是透過 Dynamic Point Maps、Motion-aware Temporal Attention、Future Point Head 與 Dynamic 3D Gaussian Head 聯合學習幾何與運動表示。設計重點在「捕捉時序依賴 + 透過連續 Gaussian 優化精修幾何 + 維持 feed-forward efficiency」三件事的同時達成。實驗結果方面,作者強調在真實自駕資料上具備強時序一致性,並可附帶輸出 camera pose、depth、novel view synthesis 等 by-product。最後以「相信此方向會把 feed-forward 4D 重建推近自駕的 unified paradigm」作為展望。
+
+論文未獨立列出 Limitations 或 Future Work 章節,僅以 acknowledgement 提及 NSFC 資助。值得注意的隱性限制可從正文推得:Stage-2 訓練在真實 driving data 上仍需引入 depth distillation 來緩解 LiDAR 稀疏退化;在 Waymo 4D 重建任務中 PSNR 仍落後於使用 camera parameter 的 STORM,作者並未在結論中正面討論這項 gap,亦未提到對更長 horizon 預測 (本文 $\delta$ 僅 1-3) 或無 scene-flow 監督場景下的延伸方向,屬於後續工作的潛在空間。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 提出統一的 feed-forward 4D 重建框架 DynamicVGGT，從 VGGT 的純靜態幾何延伸到含運動建模的動態場景，整體可在不需相機外參的情況下完成相機、深度、點圖、未來點與 3DGS 的聯合預測（Fig. 1, p. 1）。
+- 設計 Motion-aware Temporal Attention (MTA)，以平行支路注入可學習 motion tokens，避免如 StreamVGGT 將時序 AA 區塊串接所造成的早期訓練不穩，同時保留 VGGT 既有的空間注意力幾何先驗（§3.2, p. 3-4）。
+- 提出 Future Point Head 與時間一致性正則 $\mathcal{L}_{\mathrm{temp}}$（Eq. 11），讓模型在共享參考座標下同時預測 $\hat{P}_{v,t}$ 與 $\hat{P}_{v,t+\delta}$，以隱式學習點層級位移而不需顯式幀對齊（§3.3, p. 4）。
+- 引入 Dynamic 3DGS Head，將 motion tokens 解碼為速度基底 $\nu_b \in \mathbb{R}^3$，配合 scene flow 監督在 Gaussian 基元層級提供顯式運動約束（Eq. 15, §3.4, p. 5）。
+- 採用「合成 → 真實」兩階段課程化訓練（Virtual KITTI、MVS-Synth → Waymo、Virtual KITTI），並以 stage-1 點圖深度作為 teacher 進行 depth distillation $\mathcal{L}_{\mathrm{distill}}$，緩解 LiDAR 稀疏所致的監督雜訊（Fig. 4, §3.5, p. 5-6）。
+- KITTI 單目點圖重建達到 Acc. 0.901、NC 0.939，較 VGGT (1.489 / 0.918) 與 StreamVGGT (1.078 / 0.899) 明顯領先（Table 1, p. 7）。
+- KITTI 單目深度 Abs Rel 達 0.070、KITTI MVS 深度 Abs Rel 0.051 / $\delta < 1.25$ = 97.6%，在三項深度基準中皆優於 VGGT 與 StreamVGGT（Table 3, p. 7）。
+- 在 Waymo 4D 重建上以純影像輸入（image-only）取得 dynamic-only PSNR 18.07 / SSIM 0.376、full-frame PSNR 24.07 / SSIM 0.676，宣稱在不需相機參數的情況下與需要外參的 GS-LRM、STORM 維持競爭力（Table 2, p. 7）。
+- 消融顯示 TA + FPH 與 DGSHead 兩階段堆疊均逐步推進指標，KITTI Acc. 從 1.489 → 0.927 → 0.901，Waymo Acc. 從 4.635 → 4.330 → 4.021，組件貢獻方向一致（Table 4, p. 8）。
+- 視覺化結果展示在下坡路、開放路口等大視角變化情境下，DynamicVGGT 比 VGGT 維持更密集且時序一致的點雲，並可從輸入幀 0、2、4 合成下一幀的 novel view（Fig. 5、Fig. 6, p. 7-8）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- 作者承認直接以稀疏 LiDAR 點雲作為真實駕駛資料的監督會嚴重退化效能，因此才引入 depth distillation 來作補救（§3.5, p. 5-6, Fig. 4）。
+- 作者自承 StreamVGGT 式的 AA 區塊串接會在訓練早期不穩定且使精度退化，此為其改用 MTA 平行支路的動機（§3.2, p. 3-4）。
+- 作者指出現有 3D 基礎模型在自駕情境中受「大尺度、高雜訊、稀疏深度」資料特性影響而退化，但僅提出緩解策略而未量化此退化的殘餘程度（§1, p. 1-2）。
+- 對 Waymo 跨相機評測，作者說明因不同相機視角重疊有限，所以僅可視化 front camera 的結果，等同承認多相機融合呈現受限（Fig. 6 caption, p. 8）。
+- 論文沒有顯式列出 Limitations 章節，除上述零散提及外並未開誠布公討論方法邊界。
+
+#### 4.2.2 Phyra-inferred
+
+- Waymo full-image PSNR 24.07 / SSIM 0.676 實際**低於**同表中 per-scene 的 3DGS（25.13 / 0.741）與 DeformableGS（25.29 / 0.761），也低於 feed-forward 的 GS-LRM（25.18 / 0.753）與 STORM（25.03 / 0.750），但作者僅以「需要相機參數」帶過這個落差，沒有針對 full-frame 全面落後做量化分析（Table 2, p. 7）。
+- Dynamic-only PSNR 18.07 vs STORM 21.26 為 3.19 dB 的顯著差距，作者卻在敘述中把 STORM 的優勢歸因於「multi-camera + 幾何先驗」而非方法本身的弱點，缺乏在公平條件下的對照（Table 2, p. 7）。
+- KITTI 的 Completeness 0.584 比 StreamVGGT 的 0.495 **更差**（Acc. 雖領先），但摘要與正文反覆強調全面 SOTA，這個 trade-off 沒有被討論（Table 1, p. 7）。
+- Waymo 點圖 Mean Acc. 4.021 的單位若為公尺，等同於數公尺等級的幾何誤差，論文沒有說明指標單位也沒提供 metric scale 校正細節，使讀者難以判斷重建是否實用（Table 1, p. 7）。
+- 消融表只切到「Baseline → +TA & FPH → +DGSHead」三檔，未個別拆解 MTA、FPH、scene-flow 監督、depth distillation 各自的邊際貢獻，無法歸因哪一個元件真正帶來增益（Table 4, p. 8）。
+- 訓練時 $\delta$ 僅在 1–3 之間隨機取樣，且 motion 採 constant velocity 假設 $\mu_{i,t+\delta} = \mu_{i,t} + \delta \cdot \nu_{i,t}$，對自駕中常見的轉彎、加減速等非線性運動不具表達力，論文也未測試更長時序的外推（Eq. 15, §3.4, p. 5；§4.1, p. 6）。
+- $\lambda_{\mathrm{temp}} = 0.01$ 與 $\lambda_{\mathrm{flow}} = 0.01$ 兩個運動相關損失權重都極小，意味著「核心創新（運動建模）」在總損失中的訊號不到 1%，與其作為主賣點的地位不成比例，且未做敏感度分析（§4.1, p. 6）。
+- 論文以 feed-forward 為核心賣點，卻完全沒有報告推論延遲、FPS、記憶體佔用或參數效率對比 STORM、DrivingForward 等 baseline，使「fast feed-forward」缺乏量化支撐（全文）。
+- StreamVGGT 在 KITTI MVS 深度 Abs Rel 0.173 / $\delta < 1.25$ = 0.721 出現異常退化，與其 mono 結果 0.082 / 0.947 落差過大，論文沒有說明是否使用相同 checkpoint 或評測設定，存在 baseline 配置不對等的疑慮（Table 3, p. 7）。
+- Related work 沒有與其引用為「concurrent」的 MoVieS 做任何實證比較，雖然兩者皆延伸 feed-forward 框架到動態場景，缺少直接對照削弱了相對位置論述（§2.1, p. 2）。
+- 引用列表中含大量同實驗室（Pu / Fudan）的自家系列工作（[1], [6], [12-15], [32]），對與主題的相關性貢獻有限，引文密度可能影響中立讀者對相關工作覆蓋度的判斷（References, p. 9-10）。
+- arXiv ID 標示為 `2603.08254`、發布日期 `2026-03-09`，與目前已知的 arXiv 編號規則不一致，建議讀者驗證版本來源後再引用。
+
+### 4.3 Phyra's Judgment (summary)
+
+DynamicVGGT 把 VGGT 的靜態幾何先驗成功延伸到動態場景的工程設計是**真實有效**的：MTA 的平行注入策略確實避免了 StreamVGGT 串接式時序模組的不穩，KITTI 點圖與深度數字的提升也能對應到方法上的合理動作。但這是一篇**整合性、增量性**的工作，三個元件（MTA、FPH、DGSHead）都是把既有概念（可學 token、跨幀一致性、scene-flow 監督的 3DGS）重新組合在 VGGT 主幹上，沒有任何單一元件構成新理論貢獻。最關鍵未解的問題是：論文以「dynamic 4D 重建」為旗幟，但在最直接量化動態品質的 Waymo 4D 表（Table 2）上，full-frame PSNR 反而**輸給 per-scene 與其他 feed-forward baseline**，而 dynamic-only 也輸給 STORM 3 dB，作者僅以「我們不需要相機參數」迴避這個落差。換言之，本文證明的是「拿掉相機外參還能維持還可以的 4D 重建」，而非「動態建模有突破」。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+DynamicVGGT 以 VGGT (Wang et al., CVPR 2025) 為 backbone，將其從 static 3D 感知擴展為 dynamic 4D scene reconstruction（第 3 章開頭，page 3）。整個架構保留了 VGGT 在大規模靜態資料上學到的幾何先驗（Alternating-Attention blocks 與 Camera/Depth/Point heads 在 stage-1 中皆 frozen 或從 pretrained 權重開始 fine-tune），並在三個層級上引入 motion 建模：(i) feature 層級的 Motion-aware Temporal Attention (MTA) 平行支路；(ii) point map 層級的 Future Point Head (FPH) 隱式運動監督；(iii) Gaussian primitive 層級的 Dynamic 3D Gaussian Splatting Head (DGSHead) 顯式 scene flow 監督（page 3, 第 3 章與 Figure 2）。
+
+核心 task formulation 圍繞 **Dynamic Point Map (DPM)** 展開。傳統 DPM 公式（Sucar et al. 2025）需要外部給定的 frame-to-reference 轉換 $\mathcal{T}_{(v,t)\to\mathrm{ref}}$ 才能對齊不同時刻的 point map（page 3, Eq. (2)），在無精確外參的駕駛資料上難以泛化。本文改採 VGGT 的 learned canonical frame，直接以 single feed-forward $f_\theta$ 同時預測當前與未來幀的 point maps $\hat{P}_{v,t}, \hat{P}_{v,t+\delta}$（Eq. (4)），令模型透過 inter-frame point consistency 隱式學習 point-wise motion，毋需重建外部對齊（page 3, §3.1）。
+
+訓練採由合成到真實的兩階段 curriculum（page 5, §3.5）：stage-1 在 Virtual KITTI 與 MVS-Synth 上訓練 MTA + FPH，僅以 $\mathcal{L}_{\mathrm{cam}} + \mathcal{L}_{\mathrm{depth}} + \mathcal{L}_{\mathrm{point}}^{(t)} + \mathcal{L}_{\mathrm{point}}^{(t+\delta)} + \lambda_{\mathrm{temp}} \mathcal{L}_{\mathrm{temp}}$ 學短期 motion 與保留幾何先驗；stage-2 在 Waymo + Virtual KITTI 上加入 DGSHead，總損失 $\mathcal{L}_{\mathrm{stage2}} = \mathcal{L}_{\mathrm{stage1}} + \mathcal{L}_{\mathrm{3DGS}}$，其中 $\mathcal{L}_{\mathrm{3DGS}} = \mathcal{L}_{\mathrm{rgb}} + \lambda_{\mathrm{gs}} \mathcal{L}_{\mathrm{gsdepth}} + \lambda_{\mathrm{dist}} \mathcal{L}_{\mathrm{distill}} + \lambda_{\mathrm{flow}} \mathcal{L}_{\mathrm{flow}}$（Eq. (16)–(18)）。為解決 LiDAR 稀疏導致的密集預測退化，引入 depth distillation：以 stage-1 point-map 分支的 depth 作為 teacher，stop-gradient 後監督 Gaussian depth $\mathcal{L}_{\mathrm{distill}} = \|D_{g,v,t} - \mathrm{sg}(D^{\mathrm{pm}}_{v,t})\|_1$（page 5）。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+依據 Figure 2 (page 3) 與 §3.1–§3.4，多視角影像序列 $\{V_1, V_2, V_3\}$（$N_v=3$ cameras × $\tau=3$ frames per clip）的前向流程如下。$B$ 為 batch size，$S = N_v \cdot \tau$ 為 clip 內總影像數（論文未明確列出 $H, W, P$ 等 patch token 維度，故以 `?` 標示）。
+
+```
+Input: clip {V_{v,t}}, V_{v,t} ∈ [B, S=N_v·τ, 3, H, W]            (H=W≤518, S=18 per batch via dynamic batching, page 6)
+   │
+   ├─ DINOv2 Backbone (frozen, ❄)                                  page 3, Fig.2
+   │    ├→ patch tokens   F^p_{v,t}   ∈ [B, S, N_patch, d]          (N_patch, d 未明列)
+   │    └→ camera tokens  F^c_{v,t}   ∈ [B, S, 1, d]
+   │
+   ├─ Parallel Attention Backbone (N AA blocks, frozen ❄ in stage-1)
+   │    │  Input: [F^c; F^p]   ∈ [B, S, 1+N_patch, d]
+   │    │  AA Block i: Frame-wise Self-Attention → Global Self-Attention
+   │    └→ Aggregated tokens F̃_{v,t} = [F^c_{v,t}; F^{p(N)}_{v,t}]  ∈ [B, S, 1+N_patch, d]
+   │
+   ├─ Motion-aware Temporal Attention (MTA, L=12 layers, 🔥)        page 6, §4.1; Eq. (5)–(9)
+   │    │  Drop camera tokens; init learnable Motion tokens M ∈ [B, S, M_tok, d]   (M_tok 未明列)
+   │    │  Layer 1 input:   F^{(1)}_{m,v,t} = Concat(M^{(1)}_{v,t}, F^{p(1)}_{v,t})            ∈ [B, S, M_tok+N_patch, d]
+   │    │  Layer l>1 input: F^{(l)}_{m,v,t} = Concat(M^{(l)}_{v,t}, F^{p(l)}_{v,t}+F^{p(l-1)}_{v,t}) ∈ [B, S, M_tok+N_patch, d]
+   │    │  Temporal attn per patch & view across τ frames (Eq. (6)–(7), with rotary time bias B^{time}_{t,t'})
+   │    │  Output:  TA_{v,t} = F^{(L)}_{m,v,t}                       ∈ [B, S, M_tok+N_patch, d]
+   │    │
+   │    ├→ TA_{v,t} → Future Point Head (DPT_p, 🔥)                 page 4, §3.3, Eq. (10)
+   │    │     └→ P̂^{fut}_{v,t+δ} = DPT_p(TA_{v,t})                   ∈ [B, S, 3, H, W]
+   │    │        ↳ supervised by L_temp (Eq. (11)) on inter-frame displacement
+   │    │
+   │    └→ TA_{v,t} → DGSHead (🔥, stage-2 only)                    page 5, §3.4
+   │         │
+   │         ├─ Image branch (RGB cue, 🔥)
+   │         │    F^{app}_{v,t} = Conv(I_{v,t})                      ∈ [B, S, C_app, H', W']  (C_app, H', W' 未明列)
+   │         │
+   │         ├─ Geometry branch DPT_g (🔥)
+   │         │    (F_{g,v,t}, D_{g,v,t}) = DPT_g(TA_{v,t})           F_{g,v,t} ∈ [B, S, C_g, H, W],  D_{g,v,t} ∈ [B, S, 1, H, W]
+   │         │
+   │         ├─ Fuse:  G_{v,t} = F^{app}_{v,t} + F_{g,v,t}            ∈ [B, S, C_g, H, W]   (assumes C_app=C_g, H'=H, W'=W)
+   │         │
+   │         ├─ Init Gaussian centers from D_{g,v,t} + retained VGGT camera ⇒ point map P^g_{v,t} ∈ [B, S, 3, H, W]
+   │         │
+   │         ├─ Decode per-pixel Gaussian primitives {μ_i, σ_i, r_i, c_i, ν_i}   per point i
+   │         │    μ_i ∈ ℝ^3,  σ_i (scale),  r_i (rotation, e.g. quaternion),  c_i (color),  ν_i ∈ ℝ^3 (velocity)
+   │         │
+   │         ├─ Velocity bases ν_b ∈ ℝ^3 decoded from M learnable motion tokens, shared across primitives (page 5)
+   │         │    Constant-velocity update:  μ_{i,t+δ} = μ_{i,t} + δ · ν_{i,t}   (Eq. (15))
+   │         │
+   │         └→ Differentiable rasterization → Î_{v,t}              ∈ [B, S, 3, H, W]
+   │              ↳ supervised by L_rgb, L_gsdepth, L_distill, L_flow
+   │
+   └─ Camera Head / Depth Head / Point Head (frozen ❄ in stage-1)   from VGGT, page 3, Fig.2
+        ├→ Camera params ĝ_{v,t}                                     (intrinsics+extrinsics, dim 未明列)
+        ├→ Depth map D_{v,t}                                         ∈ [B, S, 1, H, W]
+        └→ Point map P̂_{v,t}                                          ∈ [B, S, 3, H, W]
+              ↳ jointly supervised with P̂_{v,t+δ} via L^{(t)}_{point} + L^{(t+δ)}_{point}
+
+Outputs: Camera, Depth, Point map, Future Point, Dynamic 3D Gaussian (page 3, Fig.2 right column)
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 DINOv2 Encoder
+
+**Function:** 從每張輸入影像抽取 patch tokens 與 camera tokens，提供 backbone 共享的視覺特徵。
+
+**Input:**
+- Name: $\{V_{v,t}\}$
+- Shape: `[B, S, 3, H, W]`，$S = N_v \cdot \tau$，$H, W \le 518$
+- Source: 多視角駕駛影像 clip（Waymo 9 圖、KITTI 3 圖等）
+
+**Output:**
+- Name: $F^p_{v,t}, F^c_{v,t}$
+- Shape: `[B, S, N_patch, d]` 與 `[B, S, 1, d]`（$N_{\mathrm{patch}}, d$ the paper does not specify）
+- Consumer: Parallel Attention Backbone
+
+**Processing:**
+
+沿用 VGGT 設定，DINOv2 weights 在訓練中保持 frozen（Fig. 2 雪花標記）。每張影像獨立通過 DINOv2，輸出 patch tokens 用於空間幾何，camera tokens 預留給 Camera Head。
+
+**Key Formulas:** 無新增公式（沿用 DINOv2/VGGT）。
+
+**Implementation Details:**
+
+論文僅指出 `所有輸入影像、深度圖、點圖會 resize 使長邊不超過 518 pixels`（page 6, §4.1）。Token 維度、patch 大小等細節 the paper does not specify。
+
+#### 5.3.2 Parallel Attention Backbone (Alternating-Attention)
+
+**Function:** 透過交替的 frame-wise 與 global self-attention，建模單幀內與多視角間的空間幾何關係，輸出 aggregated tokens 提供下游 heads 與 MTA 使用。
+
+**Input:**
+- Name: $[F^c; F^p]$
+- Shape: `[B, S, 1+N_patch, d]`
+- Source: DINOv2 Encoder
+
+**Output:**
+- Name: $\tilde F_{v,t} = [F^c_{v,t}; F^{p(N)}_{v,t}]$
+- Shape: `[B, S, 1+N_patch, d]`
+- Consumer: Camera/Depth/Point Heads（從 VGGT 繼承）與 MTA（取 patch tokens 部分）
+
+**Processing:**
+
+由 $N$ 個 AA blocks 串接而成（layer 數 $N$ the paper does not specify）。每個 AA block 內部交替執行 frame-wise self-attention（在單幀的 token 集合上）與 global self-attention（跨幀 token 一起做 attention），延續 VGGT 設計（Fig. 2 中央左側）。在 stage-1 中，AA blocks 的權重維持 frozen（雪花），以保留 VGGT 的幾何先驗，避免 motion 訊號干擾空間幾何（page 5, §3.4 指出「freezing AA blocks causes ... overemphasize geometric reasoning while weakening appearance cues」，故 stage-2 才額外引入 image features 補強外觀）。
+
+**Key Formulas:** 無新增公式（沿用 VGGT alternating attention）。
+
+**Implementation Details:**
+
+AA block 數目 $N$ 與每個 block 的 head 數、$d_{\mathrm{model}}$ 等 the paper does not specify。Stage-1 訓練 10 epochs，AdamW + warmup 0.5 epoch + cosine decay，peak lr $1\times10^{-6}$；DynamicVGGT 整體 ~1.4B 參數，其中 ~800M 可訓練參數（不含 frozen 模組）（page 6, §4.1）。
+
+#### 5.3.3 Motion-aware Temporal Attention (MTA)
+
+**Function:** 以平行支路在 feature 層級捕捉 inter-frame motion continuity，避免如 StreamVGGT 的串接 AA 設計擾動 VGGT 空間注意力先驗導致的訓練不穩。
+
+**Input:**
+- Name: 來自 AA branch 的 patch tokens $F^{p(l)}_{v,t}$，加上 learnable motion tokens $M^{(l)}_{v,t}$
+- Shape: $F^{p(l)}_{v,t} \in$ `[B, S, N_patch, d]`，$M^{(l)}_{v,t} \in$ `[B, S, M_tok, d]`（$M_{\mathrm{tok}}$ the paper does not specify）
+- Source: Parallel Attention Backbone（patch tokens）；motion tokens 為可學參數，初始化編碼 temporal priors（Fig. 2 caption, page 3）
+
+**Output:**
+- Name: $TA_{v,t} = F^{(L)}_{m,v,t}$
+- Shape: `[B, S, M_tok+N_patch, d]`
+- Consumer: FPH（DPT_p）與 DGSHead（DPT_g + Conv 融合 + Gaussian decoding），同時 motion tokens 解出 $\nu_b$ 給 Gaussian velocity（page 5）
+
+**Processing:**
+
+層數 $L = 12$（page 6, §4.1）。每層 $l$ 的 token 構造（Eq. (5)）：
+
+$$
+F^{(l)}_{m,v,t} = \begin{cases} \mathrm{Concat}(M^{(l)}_{v,t}, F^{p(l)}_{v,t}), & l=1 \\ \mathrm{Concat}(M^{(l)}_{v,t}, F^{p(l)}_{v,t} + F^{p(l-1)}_{v,t}), & l>1 \end{cases}
+$$
+
+注意：第一層後，spatial patch tokens 透過 $F^{p(l)}_{v,t} + F^{p(l-1)}_{v,t}$ 帶入跨層的 AA 殘差訊號，使 MTA 在 temporal 維度做 attention 時仍保有最新的 spatial geometry。
+
+對每個 patch 位置與每個 view，沿時間維 $\tau$ 獨立計算 temporal attention（Eq. (6)–(7)）：
+
+$$
+A^{(l)}_{t,t'} = \mathrm{Softmax}\!\left( \frac{Q^{\mathrm{attn},(l)}_t (K^{\mathrm{attn},(l)}_{t'})^\top}{\sqrt{d}} + B^{\mathrm{time}}_{t,t'} \right), \qquad \tilde F^{(l)}_{m,v,t} = \sum_{t'=1}^{\tau} A^{(l)}_{t,t'} V^{\mathrm{attn},(l)}_{t'}
+$$
+
+接 LayerNorm + MLP + residual（Eq. (8)）：
+
+$$
+F^{(l+1)}_{m,v,t} = \mathrm{MLP}^{(l)}\!\left(\mathrm{LayerNorm}(\tilde F^{(l)}_{m,v,t})\right) + F^{(l)}_{m,v,t}
+$$
+
+最後取 $TA_{v,t} = F^{(L)}_{m,v,t}$（Eq. (9)）。
+
+**Key Formulas:** 見上方 Eq. (5)–(9)。
+
+**Implementation Details:**
+
+- $L=12$ MTA layers，整體 ~1.4B 參數（page 6, §4.1）。
+- $B^{\mathrm{time}}_{t,t'}$ 採 rotary position embeddings 實作 temporal positional bias（page 4, §3.2）。
+- Motion tokens 數 $M_{\mathrm{tok}}$、attention head 數、$d$ 維度，the paper does not specify。
+- 與 AA branch **平行**運作，不替換 AA blocks，因此既保留 VGGT spatial attention 先驗又新增 temporal channel；論文明確將此與 StreamVGGT 的 sequential AA stacking 比較（page 3–4, §3.2）。
+
+#### 5.3.4 Future Point Head (FPH)
+
+**Function:** 在 point map 層級提供隱式運動監督，藉由預測同一相機流在 $t+\delta$ 的 3D point map 並對齊 inter-frame point displacement，迫使模型學到 short-term motion continuity。
+
+**Input:**
+- Name: $TA_{v,t}$
+- Shape: `[B, S, M_tok+N_patch, d]`
+- Source: MTA
+
+**Output:**
+- Name: $\hat P^{\mathrm{fut}}_{v,t+\delta}$
+- Shape: `[B, S, 3, H, W]`
+- Consumer: 損失 $\mathcal{L}_{\mathrm{temp}}$；同時與 VGGT 的 Point Head 輸出 $\hat P_{v,t}$ 共同構成 DPM 的兩端
+
+**Processing:**
+
+採用 DPT 解碼器 $\mathrm{DPT}_p(\cdot)$（Ranftl et al. 2021），將 token sequence 轉為與輸入影像同解析度的 3D point map（Eq. (10)）：
+
+$$
+\hat P^{\mathrm{fut}}_{v,t+\delta} = \mathrm{DPT}_p(TA_{v,t})
+$$
+
+監督採 temporal consistency regularization（Eq. (11)）：
+
+$$
+\mathcal{L}_{\mathrm{temp}} = \frac{1}{|\mathcal N|} \sum_{i \in \mathcal N} \left\| (\mathbf p^{(i)}_{v,t+\delta} - \mathbf p^{(i)}_{v,t}) - (\hat{\mathbf p}^{(i)}_{v,t+\delta} - \hat{\mathbf p}^{(i)}_{v,t}) \right\|_1
+$$
+
+其中 $\mathcal N$ 為有效 point 集合，僅以 displacement 而非絕對位置計算 L1，使監督集中在 inter-frame motion 而非靜態幾何。
+
+**Key Formulas:** Eq. (10)–(11)（如上）。
+
+**Implementation Details:**
+
+- $\delta$ 在 1 至 3 之間隨機取樣（page 6, §4.1）。
+- $\lambda_{\mathrm{temp}} = 0.01$（page 6, §4.1）。
+- DPT 內部結構（layers, channels）the paper does not specify，沿用 [20] Ranftl et al. 2021。
+- 論文強調 $\mathcal{L}_{\mathrm{temp}}$ 為 implicit motion supervision（page 4, §3.3），與 §3.4 顯式 scene flow 監督互補。
+
+#### 5.3.5 Dynamic 3D Gaussian Splatting Head (DGSHead)
+
+**Function:** 在 Gaussian primitive 層級顯式建模 motion 與外觀，以 scene flow 監督 velocity 並用 Gaussian rendering 提供 RGB 與 depth 重建損失，同時透過 depth distillation 緩解 LiDAR 稀疏雜訊。
+
+**Input:**
+- Name: $TA_{v,t}$、$I_{v,t}$
+- Shape: $TA_{v,t} \in$ `[B, S, M_tok+N_patch, d]`，$I_{v,t} \in$ `[B, S, 3, H, W]`
+- Source: MTA（temporal feature）；原始 RGB 影像（appearance cue）
+
+**Output:**
+- Name: 動態 3D Gaussian primitives $\{\mu_i, \sigma_i, r_i, c_i, \nu_i\}$、$\hat I_{v,t}$、$D_{g,v,t}$
+- Shape:
+  - $D_{g,v,t} \in$ `[B, S, 1, H, W]`
+  - $\hat I_{v,t} \in$ `[B, S, 3, H, W]`（differentiable rasterization 結果）
+  - 每個 primitive：$\mu_i \in \mathbb R^3$、$\sigma_i$ scale、$r_i$ rotation、$c_i$ color、$\nu_i \in \mathbb R^3$ velocity（具體向量化維度 the paper does not specify，但論文採 per-pixel Gaussian 由 depth + camera 反投影得到，故 primitive 數 $\approx S \cdot H \cdot W$）
+- Consumer: 損失 $\mathcal L_{\mathrm{rgb}}, \mathcal L_{\mathrm{gsdepth}}, \mathcal L_{\mathrm{distill}}, \mathcal L_{\mathrm{flow}}$（合成為 $\mathcal L_{\mathrm{3DGS}}$）
+
+**Processing:**
+
+§3.4 將特徵融合與 primitive 解碼分為三步：
+
+1. Image feature：$F^{\mathrm{app}}_{v,t} = \mathrm{Conv}(I_{v,t})$（Eq. (12)），補回因 freezing AA blocks 造成的 appearance 訊號弱化。
+2. Geometry branch：$(F_{g,v,t}, D_{g,v,t}) = \mathrm{DPT}_g(TA_{v,t})$（Eq. (13)），輸出 Gaussian feature 與 Gaussian depth。
+3. 融合：$G_{v,t} = F^{\mathrm{app}}_{v,t} + F_{g,v,t}$（Eq. (14)），用於初始化 Gaussian primitives；以 $D_{g,v,t}$ + retained VGGT camera 重建 point map $P^g_{v,t}$ 作為 Gaussian centers $\mu_i$（page 5）。
+
+每個 Gaussian primitive 參數化為 $\{\mu_i, \sigma_i, r_i, c_i, \nu_i\}$。M 個 motion tokens 解碼出共享的 velocity bases $\nu_b \in \mathbb R^3$，作為跨 primitive 的動態表徵；以 constant-velocity 假設更新 short clip 內的中心位置（Eq. (15)）：
+
+$$
+\mu_{i,t+\delta} = \mu_{i,t} + \delta \cdot \nu_{i,t}
+$$
+
+訓練目標（Eq. (18)）：
+
+$$
+\mathcal L_{\mathrm{3DGS}} = \mathcal L_{\mathrm{rgb}} + \lambda_{\mathrm{gs}} \mathcal L_{\mathrm{gsdepth}} + \lambda_{\mathrm{dist}} \mathcal L_{\mathrm{distill}} + \lambda_{\mathrm{flow}} \mathcal L_{\mathrm{flow}}
+$$
+
+其中 $\mathcal L_{\mathrm{rgb}} = \mathrm{MSE}(I_{v,t}, \hat I_{v,t})$；$\mathcal L_{\mathrm{gsdepth}}$ 為 L1 depth 損失，監督由預訓練模型 [27] MoGe 提供（page 5）；$\mathcal L_{\mathrm{distill}} = \|D_{g,v,t} - \mathrm{sg}(D^{\mathrm{pm}}_{v,t})\|_1$，其中 $D^{\mathrm{pm}}_{v,t}$ 為 stage-1 point-map 分支 depth（teacher），$\mathrm{sg}(\cdot)$ stop-gradient（page 5）；$\mathcal L_{\mathrm{flow}} = \mathrm{MSE}(\mathbf s_{v,t}, \hat{\mathbf s}_{v,t})$，提供顯式 scene flow 監督，與 $\mathcal L_{\mathrm{temp}}$ 在 DPM 空間做 coarse displacement 監督互補（page 6）。
+
+**Key Formulas:** Eq. (12)–(15) 與 $\mathcal L_{\mathrm{3DGS}}$（Eq. (18)）如上。
+
+**Implementation Details:**
+
+- 超參數：$\lambda_{\mathrm{gs}} = \lambda_{\mathrm{dis}} = 0.1$，$\lambda_{\mathrm{flow}} = 0.01$（page 6, §4.1）。
+- Stage-2 fine-tune 50 epochs，AdamW + warmup 0.5 epoch + cosine decay，peak lr $5\times10^{-5}$；dynamic batching 共 18 images per batch（page 6, §4.1）。
+- DGSHead 為 stage-2 才啟用的下游任務模組；stage-1 不參與訓練（page 5, Eq. (16) 中無 $\mathcal L_{\mathrm{3DGS}}$）。
+- $\mathrm{Conv}(\cdot)$ 的層數/通道、$\mathrm{DPT}_g$ 結構、Gaussian primitive 解碼網路、rasterizer 細節，the paper does not specify。
+- Velocity bases 數 $M$、是否 per-view 共享，the paper does not specify；只說明 motion tokens 解出 $\nu_b \in \mathbb R^3$ 的集合作為 shared dynamic representation（page 5）。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| Waymo Open Dataset [23] | 4D 動態場景重建、point map、novel view synthesis | 大規模真實駕駛資料,使用 FRONT / SIDE_LEFT / SIDE_RIGHT 三相機,每組取 stride 4 共 9 張影像 | Stage 2 訓練 + validation 評估 |
+| Virtual KITTI [5] | 合成駕駛場景幾何與時序一致性學習 | 合成資料,提供 dense geometry 與 motion cue | Stage 1 訓練 + Stage 2 微調 |
+| MVS-Synth [8] | 合成多視角立體幾何先驗 | 合成資料,提供 dense depth | 僅 Stage 1 訓練 |
+| KITTI [25] | Point map 重建、monocular / MVS depth estimation | 單目輸入,每序列每相機取 3 張連續影格 | 僅作為評估集 |
+| NYU-v2 [19] | Monocular / MVS depth estimation | 室內 RGB-D 資料 | 僅作為跨域 (室外→室內) 評估集 |
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+|---|---|---|
+| Accuracy (Acc.) ↓ | Point map 預測點到 ground-truth 之距離,值越小越好 | yes |
+| Completeness (Comp.) ↓ | Ground-truth 點到預測 point map 之距離,衡量重建覆蓋率 | yes |
+| Normal Consistency (NC) ↑ | 預測與 ground-truth 表面法向量之一致性 | no |
+| PSNR ↑ | Novel view rendering 與 ground-truth RGB 之峰值訊噪比 | yes |
+| SSIM ↑ | Novel view rendering 之結構相似度 | no |
+| Abs Rel ↓ | Depth estimation 之絕對相對誤差 | yes |
+| $\delta < 1.25$ ↑ | Depth 預測落在 ground-truth $1.25\times$ 倍率內之比例 | no |
+
+### 6.3 Training and Inference Settings
+
+模型由預訓練 VGGT 權重初始化,使用 $L=12$ 個 MTA layers,總參數量約 1.4B,其中約 800M 參數 (排除 frozen modules) 進行兩階段微調。Stage 1 在 Virtual KITTI 與 MVS-Synth 上訓練 10 個 epoch,使用 AdamW、線性 warm-up (前 0.5 epoch) 接 cosine decay,peak learning rate 為 $1\times 10^{-6}$。Stage 2 在 Waymo 與 Virtual KITTI 上開啟 Gaussian head 微調 50 個 epoch,使用相同 schedule 但 peak learning rate 提升至 $5\times 10^{-5}$。所有輸入影像、depth map 與 point map 之長邊縮放至不超過 518 pixels;temporal offset $\delta$ 在 $[1,3]$ 範圍內隨機取樣。採用類似 VGGT 的 dynamic batch sizing,每 batch 處理 18 張影像。Loss 權重設為 $\lambda_{\mathrm{temp}}=0.01$、$\lambda_{\mathrm{gs}}=\lambda_{\mathrm{dis}}=0.1$、$\lambda_{\mathrm{flow}}=0.01$。硬體規格、GPU 數量與單次訓練 wall-clock the paper does not specify (僅指出更詳細之 training settings 與 dataset configurations 見 Appendix);inference 設定 the paper does not specify。
+
+### 6.4 Main Results
+
+**Point Map Reconstruction (Mean,KITTI mono / Waymo 3-cam,Table 1)**
+
+| Method | KITTI Acc.↓ | KITTI Comp.↓ | KITTI NC↑ | Waymo Acc.↓ | Waymo Comp.↓ | Waymo NC↑ | Notes |
+|---|---|---|---|---|---|---|---|
+| VGGT [26] | 1.489 | 0.690 | 0.918 | 4.635 | 2.667 | 0.561 | static feed-forward baseline |
+| StreamVGGT [38] | 1.078 | 0.495 | 0.899 | 4.598 | 2.626 | 0.564 | sequential temporal AA stacking |
+| **DynamicVGGT** | **0.901** | 0.584 | **0.939** | **4.021** | **2.390** | **0.562** | 本文方法,KITTI Comp. 略遜於 StreamVGGT |
+
+**4D Scene Reconstruction on Waymo val (Table 2)**
+
+| Method | Supervision | Dyn. PSNR↑ | Dyn. SSIM↑ | Full PSNR↑ | Full SSIM↑ | Notes |
+|---|---|---|---|---|---|---|
+| 3DGS [10] | Full | 17.13 | 0.267 | 25.13 | 0.741 | per-scene optimization |
+| DeformableGS [34] | Full | 17.10 | 0.266 | 25.29 | 0.761 | per-scene optimization |
+| GS-LRM [36] | Camera | 20.02 | 0.520 | 25.18 | 0.753 | feed-forward,需相機參數 |
+| STORM [33] | Camera | **21.26** | **0.535** | 25.03 | 0.750 | feed-forward,需相機參數 |
+| **DynamicVGGT** | Image-only | 18.07 | 0.376 | 24.07 | 0.676 | 唯一純影像輸入,無相機參數 |
+
+**Monocular / MVS Depth Estimation (Table 3)**
+
+| Method | KITTI Mono Abs Rel↓ | NYU-v2 Mono Abs Rel↓ | KITTI MVS Abs Rel↓ | KITTI MVS $\delta<1.25$↑ |
+|---|---|---|---|---|
+| DUSt3R [28] | 0.109 | 0.081 | 0.143 | 0.814 |
+| MASt3R [11] | 0.077 | 0.110 | 0.115 | 0.848 |
+| MonST3R [35] | 0.098 | 0.094 | 0.107 | 0.884 |
+| VGGT [26] | 0.082 | **0.059** | 0.062 | 0.969 |
+| StreamVGGT [38] | 0.082 | 0.057 | 0.173 | 0.721 |
+| **DynamicVGGT** | **0.070** | 0.064 | **0.051** | **0.976** |
+
+### 6.5 Ablation Studies
+
+論文於 Table 4 在 KITTI mono 與 Waymo 3-cam 上做組件累加式 ablation:
+
+- **+ TA & FPH (stage 1)**:在 vanilla VGGT 上加入 Motion-aware Temporal Attention 與 Future Point Head。KITTI Acc. 由 1.489 降至 0.927、Comp. 由 0.690 降至 0.600;Waymo Acc. 由 4.635 降至 4.330。診斷出 temporal modeling 對動態幾何的貢獻,屬有意義之診斷實驗。但 KITTI NC 反而由 0.918 微跌至 0.915、Waymo Comp. 反升至 2.939,論文未討論此回退,削弱結論強度。
+- **+ DGSHead (stage 2)**:再加入 Dynamic 3DGS Head 與 scene-flow 監督。KITTI Acc. 由 0.927 進一步降至 0.901、NC 提升至 0.939;Waymo Acc. 降至 4.021、NC 升至 0.603。能驗證 explicit Gaussian motion supervision 的增益,屬有效診斷。
+
+**潛在不足**:Ablation 為**累加式而非 leave-one-out**,無法分離 MTA、FPH、$\mathcal{L}_{\mathrm{temp}}$、$\mathcal{L}_{\mathrm{flow}}$、depth distillation $\mathcal{L}_{\mathrm{distill}}$ 各自的貢獻;尤其 motion tokens、velocity bases $\nu_b$、constant-velocity 假設、stage-wise training 等核心設計皆未獨立 ablate。$L=12$ MTA layers、$\delta\in[1,3]$ 取樣範圍、$\lambda$ 權重等也無敏感度分析。整體 ablation 偏向「證明加上去比沒加好」之 sanity check,缺乏對「為何 MTA 平行於 AA 而非串接」此核心宣稱的對照實驗 (僅以文字引用 StreamVGGT 表現不穩定為佐證)。
+
+### 6.6 Phyra Experiment Assessment
+
+- [covered] Has at least one strong baseline (a current SoTA on the chosen task) — 與同期 feed-forward SoTA VGGT [26]、StreamVGGT [38]、STORM [33]、GS-LRM [36] 直接比較。
+- [covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 跨 Waymo / KITTI / NYU-v2 評估,跨 point map reconstruction、4D scene reconstruction、mono depth、MVS depth 四項任務。
+- [partial] Has ablations that diagnose the new components (not just sanity checks) — Table 4 為累加式 ablation,僅能驗證「加組件有幫助」,未獨立切除 motion tokens、$\mathcal{L}_{\mathrm{flow}}$、$\mathcal{L}_{\mathrm{distill}}$、constant-velocity 假設等核心設計。
+- [missing] Has a scaling study (size, length, or compute) — 無 MTA layer 數 $L$、motion token 數 $M$、temporal offset $\delta$、輸入序列長度或模型參數量之 scaling 分析。
+- [missing] Has an efficiency / wall-clock comparison — 未報告 inference latency、FPS、GPU memory,亦未與 STORM / per-scene optimization 方法做 wall-clock 對比 (僅文字宣稱 feed-forward efficiency)。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — 所有 Table 1–4 數字皆為單次點估計,無 std、信賴區間或多 seed 平均。
+- [missing] Releases code / weights / data sufficient for reproducibility — 全文未提及 code repository、checkpoint 釋出、Appendix 細節以外之 reproducibility artifacts。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **C1：MTA 在不擾動空間注意力的前提下穩定引入時序建模。** 在 Table 4 的 KITTI 上，加入 TA + FPH 將 Acc. 從 1.489 降到 0.927（約 38% 改善），方向上**支持**該宣稱。但消融未將 MTA 與 FPH 拆開，因此「MTA 自身貢獻」嚴格說只是**部分被驗證**；訓練穩定性僅在文字中陳述，沒有 loss curve 或穩定性指標佐證。
+- **C2：Future Point Head 透過點圖跨幀一致性學到隱式運動。** Eq. 11 的監督形式合理，且在 Table 4 中與 MTA 共同帶來增益。但 $\lambda_{\mathrm{temp}} = 0.01$ 極低、$\delta$ 僅 1–3 幀，且論文沒有任何「點層級運動軌跡」的量化指標（如 EPE、scene flow accuracy on dynamic objects），故此宣稱**僅獲幾何精度的間接支持，運動學習的直接證據不足**。
+- **C3：Dynamic 3DGS Head 以 scene flow 顯式監督 Gaussian 速度，達成「點圖隱式 + Gaussian 顯式」雙層運動建模。** Table 4 顯示加入 DGSHead 後 KITTI NC 從 0.915 → 0.939，Acc 從 0.927 → 0.901，**部分支持**幾何精化的效果。但「Gaussian 速度準確度」本身未獨立評估，且 Table 2 上 dynamic-only PSNR 18.07 顯著輸給 STORM 21.26，這對「explicit motion supervision 帶來高品質動態渲染」的論述構成**反證**，故此宣稱屬於**過度宣稱**。
+- **C4：相對 VGGT 與 StreamVGGT 在 Waymo 取得 Accuracy +0.5、Completeness +0.2 的提升。** Table 1 的數字（4.635/2.667 → 4.021/2.390）對應到 Acc. 改善 0.61、Comp. 改善 0.28，方向**支持**，但摘要的「+0.2 completeness」與實際 0.28 並非精確匹配，屬於**近似支持**。
+- **C5：Stage-wise 訓練可緩解真實駕駛資料退化。** Fig. 4 的「w / w/o LiDAR」對比與 distillation 設計提供視覺證據，**部分支持**；但缺乏「直接 LiDAR 監督 vs distillation」的量化消融，無法判斷退化幅度。
+
+### 7.2 Fundamental Limitations of the Method
+
+- **常速假設無法承載自駕真實運動。** Eq. 15 假設一個 short clip 內速度恆定，這在轉向、煞停、加速、被遮擋後重現的情境下都會破功；而訓練時 $\delta$ 只在 1–3 幀採樣，使模型從未被迫面對長時序與非線性動態。要解除此限制需要 acceleration token、bezier / spline 軌跡頭，或時間自迴歸推論，但這已超出當前 feed-forward + constant velocity 的框架。
+
+- **與 STORM、3DGS 的 PSNR 落差結構性存在。** STORM 與 per-scene 3DGS 用相機外參把幾何問題降維為「對齊已知視角的 photometric optimization」，DynamicVGGT 則必須同時學相機、深度、點圖與 Gaussian。當沒有外參作為錨點時，誤差會被放大到外觀層；這是**設計選擇**直接帶來的限制，而非實作品質問題，亦即「image-only」與「render quality」之間有不可避免的 trade-off，論文未承認此 trade-off 的不可化約性。
+
+- **跨相機融合受 view overlap 限制。** Waymo 評測時作者僅可視化 front camera，且 multi-view 在 Table 1 上的單位都遠大於 monocular（Mean Acc. 4.021 vs KITTI 0.901）。MTA 是純時序注意力，沒有跨相機 spatial cross-attention，所以當不同相機視角重疊小時，模型缺乏將不同相機觀測拼接到共同 canonical frame 的機制。要改善必須加入跨相機 token 或顯式 epipolar geometry，這同樣超出現有結構。
+
+- **稀疏監督的 distillation 僅是緩解而非治本。** 以 stage-1 點圖深度作 teacher 雖能降低 LiDAR 噪聲影響，但 teacher 本身就是在合成資料上訓練的，蒸餾過程會把「synthetic 域偏差」固化進 student，且永遠無法超越 teacher。要根本解決需要密集真實深度或更強的自監督目標（如多視角光度一致性、跨幀 photometric loss），而非自蒸餾迴圈。
+
+### 7.3 Citations Worth Tracking
+
+- **VGGT (Wang et al., CVPR 2025) [26]** — 本文的 base model，所有架構決策都建立在 VGGT 的 alternating-attention 與 multi-head 預測機制之上；不讀 VGGT 無法判斷 MTA 是否真的「不擾動空間注意力」。
+- **StreamVGGT (Zhuo et al., 2025) [38]** — 本文最直接的對手與動機，宣稱串接式 AA 不穩定的論點需要回到原文驗證；同時 Table 3 中 StreamVGGT 在 KITTI MVS 的異常退化也值得獨立查證。
+- **Dynamic Point Maps (Sucar et al., 2025) [22]** — 本文 DPM 公式（Eq. 1-3）的來源，要理解作者「不需顯式 frame-to-reference 轉換」的優勢必須對照原始 DPM 的監督模式。
+- **STORM (Yang et al., 2024) [33]** — 在 Table 2 中以 PSNR 21.26 顯著領先本文 18.07 的 baseline，是評估「是否值得放棄相機參數換取通用性」的關鍵對照點。
+- **Anysplat (Jiang et al., 2025) [9]** — Dynamic 3DGS Head 的設計靈感來源，理解 feed-forward 3DGS 的初始化與 primitive 解碼策略後，能更好地評斷本文的 motion token → velocity basis 是否為實質創新。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 在控制相機輸入（同樣 image-only 或同樣 multi-camera + extrinsics）的條件下，DynamicVGGT 與 STORM 在 dynamic-only PSNR 上的真實差距是多少？目前的 3.19 dB 落差究竟來自「沒有外參」還是「動態建模較弱」？
+- [ ] 若把 MTA、FPH、scene-flow 監督、depth distillation 拆成 4 個獨立 ablation cell，各自的邊際貢獻分布如何？論文目前的 2-step 消融無法回答。
+- [ ] 在 $\delta$ 推到 5、10、30 幀，或在轉彎、煞停等非線性運動樣本上，constant-velocity 假設帶來的軌跡誤差（EPE 對 dynamic objects）是多少？
+- [ ] Future Point Head 預測的 $\hat{P}_{v,t+\delta}^{\mathrm{fut}}$ 與真值點圖在「動態物體區域」的精度（不只整體 mean）是多少？這是判斷「點層級運動」是否真的被學到的關鍵指標，但論文未報告。
+- [ ] $\lambda_{\mathrm{temp}}, \lambda_{\mathrm{flow}}$ 都設為 0.01，敏感度如何？若調到 0.1 或 1.0，幾何精度是否退步、運動精度是否提升？目前缺乏 loss weight 掃描。
+- [ ] 在「feed-forward = fast」的命題下，DynamicVGGT 1.4B 參數的實際推論延遲、FPS、GPU 記憶體與 STORM、DrivingForward、VGGT 相比為何？沒有任何效率數字使主賣點懸空。
+- [ ] Stage-1（合成）→ Stage-2（真實）轉移過程中，模型對合成資料的偏差殘留多少？特別是 depth distillation 把 stage-1 當 teacher，是否會把 Virtual KITTI 的渲染偏差固化進 Waymo 預測？
+
+### 8.2 Improvement Directions
+
+依可行性由高到低排序：
+
+1. **補上完整 4 元件消融與 loss weight 掃描。** 直接拆解 MTA / FPH / scene-flow / distillation，並掃描 $\lambda_{\mathrm{temp}}, \lambda_{\mathrm{flow}} \in \{0.001, 0.01, 0.1, 1.0\}$。理由：成本低（只是多跑訓練），但能把目前模糊的「組合貢獻」變成可歸因的科學陳述，也能反駁「核心運動損失權重過低 = 動態其實沒在學」的疑慮。
+2. **報告效率指標並建立 STORM 公平對照。** 同 GPU、同 batch、同分辨率下測 FPS 與顯存，並把 STORM 設定改為 image-only（移除外參）做退化對照。理由：直接回應 §7.1-C3 的 PSNR 落差爭議，把「我們不靠相機參數」從藉口轉為可量化的 trade-off 曲線。
+3. **將 constant-velocity 升級為 acceleration-aware 或 Bezier 軌跡頭。** 把 motion token 解碼成 $(\nu_b, a_b) \in \mathbb{R}^6$ 或低階多項式係數，讓 $\mu_{i,t+\delta}$ 表達非線性軌跡。理由：自駕場景的動態物體本質上不是常速，且這個改動只動 DGSHead 的最後一層 MLP，工程成本可控，但能直接擴大 $\delta$ 的有效範圍。
+4. **加入跨相機 spatial cross-attention，補強 multi-view 融合。** 在 MTA 之後或之內加一條跨 camera token 的注意力，並讓 motion token 跨相機共享。理由：可以解釋 Waymo 多相機 Mean Acc 4.021 為何遠差於 KITTI 0.901，以及為何 Fig. 6 只能展示 front camera 的結果。
+5. **以光度自監督取代或補充 depth distillation。** 將 stage-1 teacher 換成跨幀 photometric consistency + multi-view warp loss。理由：現行 distillation 把合成域偏差固化進 student（§7.2），改用真實影像的自監督能打破此循環，並降低對 LiDAR / 合成深度的雙重依賴。
+6. **與 MoVieS、MonST3R 做直接量化比較。** 既然引言將其列為相關工作，至少需要在 Waymo 或 KITTI 上跑出可比數字。理由：不增加方法創新但決定性地補強 related work 完整度，是審稿時最常被點名的缺口。

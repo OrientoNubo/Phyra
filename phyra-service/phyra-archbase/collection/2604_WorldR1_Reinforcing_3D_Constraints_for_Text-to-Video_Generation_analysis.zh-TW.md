@@ -1,0 +1,567 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# World-R1 — World-R1: Reinforcing 3D Constraints for Text-to-Video Generation
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | World-R1 |
+| Paper full title | World-R1: Reinforcing 3D Constraints for Text-to-Video Generation |
+| arXiv ID | 2604.24764 |
+| Release date | 2026-04-27 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2604.24764 |
+| PDF link | https://arxiv.org/pdf/2604.24764v1 |
+| Code link | https://github.com/microsoft/World-R1 |
+| Project page | https://aka.ms/world-r1 |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Weijie Wang | Zhejiang University (ZIP Lab); intern at Microsoft Research Asia | https://lhmd.top/ | co-first author |
+| Xiaoxuan He | Zhejiang University | — | co-first author |
+| Youping Gu | Zhejiang University | — | co-first author |
+| Yifan Yang | Microsoft Research Asia | https://www.microsoft.com/en-us/research/people/yifanyang/ | corresponding author |
+| Zeyu Zhang | Independent Researcher | — | co-author |
+| Yefei He | Zhejiang University | — | co-author |
+| Yanbo Ding | Microsoft Research Asia | — | co-author |
+| Xirui Hu | Independent Researcher | — | co-author |
+| Donny Y. Chen | Independent Researcher | — | co-author |
+| Zhiyuan He | Microsoft Research Asia | — | co-author |
+| Yuqing Yang | Microsoft Research Asia | https://www.microsoft.com/en-us/research/people/yuqyang/ | corresponding author |
+| Bohan Zhuang | Zhejiang University (ZIP Lab) | https://bohanzhuang.github.io/ | corresponding author / senior author |
+
+### 1.2 Keywords
+
+text-to-video generation, world model, reinforcement learning, Flow-GRPO, 3D consistency, camera control, 3D Gaussian Splatting, video diffusion, analysis-by-synthesis
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| Wan 2.1 (ref [3]) | base model | DiT-based video foundation model that World-R1 fine-tunes via RL without architectural changes. |
+| Flow-GRPO / Flow-GRPO-Fast (ref [24]) | predecessor | RL framework for flow-matching generators; World-R1 extends it with 3D-aware rewards. |
+| Depth Anything 3 (ref [17]) | influence | 3D foundation model used to lift videos to 3D Gaussian Splatting and supply geometric reward signals. |
+| Go-with-the-Flow (ref [34]) | influence | Noise-warping trick adopted to inject implicit camera conditioning without auxiliary networks. |
+| GRPO / DeepSeek (ref [41]) | predecessor | Critic-free RL objective underlying the policy optimization used here. |
+| Fantasyworld (ref [37]) | baseline | 3D-aware I2V baseline that appends a 3D decoder; contrasted as architecture-heavy alternative. |
+| Qwen3-VL (ref [20]) | influence | VLM used as semantic critic to score meta-view renderings for plausibility. |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本論文聚焦於文字生成影片 (text-to-video) 模型如何作為通用世界模型 (world model) 的前身。作者觀察到目前的影片基礎模型雖具備優異視覺合成能力,但仍停留在 2D 影像空間,缺乏對 3D 幾何的理解,因此在大幅鏡頭運動或長時序駕駛場景中常出現物件變形、消失或扭曲等幾何幻覺。研究主題即在於:在不修改模型架構、不依賴大規模 3D 標註資料、亦不引入昂貴推論時約束的前提下,如何將 3D 一致性與相機可控性注入既有影片生成模型,使其轉化為幾何一致的世界模擬器。為此,作者提出 World-R1 框架,結合 Flow-GRPO 強化學習、3D 基礎模型 (Depth Anything 3) 與 VLM 評審所構成的綜合獎勵,並設計純文字資料集與週期性解耦訓練策略,以同時兼顧剛體幾何約束與動態場景多樣性。
+
+### 2.2 Domain Tags
+
+- computer vision
+- video generation
+- world models
+- reinforcement learning for generative models
+- 3D scene reconstruction
+
+### 2.3 Core Architectures Used
+
+- **Wan 2.1 (1.3B / 14B)**:作為 backbone 影片基礎模型,World-R1 直接以其權重為起點進行強化學習後訓練,不修改 DiT 架構也不附加可訓練模組。
+- **Flow-GRPO / Flow-GRPO-Fast**:將確定性 flow-matching ODE 重新表述為 reverse-time SDE 以引入隨機性,並以 critic-free 的 GRPO 群組式優勢估計搭配 PPO clipped surrogate 與 KL 約束,作為 World-R1 的策略優化主幹。
+- **Depth Anything 3 (DA3)**:作為凍結的 3D 基礎模型,將生成影片 lift 至 3D Gaussian Splatting 表示 $\Phi_{GS}$ 並回估相機軌跡 $\hat{E}$,提供 meta-view 渲染、重建保真度與軌跡對齊獎勵的幾何訊號源。
+- **3D Gaussian Splatting (3DGS)**:作為中介 3D 場景表示,既用於 reward 計算 (re-rendering vs. 生成影片) 也作為評測時 reconstruction-based PSNR/SSIM/LPIPS 指標的基礎。
+- **Qwen3-VL**:作為語義評審 VLM,對 meta-view 渲染圖進行文字保真度與結構合理性評分,構成 $S_{meta}$ 獎勵分量以揭露 canonical view 看不到的幾何瑕疵。
+- **HPSv3**:作為人類偏好獎勵模型,計算每幀 aesthetic 分數的平均作為 general generation reward $R_{gen}$,維持基礎模型原有的視覺品質。
+- **Go-with-the-Flow noise warping**:作為無參數隱式相機條件機制,將 prompt 解析出的相機軌跡投影為光流場,並以離散噪聲傳輸 (discrete noise transport) 將相機運動先驗嵌入 latent 噪聲初始化。
+- **Gemini**:用於合成純文字資料集,生成涵蓋多類別、多層級相機控制 (隱式運動、單向命令、複合軌跡) 的約 3,000 條場景描述。
+
+### 2.4 Core Argument
+
+作者識別出現有 3D 一致影片生成方法的根本瓶頸:它們普遍將 3D 先驗以模組化、推論時硬約束的方式注入 (例如附加 3D decoder、point map 預測或顯式幾何分支),這帶來高昂運算成本、犧牲生成多樣性、而且通常只能應用於 image-to-video 任務並依賴稀缺的 3D 標註資料集。然而近期研究已顯示影片基礎模型在預訓練期間實際上已經內隱地編碼了豐富的 3D 幾何知識,因此問題的關鍵不在「再注入更多 3D 訊號」,而在「如何喚醒 (elicit) 這些潛在能力」。基於此論點,作者主張用強化學習取代架構改造:既然真實世界的剛體幾何提供了天然的一致性檢核訊號,就可以以分析-合成 (analysis-by-synthesis) 構造獎勵——將生成影片 lift 至 3D Gaussian Splatting,再以 meta-view 評審、重建保真度與軌跡對齊度量幾何品質,並輔以 VLM 作為語義評審。這個論證鏈條使其解法在邏輯上必要:(1) 必須是後訓練 (post-training) 而非結構修改,才能保留基礎模型既有的視覺多樣性;(2) 必須是 RL 而非監督式微調,才能在缺乏 3D 標籤的純文字資料上提供可微的幾何訊號;(3) 必須採用週期性解耦訓練,才能避免剛體獎勵壓抑非剛體動態;(4) 必須以噪聲扭曲做隱式相機條件,以避免引入額外可訓練模組。如此一來,World-R1 才能在不犧牲架構、推論成本與動態流暢度的情況下,將 2D 影片生成器升級為幾何一致的世界模擬器,並在 PSNR 等 3D 重建指標上取得 10.23 dB / 7.91 dB 的顯著提升。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(180 words)
+
+標題「World-R1: Reinforcing 3D Constraints for Text-to-Video Generation」直接點出三個關鍵詞：world model、reinforcement learning、3D constraints，暗示作者把「讓 video model 變成 world simulator」這件事重新框架成 RL alignment 問題，而非過往主流的架構修改或 3D-aware dataset 路線。Abstract 先建立問題背景：近期 video foundation models 在視覺合成上強，但在 geometric consistency 上常出錯；既有方法透過 architectural modifications 注入 3D priors，卻帶來高計算成本與 scalability 限制。接著作者提出 World-R1，主張用 RL 將 video generation 與 3D constraints 對齊，並列出三項具體做法：(1) 建立一個專為 world simulation 量身打造的 pure text dataset；(2) 使用 Flow-GRPO，並以 pre-trained 3D foundation models 與 VLMs 提供 reward feedback 來強制 structural coherence，且不更動 underlying architecture；(3) 採用 periodic decoupled training strategy，平衡 rigid geometric consistency 與 dynamic scene fluidity。最後 Abstract 以實驗結論收尾，宣稱該方法在 3D consistency 上有顯著提升，同時保留原始 visual quality，等於在不犧牲生成品質的前提下，把 video generator 推向 scalable world simulator。這段為全文設定了「不改架構、不靠 3D 資料、用 RL 對齊」這條主軸，後續每節皆為此主張提供論據。
+
+### 3.2 Introduction
+
+(560 words)
+
+Introduction 沿著「目標 → 現況限制 → 既有解的瓶頸 → 新洞見 → 我們的方案 → 實驗證據 → contributions」的弧線推進。開頭把 visual generation 的研究範式從「content creation」拉到更宏大的「world generation」，把 video foundation models 定位為通往 general-purpose world models 的前驅，並列舉 autonomous driving、robotics、immersive content 等應用，建立讀者對 world modeling 重要性的共識。隨即指出反差：這些模型本質仍是 image-space generation，缺乏 3D geometry 的內在理解，在大幅 camera movement 或 long-horizon driving scenes 中容易出現 geometric hallucinations 與 temporal inconsistencies，物件可能 morph、vanish、distort，揭露其只是學到 surface-level correlations。這一段把問題從「品質不夠好」精確化為「缺少 3D 一致性」，為後續方法選擇限定了 evaluation 維度。接著作者掃過既有解：[7–14] 嘗試把 video generation 與 3D representations 連起來，但多數做法在 inference 時 inject 3D priors 或加 3D module，造成 prohibitive inference cost、限制 generation precision 與 generalization scope。這段定下了作者要超越的對手——「重架構、重推論」的 3D-aware 路線。論文接著提出關鍵洞見：援引 [15] 指出 video foundation models 已 inherently encode rich 3D geometric information，因此真正的路徑應是 elicit 既有的 latent knowledge，而非堆 data 或加硬約束。基於此，World-R1 被引入為一個 RL 框架，三個賣點：不需 expensive 3D assets for supervised training、不更動 model architecture、不更動 inference process。隨後作者展開 reward 設計的直覺：以 analysis-by-synthesis 為核心，用 pre-trained 3D foundation models [17–19] 強制 rigid geometric fidelity（reconstruction、trajectory alignment），同時用 VLMs [20–23] 作為 semantic critic 評估 meta-views 的合理性；camera control 採 implicit camera conditioning 把 trajectory priors 嵌入 latent noise；資料端用 synthetic pure text dataset 來 dissociate physical learning 與 visual bias；訓練端則用 periodic decoupled training 防止 strict 3D constraints 抑制 non-rigid dynamics；最後以 Flow-GRPO [24] 驅動整體 alignment。這部分把後續整篇方法章節的所有元件提前預告，方便讀者在 §4 對號入座。最後作者給出量化證據：3D consistency 上分別有 10.23dB 與 7.91dB 的 PSNR 提升，且 general video benchmarks 表現仍佳，並提到 appendix 提供 reconstruction-independent MVCS、dataset scaling、long-video evaluation、scene-complexity breakdowns、與 3D-aware 方法的對比，強化 robustness。最後條列四項 contributions：RL alignment paradigm、整合 3D foundation models 與 VLMs 的 reward 系統、pure text dataset、實驗驗證 world-modeling 能力提升。整段把問題、洞見、方案、證據壓進一個首尾呼應的論證鏈，為 §2 的 related work 與 §3 的 preliminaries 鋪好對照基礎。
+
+### 3.3 Related Work / Preliminaries
+
+(880 words)
+
+§2 Related Works 與 §3 Preliminaries 一起承擔「定位差異」與「鋪設工具」兩個任務。Related Works 分三條支線。第一條 Controllable Video Generation 先簡述從 U-Net diffusion 到 DiT 架構的轉變，指出近期 [1–3] 在 internet-scale 上展現高 fidelity，但 precise camera control 仍是難題；既有 [25–33] 訓練 auxiliary control modules 注入 explicit camera pose，缺點是只關心 trajectory adherence、需要 extra inputs，且不保證 3D geometric consistency，遇到複雜 camera 運動仍會 distort。作者於是聲明採用 Go-With-The-Flow [34] 的 module-free 路線，不引入額外 architectural components，改以 post-training optimization 提升 instruction following 與 3D consistency。這段把 World-R1 與 camera-control 系列方法在「是否加模組」這條軸上明確區隔。第二條 3D-Aware Video Generation 處理更直接的對手：[8, 9, 12, 35, 36] 把顯式 3D representations 整進 generation pipeline，Fantasyworld [37] 則以 multi-task learning 把 3D decoder 接在 video encoder 後生成 pointmaps；這些方法的痛點是 architectural modification、推論延遲高、且通常依賴 static 3D-aware datasets [38, 39]，限制 diversity 與 dynamic adaptability，還只能處理 I2V。World-R1 自我定位為三項對立：不改架構、可處理 T2V、用 RL 而非 external modules 來 elicit latent spatial awareness，因而不需 3D guided inference。第三條 Visual Reinforcement Learning 從 PPO [40] 在視覺資料上的計算瓶頸切入，介紹 GRPO [41] 透過去掉 critic network 提升效率，再到 Flow-GRPO [24] 將 GRPO 移植到 flow-matching 模型，並有 Flow-GRPO-Fast 透過在 ODE trajectory 隨機切到 SDE 來加速訓練。作者明示自己是 extend 此框架到 3D consistent video generation，藉設計專屬 reward 來懲罰 geometric inconsistencies。三條支線串成一條 narrative：作者選擇 RL 不只是手法偏好，而是因為架構派與資料派各有結構性瓶頸，RL 是繞過這些瓶頸的自然解。
+
+§3 Preliminaries 則為 §4 的 method 提前裝上工具箱，重點介紹 Flow-GRPO 兩塊技術。其一是 Stochastic Sampling via SDE：標準 flow matching 用 deterministic ODE solver，但 RL 需要 stochasticity 來做 exploration 與 advantage estimation，因此 Flow-GRPO 把 ODE 重寫為 reverse-time SDE（Eq. 1），並 discretize 成 Eq. 2 的 stochastic update rule，作為 policy $\pi_\theta$。這把「flow matching → RL-compatible policy」的橋接清楚交代，為後續 implicit camera conditioning（在 noise 上做手腳）給出可行性背景。其二是 GRPO 本體：把 denoising 視為 MDP，sample 一組 $G$ 條 trajectories，用 group statistics 對 reward 做 normalization 得到 advantage（Eq. 3），再以 PPO-style clipped surrogate 加 KL 約束（Eq. 4）優化模型；同時 Flow-GRPO 採 denoise reduction，訓練時用較少 timesteps 加速 convergence 而不犧牲 inference 品質。這節並未提出新方法，但精準鋪好兩件事：reward 是怎麼被消化的（GRPO 公式）、policy 在哪一層可以被注入 prior（SDE 化的 noise update）。這正是 §4 中 reward design 與 noise wrapping 兩大模組的數學依據，使讀者進入 §4 時已具備所有必要的形式語言。整體來看，§2 完成「為何要走這條路」，§3 完成「沿這條路要用什麼工具」，二者合力為方法章節提供 motivation 與 mathematical foothold。
+
+### 3.4 Method (overview narrative)
+
+(380 words)
+
+§4 Methodology 採「overview → 條件化 → 獎勵 → 資料 → 訓練策略」的順序，把整個 World-R1 框架展開為四個彼此正交的設計決定。§4.1 Overview 重申方法定位：在 pre-trained Wan 2.1 backbone 上注入 world-modeling 能力，刻意避開 explicit architectural modifications 與 specialized 3D-aware datasets，依靠 noise manipulation 與 RL，呼應 §1 的 contributions。§4.2 Camera Conditioning 解釋如何在不訓練 auxiliary network 的前提下做 camera control：受 [27, 32] 對比啟發，採 Go-with-the-Flow [34] 的 parameter-free implicit conditioning，把 camera motion priors 直接嵌進 latent initialization；流程分三步——Prompt-Driven Trajectory Generation 透過 keyword detection $\phi(c)$ 偵測 motion tokens 並以 $E_t = E_{t-1} \cdot T_{\text{action}}(t)$ 遞迴產生 extrinsics 序列；Trajectory-to-Flow Projection 以 pinhole + fronto-parallel plane 假設導出 planar homography（Eq. 6），把 3D trajectory 映射為 2D dense optical flow；Discrete Noise Transport 採 [34] 的 mass transport，透過 density tracker 與 normalization（Eq. 7）保持 noise 的 unit variance 與 standard Normal 性質。§4.3 Reward Design 將 reward 寫成 $R = R_{3D} + \lambda_{\text{gen}} R_{\text{gen}}$（Eq. 8）。其中 3D-aware reward $R_{3D} = S_{\text{meta}} + S_{\text{recon}} + S_{\text{traj}}$（Eq. 9）採 analysis-by-synthesis：用 Depth Anything 3 [17] 把 video 抬升為 3DGS 表示 $\Phi_{GS}$ 並估出 $\hat{E}$，$S_{\text{meta}}$ 由 novel meta-view 渲染後交給 Qwen3-VL [20] 做 semantic critique，$S_{\text{recon}}$ 用 $1 - \text{LPIPS}$ 衡量 re-render 的 pixel-level fidelity，$S_{\text{traj}}$ 比較 $E$ 與 $\hat{E}$ 的偏差以評估 control accuracy；general reward $R_{\text{gen}}$ 取首 $K$ frames 的 HPSv3 [43] 平均（Eq. 10），保證 perceptual quality。§4.4 Dataset Preparation 闡述為何採 Pure Text Dataset：open-domain video datasets 受限於解析度與 text-video alignment 雜訊，作者改用 Gemini [44, 45] 合成約 3,000 條 prompts，並依 control complexity 分為 implicit motion、single directional、composite trajectories 三層次，讓 3D 學習與 video distribution 解耦。§4.5 Training Strategy 解釋 periodic decoupled training：每 100 steps 後以約 500 條 dynamic prompts 進入 dynamic fine-tuning phase，暫停 $R_{3D}$、僅以 $R_{\text{gen}}$ 優化，作為 regularizer 防止 strict 3D constraints 抑制 non-rigid dynamics。整節的設計重心並非任一單元的精巧度，而是讓 conditioning、reward、data、training 四件事彼此分工而不衝突，共同支撐 RL alignment 而不動架構的核心主張。
+
+### 3.5 Experiments (overview narrative)
+
+(360 words)
+
+§5 Experiments 採「設定 → SoTA 對比 → ablation」三段式，並用 quantitative、qualitative、user study 三條證據線同時佐證 §4 的設計。§5.1 Experimental Settings 鎖定基線為 Wan 2.1 1.3B 與 14B，分別微調出 World-R1-Small（48× H200）與 World-R1-Large（96× H200），影片解析度 832×480，採 Flow-GRPO-Fast、48 parallel groups、group size 8。Evaluation 採 dual-pronged 設計：一條是 reconstruction-based 的幾何指標，用 3DGS [46, 47] 重建場景並沿 prompt 指定的 trajectory 重渲染，再以 PSNR、SSIM、LPIPS 比對原始 video，量化 geometric hallucinations 是否被壓制；為避免過度依賴 reconstruction pipeline，另在附錄 D 增補 reconstruction-independent MVCS。general quality 則用 VBench [49] 子指標 Aesthetic Quality、Imaging Quality、Motion Smoothness、Subject/Background Consistency。這個雙指標設計呼應 §1 的核心承諾——同時提升 3D consistency 與保留生成品質。§5.2 SoTA Comparisons 以 Wan 2.1、CogVideoX 為 foundation baselines，並引入 CameraCtrl [27]、ReCamMaster [32] 等 explicit auxiliary control 方法作為對照。Quantitative 結果（Table 2）顯示 World-R1 在 3D consistency 上分別取得 10.23dB、7.91dB 的 PSNR 增益並同步改善 SSIM、LPIPS；VBench（Table 1）顯示其超過原始 Wan 2.1，並在 Aesthetic、Imaging、Subject Consistency 上明顯勝過顯式 camera 控制方法，駁斥「強約束必降品質」的疑慮。Qualitative 結果（Figure 3）以 baseline 在大幅 camera 移動下出現物件消失、牆面變形等失敗模式，對比 World-R1 維持 strict object permanence 與 rigid geometry，且 3DGS 點雲明顯更密集結構化。User Study 找來 25 位參與者、30 條複雜 prompts，按 Geometric Consistency、Camera Control Accuracy、Overall Visual Quality 三維度盲評，World-R1 分別取得 92%、76%、86% 的 win rate。§5.3 Ablation 在 World-R1-Small 上以 Figure 4 的 reward 曲線拆解四元件：$R_{3D}$ 是 geometric consistency 的關鍵；$R_{\text{gen}}$ 防止 aesthetic degradation；移除 noise wrapping 會明顯拖慢 convergence 且 trajectory 對齊變差；缺少 periodic decoupled training 會使模型 overfit 至 static rigidity、抑制 non-rigid dynamics。三條證據鏈彼此交叉支援，把 §4 的每個設計選擇都對應到一個可量化的失敗模式，為 §6 的結論章節鋪好實證底氣。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(310 words)
+
+§6 Conclusion 將全文重新壓縮為一條主張：World-R1 是一個 scalable paradigm，把 video generation 與 3D geometry 的 alignment 重新表述為 RL 問題，因而能在不依賴 explicit 3D architectural modules 與 expensive supervised datasets 的條件下，elicit pre-trained models 中既有的 latent spatial awareness。作者總結三項技術支柱與其作用：以 multi-view consistency 與 semantic coherence 為基礎、由 Flow-GRPO 驅動的 composite reward 系統，確保 physical validity 同時維持 visual fidelity；implicit camera conditioning 提供 precise trajectory control；periodic training strategy 則在不犧牲 dynamic non-rigid content 的前提下達成上述目標。其貢獻的實質意義被定位為「把 video generators 轉化為 geometrically consistent simulators」，並前瞻 autonomous driving simulation 與 physical world modeling 等下游應用。Limitations and Future Work 段交代兩個誠實的不足。第一是 RL 對 video generation 的計算成本仍是顯著瓶頸：相較 supervised fine-tuning，online RL 需要反覆 video rollouts 與 reward evaluation，使訓練比一般 post-training pipeline 昂貴；對應的 future work 是設計更有效率的 rollout 策略、更低成本的 reward evaluation，以及更穩定的 video RL 優化方法。第二是 World-R1 建立在既有 video foundation models 之上，因此其能力上界受限於 base model 的 generative capacity，dense multi-object composition、fine-grained non-rigid motion、detailed hand dynamics、very long-horizon scene evolution 等困難情境仍可能繼承底層 artifact；作者對此提出 optimistic 立場——隨著更強 video foundation models 出現，本框架可直接受益於它們在 scene understanding 與 motion generation 上的進步。Impact Statement 雖技術上獨立成段，但其敘事仍延續 §6 的視角：方法能提升 video 在 physical world modeling 與 autonomous driving simulation 上的 reliability，倫理風險與既有 high-fidelity video generation 一致，並透過 fast training 與 text-based dataset 提供 carbon footprint 較低的替代方案。整體 §6 把全文從「我們做了什麼」收束到「為何重要、未來怎麼走」，把單一論文嵌入更長的 video-as-world-model 研究弧線。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 在 Wan 2.1 backbone 上以純 post-training 注入 3D 一致性,完全不修改架構亦不引入額外推論模組,作者強調這是與 Fantasyworld 等 architectural-modification 路線的核心區別 (page 4, §2; page 5, §4.1)。
+- 在自建測試集上,World-R1-Small 將 PSNR 從 Wan2.1-T2V-1.3B 的 17.40 提升至 27.63 (+10.23 dB),World-R1-Large 從 19.76 提升至 27.67 (+7.91 dB),SSIM 同步達到 0.858 / 0.865 (Table 2, page 9)。
+- VBench 上 World-R1-Small 的 Aesthetic Quality 65.74、Imaging Quality 67.53 均超越 base 模型 Wan2.1-T2V-1.3B 與所有 camera-control baseline (Table 1, page 9)。
+- 引入由 meta-view ($S_{\text{meta}}$, Qwen3-VL 0-9 評分)、重建保真度 ($S_{\text{recon}}=1-\text{LPIPS}$) 與軌跡對齊 ($S_{\text{traj}}$, 平移 $L_2$ + 旋轉 geodesic) 三項組成的 3D-aware reward,搭配 HPSv3 frame-level 美感獎勵 (page 6-7, §4.3; Appendix A.1)。
+- 採 Go-with-the-Flow 啟發的 noise wrapping 將相機軌跡以 implicit 方式注入 latent 初始化,免除可訓練 camera encoder (Eq. 5-7, page 5-6)。
+- 提出 periodic decoupled training:每 100 步切換至僅含 ~500 動態場景 prompt 的子集並暫時關閉 $R_{3D}$,僅以 $R_{\text{gen}}$ 監督,以避免剛體獎勵壓抑非剛體動態 (page 7, §4.5; Appendix A.2)。
+- 自製 ~3,000 條 pure text dataset,以 Gemini 依「scene-camera matching」原則合成,並依 WorldScore taxonomy 區分 intra/inter/static/composite 軌跡 (page 7, §4.4; Appendix B)。
+- Blind user study (25 受試者、30 prompt) 中 World-R1 在 Geometric Consistency 取得 92%、Camera Control Accuracy 76%、Overall 86% 的勝率 (page 10, §5.2)。
+- 訓練資源透明披露:World-R1-Small 使用 48 張 H200、Large 使用 96 張 H200,均在 832×480 解析度上以 Flow-GRPO-Fast、group size G=8、48 parallel groups 下訓練 (page 8, §5.1; Appendix A.2)。
+- Ablation (Figure 4, page 10) 同時顯示 noise wrapping、$R_{3D}$、$R_{\text{gen}}$、periodic decoupled training 四項各自於兩條 reward 曲線上皆可被消融驗證。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- Online RL 的 video rollout 與 reward evaluation 成本顯著高於 supervised post-training,作者明列為 future work 的主要瓶頸 (page 11, "Limitations and Future Work")。
+- World-R1 受限於 base foundation model 容量,在 dense multi-object composition、fine-grained non-rigid motion、手部動態與超長 horizon 場景仍會繼承 Wan 2.1 的 artifact (page 11)。
+
+#### 4.2.2 Phyra-inferred
+
+- **獎勵-評估管線循環性**:主表 Table 2 的 PSNR/SSIM/LPIPS 是以 Depth Anything 3 + 3DGS 重建後重新 render 計算,而訓練時的 $R_{3D}$ 同樣由 Depth Anything 3 + 3DGS 推導,$+10.23$ dB 的提升至少有一部份是 reward overfitting 而非 3D 能力本身 (page 6 §4.3 vs page 8 §5.1 Evaluation Metrics);作者提到 reconstruction-independent MVCS 但僅放在 Appendix D。
+- **PSNR 增益相對於更強 base model 大幅縮水**:Wan2.2-T2V-14B 在無任何 3D 微調下 PSNR 已達 23.47,World-R1-Large (基於 Wan2.1-T2V-14B) 的 27.67 僅領先 Wan2.2 約 4.20 dB,但作者一律以 Wan2.1 基線報告 +7.91 dB (Table 2, page 9)。
+- **Smeta 是離散 0-9 整數除以 10 的 VLM 分數**,reward 訊號粒度僅 0.1 量級,且 Qwen3-VL 對 pointmap 圖像的判讀並未做相關性校驗 (Appendix A.1, page 17)。
+- **相機軌跡完全依賴 keyword detection $\phi(c)$ 與固定 parametric $T_{\text{action}}$**,所有測試樣本都是 11 個 token (push_in、orbit_left 等) 的組合,框架無法處理 free-form 6-DoF 軌跡 (Eq. 5, page 5; Appendix B.1)。
+- **Noise warping 的單一參考深度 fronto-parallel plane 假設 (Eq. 6) 在大視差或近景場景會給出錯誤光流**,但被當作 implicit motion prior 注入 latent;作者未討論此近似在何種情況失效。
+- **VBench Background Consistency 從 Wan2.1-T2V-1.3B 的 97.29 退步至 World-R1-Small 的 96.67**,而 Subject Consistency 上升,顯示獎勵設計可能在背景幾何一致性上有 trade-off,但作者未討論 (Table 1, page 9)。
+- **與 3D-aware 生成方法 (Fantasyworld、Voyager、Geometry Forcing、GeoVideo 等) 的同 protocol 直接比較被推遲到 Appendix D**,主表的 3D 比較僅含 base T2V 模型,無法在主文證實其優於同類路線。
+- **沒有 reward-weight 敏感度分析**:$\lambda_{\text{gen}}=1$ 且 $S_{\text{meta}}, S_{\text{recon}}, S_{\text{traj}}$ 三項皆等權直接相加 (Eq. 8-9),未呈現權重 sweep。
+- **User study 規模有限** (n=25, 30 prompts) 且未報告 inter-rater agreement、prompt 平衡、duration、是否雙盲,86% 偏好率的可信區間並未量化 (page 10)。
+- **Periodic decoupled training 的「dynamic 保留」效果僅以 reward 曲線與少量 qualitative example 佐證**,沒有針對動態場景的量化指標 (例如 motion magnitude、optical-flow consistency、VBench Dynamic Degree),Figure 4 的曲線只反映 reward 而非動態品質。
+
+### 4.3 Phyra's Judgment (summary)
+
+真正具新意的貢獻是「將 3D consistency 視為 RL 對齊問題,以 analysis-by-synthesis reward 取代架構改造」這個論證鏈條,以及將 Flow-GRPO-Fast 套用於 video diffusion 並結合 implicit camera conditioning 的具體工程實作。但主結果的 +10.23 dB / +7.91 dB 大量依賴與訓練 reward 共用 Depth Anything 3 + 3DGS 管線的評估指標,核心未解的問題是「在 reconstruction-independent 度量、更強 base model (如 Wan 2.2)、與其他 3D-aware 路線的同 protocol 比較」這三個壓力測試下,該獎勵真正獲得了多少非循環的幾何能力。Periodic decoupled training 與 noise wrapping 屬於合理但漸進的工程決策,並非新觀念。整體而言這是一份 well-engineered 的 RL alignment paper,值得追蹤,但目前公開的證據仍不足以支撐「世界模擬器」級別的宣稱。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+World-R1 通過強化學習 (Flow-GRPO-Fast) 對預訓練的 video foundation model (Wan 2.1) 進行後訓練,在不修改架構、不依賴 3D 標註資料、且不引入推論時硬約束的前提下,將 3D 一致性與相機可控性注入既有影片生成器。整個 pipeline 由三個邏輯區塊組成:(1) 左側的 implicit camera conditioning,將純文字 prompt 中的鏡頭關鍵詞解析為相機外部矩陣序列,並透過 noise wrapping 將鏡頭運動先驗嵌入初始 latent noise;(2) 中央的 policy rollout,Wan 2.1 DiT 以加噪後的 latent 為起點,經 SDE 採樣產生 G 條候選影片軌跡;(3) 右側的 analysis-by-synthesis reward system,使用 Depth Anything 3 將候選影片 lift 至 3D Gaussian Splatting,再以 meta-view rendering、reconstruction fidelity、trajectory alignment 三項度量幾何品質,並輔以 HPSv3 評估視覺美學品質。
+
+關鍵設計上,作者刻意避免引入任何可訓練的相機編碼模組,而採用 Go-with-the-Flow 的 parameter-free noise warping:先依據 prompt 關鍵詞合成軌跡 $E = \{E_t\}_{t=0}^{N}$,再透過 pinhole 相機模型加上 fronto-parallel plane 假設,將 3D 軌跡投影為 2D dense optical flow,最後以 mass transport 機制將 flow 轉換為對 latent noise 的 discrete warping,既保留 standard Normal distribution,又將相機運動結構性注入初始噪聲。如此一來,鏡頭可控性即由初始噪聲分佈直接驅動,無須額外的 cross-attention 或 adapter,生成多樣性也不會被推論時硬約束壓抑。
+
+獎勵設計上 $R = R_{3D} + \lambda_{gen} R_{gen}$,其中 $R_{3D} = S_{meta} + S_{recon} + S_{traj}$ 從幾何完整性、外觀一致性、控制精度三個層面評估生成影片是否符合剛體幾何約束。為避免剛體獎勵過度壓抑非剛體動態 (例如人物動作、流體變形),作者另引入 periodic decoupled training:每 100 個訓練步後切換至 dynamic 子集,僅以 $R_{gen}$ 進行優化,作為 regularizer 保留動態流暢度。最終以 Flow-GRPO-Fast 的 critic-free GRPO 目標函數,加上 KL 約束防止 policy 偏離預訓練 reference,完成端到端的後訓練。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input: c (text prompt, string)
+   │
+   ├→ [1] Trajectory Generator (φ keyword detect + Eq. 5)
+   │     out: E ∈ [N+1, 4, 4]   (camera extrinsics, E_0 = I_{4×4})
+   │
+   ├→ [2a] Trajectory-to-Flow (Eq. 6, planar homography w/ K, z_ref)
+   │     out: f ∈ [N, H=?, W=?, 2]   (forward dense flow per frame pair)
+   │
+   ├→ [2b] Discrete Noise Transport (Eq. 7, density-normalized aggregation)
+   │     out: z ∈ [N+1, C_lat=?, H_lat=?, W_lat=?]
+   │          (warped latent noise, unit-variance Normal preserved)
+   │
+   ├→ [3] Wan 2.1 DiT — Flow-GRPO-Fast SDE rollout (Eq. 2)
+   │     batched as B=48 prompts × G=8 trajectories per group
+   │     out: x ∈ [B·G, F=N+1, 3, H_img=480, W_img=832]
+   │
+   ├→ [4] Depth Anything 3 (frozen 3D foundation model)
+   │     out: Φ_GS ∈ [N_gauss=?, 14]   (μ:3, s:3, q:4, α:1, c:3 per Gaussian)
+   │          Ê    ∈ [N+1, 4, 4]       (re-estimated camera trajectory)
+   │
+   ├→ [5] Composite Reward (Eqs. 8–10, all rewards are scalars)
+   │     S_meta  = Qwen3-VL ( render(Φ_GS, novel-view) )
+   │     S_recon = 1 − LPIPS( x , render(Φ_GS, E) )
+   │     S_traj  = align( E , Ê )
+   │     R_gen   = (1/K) Σ_{t<K} HPSv3(x_t)
+   │     out: R(x, c) = (S_meta + S_recon + S_traj) + λ_gen · R_gen
+   │          R(x, c) ∈ [B·G]
+   │
+   ├→ [6] Group Advantage Normalization (Eq. 3)
+   │     mean-std normalize within each B-group of G samples
+   │     out: Â^i_t ∈ [B·G]
+   │
+   └→ [7] Flow-GRPO-Fast Policy Update (Eq. 4) with β · D_KL(π_θ ‖ π_ref)
+         out: updated θ (Wan 2.1 1.3B or 14B parameters)
+
+Periodic Decoupled Loop: every 100 training steps, disable R_3D and
+optimize only on the ≈500 dynamic-scene prompt subset using R_gen,
+then resume full-reward training.
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Trajectory Generator (Camera Conditioning)
+
+**Function:** 將文字 prompt 中的鏡頭關鍵詞 (例如 "push in", "orbit left") 解析為對應的相機外部矩陣序列 $E$,作為 noise wrapping 與 trajectory alignment reward 的共用條件輸入。
+
+**Input:**
+- Name: c
+- Shape: string (text prompt)
+- Source: Pure Text Dataset (§4.4)
+
+**Output:**
+- Name: E
+- Shape: $[N+1, 4, 4]$
+- Consumer: Trajectory-to-Flow Projection (§5.3.2);Trajectory Alignment Reward (§5.3.5)
+
+**Processing:**
+
+定義關鍵詞偵測函式 $\phi(c)$,掃描預定義的運動 token 集合 $K = \{\text{push in, pan left, orbit left}, \dots\}$。檢測到 token 後,以參數化生成器實例化軌跡:設定 $E_0 = I_{4 \times 4}$ 為標準起始位姿,後續位姿透過遞迴複合對應運動類型的轉換矩陣 $T_{\text{action}}(t)$ 得到 (Eq. 5)。當 prompt 含多個鏡頭指令時,將各段軌跡串接形成最終軌跡。
+
+**Key Formulas:**
+
+$$
+E_t = E_{t-1} \cdot T_{\text{action}}(t)
+$$
+
+**Implementation Details:**
+
+論文未明確列出所有支援的鏡頭關鍵詞、軌跡長度 $N$、以及每種運動類型對應的 $T_{\text{action}}$ 解析形式 (the paper does not specify)。資料集另將 prompt 分為 implicit motion、single directional command、複合軌跡三種難度等級。
+
+#### 5.3.2 Discrete Noise Transport (Noise Wrapping)
+
+**Function:** 將 3D 相機軌跡先轉成 2D dense optical flow,再以 mass transport 方式 warp 初始 latent noise,使其在保持 standard Normal 分佈的前提下,內隱地攜帶鏡頭運動結構,作為 implicit camera conditioning 的核心。
+
+**Input:**
+- Name: $E$;基底高斯噪聲 $z_0 \sim \mathcal{N}(0, I)$
+- Shape: $E \in [N+1, 4, 4]$;$z_0 \in [C_{lat}, H_{lat}, W_{lat}]$
+- Source: §5.3.1
+
+**Output:**
+- Name: z
+- Shape: $[N+1, C_{lat}, H_{lat}, W_{lat}]$
+- Consumer: Wan 2.1 DiT Policy Rollout (§5.3.3)
+
+**Processing:**
+
+採用 pinhole 相機模型並近似場景幾何為深度 $z_{ref}$ 的 fronto-parallel plane。對於 frame $t$ 中的像素 $u \in \mathbb{R}^2$,經由相對剛體變換 $(R_{rel}, t_{rel}) = E_{t+1} E_t^{-1}$ 與內參 $K$ 誘導的 planar homography (Eq. 6) 計算對應像素 $u'$,得到前向光流 $f(u) = u' - u$。直接以連續 flow warp 噪聲會在重疊區域造成方差崩塌、在 disocclusion 區域出現缺值,違反 diffusion model 對 standard Normal 的要求,因此採用 Go-with-the-Flow 的離散傳輸機制:對於 source pixel $v \to v'$ 的離散對應,以 density tracker $\rho(v')$ 紀錄被映射至 $v'$ 的源像素數量,聚合後以 $\sqrt{\rho(v')}$ 正規化以保持單位方差 (Eq. 7)。
+
+**Key Formulas:**
+
+$$
+u' \sim K \left( R_{rel} + \frac{1}{z_{ref}} t_{rel} n^{\top} \right) K^{-1} u
+$$
+
+$$
+z_{t+1}(v') = \frac{1}{\sqrt{\rho(v')}} \sum_{v \to v'} z_t(v)
+$$
+
+**Implementation Details:**
+
+$n = [0, 0, 1]^{\top}$ 為影像平面法向量。$z_{ref}$ 與內參 $K$ 的具體取值 the paper does not specify。Latent 空間維度 $C_{lat}, H_{lat}, W_{lat}$ 沿用 Wan 2.1 既有 VAE,論文未給出具體數字;flow field 究竟在 image resolution ($480 \times 832$) 還是 latent resolution 上計算,主文亦未明確說明,本筆記以 `?` 標記。
+
+#### 5.3.3 Video Foundation Model Policy Rollout
+
+**Function:** 以加噪後的 latent 為起點,使用 Wan 2.1 DiT backbone 透過 reverse-time SDE 採樣產生候選影片,作為 Flow-GRPO 的 policy rollout。
+
+**Input:**
+- Name: z
+- Shape: $[N+1, C_{lat}, H_{lat}, W_{lat}]$
+- Source: §5.3.2
+
+**Output:**
+- Name: x
+- Shape: $[B \cdot G, F, 3, 480, 832]$,其中 $B=48$、$G=8$、$F = N+1$
+- Consumer: 3D Foundation Model Lifting (§5.3.4);General Generation Reward (§5.3.5)
+
+**Processing:**
+
+對每個 prompt 採樣 $G=8$ 條軌跡,$B=48$ 個 prompt 以 parallel group 方式同時 rollout,共 $384$ 個候選影片。將 deterministic flow ODE $dx_t = v_t \, dt$ 改寫為 reverse-time SDE (Eq. 1),離散化後得到 stochastic update rule (Eq. 2),其中 $\sigma_t$ 控制噪聲強度,$\epsilon \sim \mathcal{N}(0, I)$。Flow-GRPO-Fast 進一步在 deterministic ODE 軌跡的隨機中間步驟注入噪聲並切換為 SDE 採樣,以加速訓練。
+
+**Key Formulas:**
+
+$$
+x_{t + \Delta t} = x_t + \left[ v_\theta(x_t, t) + \frac{\sigma_t^2}{2t} \big( x_t + (1-t) v_\theta(x_t, t) \big) \right] \Delta t + \sigma_t \sqrt{\Delta t} \, \epsilon
+$$
+
+**Implementation Details:**
+
+訓練解析度 $832 \times 480$。Wan 2.1 1.3B 變體使用 48 張 NVIDIA H200 GPU,14B 變體使用 96 張。論文採用 denoise reduction 策略,訓練時使用較少 timestep 加速收斂,但訓練 step 與 inference step 的具體數量未列出 (the paper does not specify)。Frame 數 $F$ 在訓練設定中未明示,評估章節提及 121-frame long-video 評估。
+
+#### 5.3.4 3D Foundation Model Lifting
+
+**Function:** 將生成的候選影片 lift 至 3D Gaussian Splatting 表徵,並重新估計相機軌跡,作為 analysis-by-synthesis 的物理基準,供下游三項 3D-aware reward 使用。
+
+**Input:**
+- Name: x
+- Shape: $[B \cdot G, F, 3, 480, 832]$
+- Source: §5.3.3
+
+**Output:**
+- Name: $\Phi_{GS}, \hat{E}$
+- Shape: $\Phi_{GS} \in [N_{gauss}=?, 14]$ (per-sample,可變 Gaussian 數量);$\hat{E} \in [N+1, 4, 4]$
+- Consumer: Composite Reward Computation (§5.3.5)
+
+**Processing:**
+
+使用 Depth Anything 3 (DA3) 作為凍結的 3D foundation model,直接從候選影片重建 3D Gaussian Splatting 場景表徵 $\Phi_{GS}$,同時估計輸入影片對應的相機軌跡 $\hat{E}$。$\Phi_{GS}$ 中每個 Gaussian 由位置 $\mu \in \mathbb{R}^3$、尺度 $s \in \mathbb{R}^3$、旋轉四元數 $q \in \mathbb{R}^4$、不透明度 $\alpha \in \mathbb{R}$、顏色 $c \in \mathbb{R}^3$ 組成,共 14 維屬性。lifting 過程逐 candidate 進行,因此每個 rollout 樣本各自擁有獨立的 $\Phi_{GS}$ 與 $\hat{E}$。
+
+**Key Formulas:**
+
+$(\Phi_{GS}, \hat{E}) = \mathrm{DA3}(x)$ (DA3 為論文 ref [17] 之凍結模型,paper 未提供內部解析式)。
+
+**Implementation Details:**
+
+DA3 以凍結權重作為 reward provider,本身不接收梯度更新。$N_{gauss}$ 隨場景複雜度動態變化,論文未給定上限或平均值 (the paper does not specify)。對於品質太差以致無法重建的影片,論文未敘述具體 fallback 機制。
+
+#### 5.3.5 Composite Reward Computation
+
+**Function:** 結合 3D-aware reward 與 general generation reward,以 analysis-by-synthesis 的方式對候選影片計算純量總獎勵,作為 policy gradient 的訊號來源。
+
+**Input:**
+- Name: $x, E, \Phi_{GS}, \hat{E}, c$
+- Shape: 影片 $[B \cdot G, F, 3, 480, 832]$;相機軌跡 $[N+1, 4, 4]$;3DGS 表徵 (variable);prompt $c$
+- Source: §5.3.1, §5.3.3, §5.3.4
+
+**Output:**
+- Name: $R(x, c)$
+- Shape: $[B \cdot G]$ (per-trajectory scalar reward)
+- Consumer: Group Advantage Normalization (§5.3.6)
+
+**Processing:**
+
+3D-aware reward $R_{3D}$ 由三項相加組成 (Eq. 9):
+- $S_{meta}$:從 novel meta-view 渲染 $\Phi_{GS}$,以 Qwen3-VL 評估 text fidelity 與 structural reliability,專門懲罰在 canonical view 中被遮擋但反映幾何缺陷的 artifact。
+- $S_{recon}$:將 $\Phi_{GS}$ 沿原 trajectory $E$ 重新渲染,與 $x$ 比對,以 negated perceptual distance $1 - \mathrm{LPIPS}$ 度量像素級保真度。
+- $S_{traj}$:計算 prompt 指定的 $E$ 與 DA3 預測的 $\hat{E}$ 之間的偏差,確保鏡頭運動精準遵循指令。
+
+General reward $R_{gen}$ 取前 $K$ 幀的 HPSv3 美學分數平均 (Eq. 10),確保視覺品質與人類偏好對齊。最終以 $\lambda_{gen}$ 加權合併 (Eq. 8)。
+
+**Key Formulas:**
+
+$$
+R_{3D} = S_{meta} + S_{recon} + S_{traj}
+$$
+
+$$
+R_{gen}(x) = \frac{1}{K} \sum_{t=0}^{K-1} H(x_t)
+$$
+
+$$
+R(x, c) = R_{3D}(x, E, c) + \lambda_{gen} R_{gen}(x, c)
+$$
+
+**Implementation Details:**
+
+$\lambda_{gen}$ 為平衡超參數,具體數值 the paper does not specify (僅在附錄 A.1 提供更多 reward 細節,未在主文揭示)。$K$ (HPSv3 評估幀數)、meta-view 的選取規則、trajectory 偏差的距離度量形式皆未在主文中明列。Qwen3-VL、LPIPS、HPSv3 三個 critic 模型皆以 frozen 方式參與,僅作為 reward provider。
+
+#### 5.3.6 Flow-GRPO-Fast Policy Optimization
+
+**Function:** 以 critic-free 的 GRPO 目標,結合 group-normalized advantage 與 KL constraint,更新 Wan 2.1 DiT 的 policy 參數,將 3D 一致性訊號內化為生成行為。
+
+**Input:**
+- Name: $\{R(x^i, c)\}_{i=1}^{G}$ per group (共 $B$ 個 group)
+- Shape: $[B, G]$ rewards;對應 trajectories 與舊 policy 的 log-prob
+- Source: §5.3.5
+
+**Output:**
+- Name: 更新後的 $\theta$
+- Shape: 與 Wan 2.1 backbone 參數同形 (1.3B 或 14B)
+- Consumer: 下一輪 rollout (§5.3.3)
+
+**Processing:**
+
+對 group 內 $G=8$ 條軌跡的 reward 進行 mean-std 正規化得到 advantage $\hat{A}^i_t$ (Eq. 3)。最大化 GRPO 目標 (Eq. 4):由 PPO-style clipped surrogate $L_{clip}(r^i_t, \hat{A}^i_t)$ 加上 KL 散度懲罰項 $\beta D_{KL}(\pi_\theta \| \pi_{ref})$ 組成,其中 $r^i_t$ 為新舊 policy 的機率比。Flow-GRPO 的 denoise reduction 策略在訓練時使用更少 timestep 加速收斂,inference 時恢復完整步數以保品質。
+
+**Key Formulas:**
+
+$$
+\hat{A}^i_t = \frac{R(x^i_0, c) - \mathrm{mean}\!\big(\{R(x^i_0, c)\}_{i=1}^{G}\big)}{\mathrm{std}\!\big(\{R(x^i_0, c)\}_{i=1}^{G}\big)}
+$$
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{c, \{x^i\}} \left[ \frac{1}{T} \sum_{t=0}^{T-1} \Big( L_{clip}(r^i_t, \hat{A}^i_t) - \beta D_{KL}(\pi_\theta \| \pi_{ref}) \Big) \right]
+$$
+
+**Implementation Details:**
+
+KL 係數 $\beta$、clip range、學習率、optimizer、訓練 step 總數等具體值 the paper does not specify (僅 §A.2 附錄提及更多細節)。Group size $G=8$、parallel groups $B=48$ 為 §5.1 明確列出。Reference policy $\pi_{ref}$ 為原始 Wan 2.1 weights,確保 fine-tuning 不偏離預訓練分佈過遠。
+
+#### 5.3.7 Periodic Decoupled Training Strategy
+
+**Function:** 在強剛體幾何約束與動態場景多樣性之間取得平衡,避免 model 過度擬合靜態場景而壓抑非剛體運動 (例如人物動作、流體變形)。
+
+**Input:**
+- Name: training step counter $s$;dynamic-scene prompt subset (約 500 entries)
+- Shape: counter 為 scalar;subset 為文字 prompt 集合
+- Source: §4.4 dataset
+
+**Output:**
+- Name: 模式切換訊號 (full reward vs. dynamic-only)
+- Shape: boolean flag (per-step)
+- Consumer: Composite Reward Computation (§5.3.5);Policy Optimization (§5.3.6)
+
+**Processing:**
+
+Primary stage:以完整加權 reward $R = R_{3D} + \lambda_{gen} R_{gen}$ 訓練,強制執行 3D-aware capability。每 100 個 training step 後切換至 dynamic fine-tuning phase:暫時關閉 $R_{3D}$,僅以 dynamic 子集和 $R_{gen}$ 進行優化。此設計作為 regularizer,確保模型在學習 world simulation 的同時保留對複雜動態運動的泛化能力。
+
+**Key Formulas:**
+
+無新增公式;切換邏輯為:當 $s \bmod 100 = 0$ 時,於下一階段以 $R = R_{gen}$ 並僅取樣 dynamic 子集進行優化。
+
+**Implementation Details:**
+
+Dynamic 子集約 500 個 prompt,專門描述高動態場景。Decoupled phase 的持續長度、是否為固定一個 step 還是多個 step、以及切換頻率是否始終為 100 step,皆 the paper does not specify。§5.3 與附錄 §E 提供 ablation 與視覺化驗證此策略的必要性。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| Pure Text Dataset (本文自建,Gemini 合成) | T2V post-training prompts,涵蓋 Natural Landscapes、Urban & Architecture、Micro & Still Life、Fantasy & Surrealism、Artistic Styles 五大類 | 約 3,000 條 prompt(其中約 500 條為 Dynamic Data Subset) | Train(Flow-GRPO-Fast rollout 文本來源);其中 ~500 條動態 prompt 用於 periodic decoupled training 階段 |
+| Pure Text Dataset 測試切分 | 3D consistency 重建評測(PSNR/SSIM/LPIPS) | the paper does not specify(僅敘述「test set proposed in Section 4.4」) | Test(Table 2 的重建評測) |
+| VBench [49] | 通用 T2V 品質基準(Aesthetic、Imaging、Motion Smoothness、Subject/Background Consistency) | 標準化基準,規模沿用原始 benchmark | Test(Table 1) |
+| User Study Prompts | 主觀偏好評估(geometric consistency、camera control accuracy、overall quality) | 30 條複雜 prompt,25 名受試者 | Test(blind side-by-side) |
+
+備註:Stereo Magnification [38]、DL3DV-10K [39] 僅在 Related Works 中作為「先前 3D-aware 方法所依賴的靜態 3D 資料集」對比提及,本文實驗未使用。
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+|---|---|---|
+| PSNR | 將生成影片以 3DGS [46, 47] 重建後,沿輸入 prompt 指定軌跡 re-render,計算原影片與重建 re-render 之像素級保真度;高分代表幾何幻覺被抑制 | yes |
+| SSIM [48] | 同上 reconstruction-based pipeline 下的結構相似度 | yes |
+| LPIPS [42] | 同上 pipeline 下的感知距離(越低越好);亦作為 $S_\text{recon} = 1 - \text{LPIPS}$ 的訓練 reward 來源 | yes |
+| MVCS (Multi-View Consistency Score) | 不依賴重建 pipeline 的多視角一致性指標,於 Section D 補充報告以降低對重建管線的依賴 | no |
+| VBench Aesthetic Quality | 通用美學品質子指標 | no |
+| VBench Imaging Quality | 通用影像品質子指標 | no |
+| VBench Motion Smoothness | 動態流暢度 | no |
+| VBench Subject Consistency | 主體一致性 | no |
+| VBench Background Consistency | 背景一致性 | no |
+| User Study Win Rate | 25 位受試者於 30 條 prompt 上對 (1) Geometric Consistency、(2) Camera Control Accuracy、(3) Overall Visual Quality 三項的盲測偏好率 | no |
+
+主要主張(「significantly improve geometric consistency, achieving an improvement of 10.23dB and 7.91dB on PSNR」)直接掛在 PSNR 上,因此 PSNR 為 headline metric;SSIM 與 LPIPS 為同管線下的輔助指標,故一併標記為 Primary。
+
+### 6.3 Training and Inference Settings
+
+- Backbone:World-R1-Small 由 Wan2.1-T2V-1.3B 初始化,World-R1-Large 由 Wan2.1-T2V-14B 初始化(§5.1、§A.2)。
+- Hardware:World-R1-Small 使用 48 張 NVIDIA H200 GPU;World-R1-Large 使用 96 張 NVIDIA H200 GPU(§5.1、§A.2)。
+- Resolution:訓練解析度為 $832 \times 480$,在重建 rollout 品質與計算吞吐間取得平衡(§A.2)。
+- RL algorithm:Flow-GRPO-Fast [24],GRPO group size $G = 8$,共 48 個 parallel groups 進行 rollout 與 advantage 估計(§5.1、§A.2)。
+- Reward 設定:總 reward $R = R_{3D} + \lambda_\text{gen} R_\text{gen}$,其中 $\lambda_\text{gen} = 1$;$R_\text{gen} \in [-1, 1]$,$R_{3D} = S_\text{meta} + S_\text{recon} + S_\text{traj} \in [0, 3]$,各子項皆限定在 $[0, 1]$;$S_\text{meta}$ 由 Qwen3-VL [20] 給出 0–9 整數分後乘以 0.1(§A.1)。
+- Periodic decoupled training:每訓練 100 步觸發一次 dynamic fine-tuning 階段,期間關閉 $R_{3D}$、僅以 $R_\text{gen}$ 在 ~500 條動態 prompt 子集上優化(§4.5、§A.2)。
+- Reward 模型組成:Depth Anything 3 [17] 用於 lift 至 3DGS 並估計 $\hat{E}$;Qwen3-VL [20] 作為 meta-view 語意評審;HPSv3 [43] 用於 $R_\text{gen}$,取前 $K$ 幀平均(§4.3、§A.1)。
+- Optimizer / learning rate / 訓練步數 / inference timesteps / KL 係數 $\beta$ / clip 範圍 / denoising schedule 細節:the paper does not specify(僅在 §4.5 提到 100 步為週期、Figure 4 以「Training Time (GPU Hours)」為橫軸至約 1000 GPU hours)。
+
+### 6.4 Main Results
+
+3D consistency(Table 2,本文 test set,3DGS 重建後 re-render 比對):
+
+| Method | PSNR ↑ | SSIM ↑ | LPIPS ↓ | Notes |
+|---|---|---|---|---|
+| CogVideoX-1.5-5B [1] | 24.44 | 0.783 | 0.242 | 基線 T2V foundation |
+| Wan2.2-T2V-14B [3] | 23.47 | 0.779 | 0.253 | 較新版基線 |
+| Wan2.2-T2V-5B [3] | 22.36 | 0.716 | 0.303 | |
+| Wan2.1-T2V-14B [3] | 19.76 | 0.629 | 0.405 | World-R1-Large 之初始化 backbone |
+| Wan2.1-T2V-1.3B [3] | 17.40 | 0.550 | 0.467 | World-R1-Small 之初始化 backbone |
+| **World-R1-Small (Ours)** | **27.63** | **0.858** | **0.201** | 相對 Wan2.1-T2V-1.3B 提升 +10.23 dB PSNR |
+| **World-R1-Large (Ours)** | **27.67** | **0.865** | **0.162** | 相對 Wan2.1-T2V-14B 提升 +7.91 dB PSNR |
+
+通用生成品質(Table 1,VBench;World-R1-Large 因資源因素未測):
+
+| Method | Aesthetic ↑ | Imaging ↑ | Motion Smooth. ↑ | Subj. Consist. ↑ | Bg. Consist. ↑ |
+|---|---|---|---|---|---|
+| CogVideoX-1.5-5B [1] | 62.07 | 65.34 | 98.15 | 96.56 | 96.81 |
+| Wan2.1-T2V-1.3B [3] | 62.43 | 66.51 | 97.44 | 96.34 | **97.29** |
+| GCD [50] | 38.21 | 41.56 | 98.37 | 88.94 | 92.00 |
+| Trajectory-Attention [51] | 38.50 | 51.00 | 98.21 | 90.60 | 92.83 |
+| DAS [52] | 39.86 | 51.55 | **99.14** | 90.34 | 92.03 |
+| ReCamMaster [32] | 42.70 | 53.97 | **99.28** | 92.05 | 93.83 |
+| **World-R1-Small (Ours)** | **65.74** | **67.53** | 98.55 | **97.58** | 96.67 |
+
+User Study(30 條 prompt × 25 位受試者,World-R1 vs. Wan2.1 對應規模版本):Geometric Consistency 92% 勝率、Camera Control Accuracy 76% 勝率、Overall 86% 勝率(§5.2)。
+
+### 6.5 Ablation Studies
+
+於 World-R1-Small 上進行,以 Figure 4 中 general generation reward 與 3D-aware reward 隨 GPU hours 的演化曲線觀察各成分貢獻(§5.3、§A.2、§D.7):
+
+- **w/o $R_{3D}$**(移除 3D-aware reward):3D-aware reward 曲線顯著下滑,確認 $R_{3D}$ 是建立幾何一致性的核心訊號。屬診斷型實驗,直接驗證了論文最關鍵設計。
+- **w/o $R_\text{gen}$**(移除 general generation reward):general reward 曲線下降,出現美學退化(aesthetic degradation),說明 $R_\text{gen}$ 在防止 reward hacking 與維持感知品質上不可或缺。診斷型實驗。
+- **w/o noise wrapping**(移除 implicit camera conditioning,即 §4.2 的 Go-with-the-Flow 噪聲變形):收斂顯著變慢、軌跡對齊較差,顯示在 latent noise 注入相機先驗能提供關鍵 inductive bias。診斷型實驗,正面回應「為何不接外掛 camera 模組」。
+- **w/o periodic decoupled training**(關閉每 100 步的動態微調 phase):模型過擬合到剛性幾何,壓抑非剛性動態,驗證 periodic relaxation 作為 regularizer 的必要性。診斷型實驗。
+- **Component-wise reward 拆解 + reward hacking 分析**:於 §D.7 進一步拆解 $S_\text{meta}$、$S_\text{recon}$、$S_\text{traj}$ 個別影響並檢視 reward hacking;本文正文僅以一句話交代,未在 §5.3 給出表格。屬延伸診斷,非 sanity check。
+
+整體 ablation 為診斷型(逐一拆掉論文 §4 提出的四個元件:兩個 reward、一個 conditioning、一個 training schedule),無單純的 sanity 對照(例如「不訓練 vs. 訓練」)。但 ablation 僅以 reward 曲線呈現、未直接報告 PSNR/SSIM/LPIPS 與 VBench 在每個 ablation 設定下的端到端數值,診斷強度受限。
+
+### 6.6 Phyra Experiment Assessment
+
+- [partial] Has at least one strong baseline (a current SoTA on the chosen task) — 比較對象包含 Wan2.1/2.2 與 CogVideoX-1.5 等 T2V foundation,以及 CameraCtrl、ReCamMaster、DAS、Trajectory-Attention、GCD 等控制類方法,但 3D consistency 主表(Table 2)未直接列出最相近的 3D-aware T2V 方法(如 Voyager、Geometry Forcing、Fantasyworld 等)做端到端對比,僅在附錄 §D 補充「3D-conditioned 與 camera-control 方法的整合比較」。
+- [partial] Has cross-task / cross-dataset evaluation (not just one benchmark) — 同時報告本文自建 test set 上的重建指標、VBench 通用品質、User Study,但 3D consistency 評測完全只在自建 Pure Text Dataset 的 test 切分上進行,未在公開 3D-aware 基準(如 WorldScore [53])跨資料集驗證。
+- [covered] Has ablations that diagnose the new components (not just sanity checks) — §5.3 與 Figure 4 對 $R_{3D}$、$R_\text{gen}$、noise wrapping、periodic decoupled training 四個新元件逐一切除,皆對應論文具體設計選擇,非 sanity check。
+- [partial] Has a scaling study (size, length, or compute) — 提供 1.3B(Small)與 14B(Large)兩種模型規模對照,並在 §D 提到 dataset-scaling 與 121-frame 長影片評估,但正文僅給出兩個尺寸的 Table 2 數字,未呈現完整 scaling 曲線。
+- [missing] Has an efficiency / wall-clock comparison — Figure 4 橫軸為 GPU hours 用於 ablation 收斂比較,但全文未對比 World-R1 與 inference-time 3D-constrained 方法(如 Voyager、Worldforge)在推論延遲或訓練成本上的具體數字,僅在 Limitations 中定性指出 video RL 成本仍高。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — Table 1、Table 2、User Study 結果皆為單次數值,未報告多 seed 或標準差;ablation 曲線亦為單次 run。
+- [partial] Releases code / weights / data sufficient for reproducibility — 提供 project page(https://aka.ms/world-r1)且 prompt taxonomy/system instruction 在 §B 完整公開,但論文文本未明確承諾釋出訓練程式碼、checkpoint 或完整 Pure Text Dataset 條目;the paper does not specify code/weight release。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+1. **「不修改架構、不依賴 3D 標註的 RL alignment paradigm」**:**SUPPORTED**。Wan 2.1 backbone 確實未被修改,訓練資料為純文字 (Section 4.4),Flow-GRPO-Fast 僅做 post-training (Table 1 顯示 base 模型 VBench 分數整體上升而非崩壞)。
+2. **「綜合 3D + VLM reward 內化幾何一致性」**:**PARTIALLY SUPPORTED**。Table 2 的 PSNR/SSIM/LPIPS 與 reward 共用 Depth Anything 3 + 3DGS 管線,主文未呈現 reconstruction-independent metric;Figure 4 ablation 確實顯示移除 $R_{3D}$ 會使 3D-aware reward 下降,但這只能證明 reward 之間的內部一致,不能證明對外部 3D 能力的提升。
+3. **「pure text dataset 提供多級相機控制 post-training」**:**SUPPORTED as artifact, scaling unverified**。Appendix B 詳列 taxonomy 與 prompt 模板,但主文沒有 dataset-size scaling curve (作者僅提及在 Appendix D 中討論)。
+4. **「periodic decoupled training 平衡剛體 vs 動態」**:**PARTIALLY SUPPORTED**。Figure 4 顯示 reward 曲線差異,但缺乏針對動態場景的 quantitative 指標 (e.g., VBench Dynamic Degree、motion magnitude),qualitative 結果僅在 Appendix E。
+5. **「顯著提升 world-modeling 能力」**:**OVERCLAIMED**。主表 PSNR 增益與 reward 共用管線;與 Wan2.2 基線比較後 gap 縮小至 ~4.2 dB;與 Fantasyworld 等同類 3D-aware 方法的同 protocol 比較被推遲到 appendix;沒有 FVD 或長 horizon (>121 frame) 視覺一致性指標進入主文。
+
+### 7.2 Fundamental Limitations of the Method
+
+**(1) 獎勵與評估的管線循環性。** 訓練時 reward 由 Depth Anything 3 lifting + 3DGS rendering 構造,主表 3D consistency 評估亦由 Depth Anything 3 + 3DGS 構造。即使在 Appendix D 加入 MVCS,只要 MVCS 本身使用相關幾何先驗 (例如 cross-view feature consistency),就難以完全跳脫該循環。要真正驗證 3D 能力需要外部、獨立的 3D 評估器 (例如 COLMAP-based reconstruction、VGGT 多視圖一致性、人工點雲標註),而當前框架在訓練設計上沒有保留這類 held-out 訊號。
+
+**(2) 相機軌跡僅能在固定 token vocabulary 內合成。** $\phi(c)$ 是 keyword detection,$T_{\text{action}}(t)$ 是預定義 parametric matrix,僅支援 11 個 motion primitive 與其串接 (Eq. 5, Appendix B.1)。任何超出此分類的軌跡 (free-form SE(3) spline、handheld jitter、變焦結合 dolly) 都無法表達,因此 World-R1 嚴格而言是「在受限軌跡空間中對齊 3D 一致性」,而非 general-purpose camera control。其 Straj 也只能對該空間內的指令做監督。
+
+**(3) Noise warping 的 fronto-parallel plane 近似。** Eq. 6 將整個場景近似為位於 $z_{\text{ref}}$ 的平面以推導 homography 光流,然後做 mass-transport noise warping。對近景、強視差或大尺度深度範圍的場景,此光流與真實 3D parallax 顯著背離,因此「implicit camera conditioning」本身傳遞的是失真的 motion prior;模型最終仍需依靠 Smeta + Srecon 把 latent 推向幾何一致,但若 reward 訊號弱 (例如 VLM 給平局分數),這種錯誤的 prior 將難以被修正。
+
+**(4) 受限於 base model 表達力且無能力逃離其 bias。** 作者承認被 base model 容量上限約束,但更深的問題在於:RL post-training 只能 elicit base model 已內隱編碼的 3D 知識 (引用 [15] 為論證基礎)。若 Wan 2.1 在某類場景 (如手部、密集多物體、長 horizon) 根本沒有編碼正確 3D 結構,任何 reward 都無法憑空產生這種能力,只能讓 reward 訊號本身被 hack 或讓動態崩塌。這也解釋了為何作者必須加入 periodic decoupled training:它是對「RL 過度施壓會洩漏出 base model 能力上限」這一現象的補救而非根治。
+
+### 7.3 Citations Worth Tracking
+
+- **[17] Depth Anything 3 (Lin et al., 2025)** — World-R1 整個 reward 與評估管線的單點依賴。理解 DA3 的失效模式 = 理解 World-R1 的失效模式。
+- **[24] Flow-GRPO / Flow-GRPO-Fast (Liu et al., 2025)** — 提供 SDE 重參數化與 GRPO 目標 (Eq. 1-4),也是 World-R1 收斂行為的決定因素;Fast 變體的中間時步 noise 注入是訓練成本可控的關鍵。
+- **[34] Go-with-the-Flow (Burgert et al., 2025)** — implicit camera conditioning 與 discrete noise transport (Eq. 7) 直接沿用其方法;若要評估 World-R1 的相機控制限制,必須先理解 noise warping 的理論假設。
+- **[15] Huang et al., "How much 3D do video foundation models encode?" (2025)** — 整篇論文「elicit latent 3D」立場的根據;若該論文的結論在不同 base 上不成立,World-R1 路線的可遷移性將被嚴重弱化。
+- **[37] Fantasyworld (Dai et al., 2025)** — World-R1 在敘事上反覆對立的 architectural-modification baseline,但主文未做同 protocol 直接比較;讀者應自行對照其 trade-off。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 在與訓練 reward 完全脫鉤的 3D 評估管線 (例如 COLMAP-based reconstruction 或 VGGT 多視圖一致性) 下,$+10.23$ dB / $+7.91$ dB 的 PSNR 增益會剩多少?
+- [ ] 若以 Wan2.2-T2V-14B (PSNR 23.47) 為起點重訓 World-R1-Large,還能取得多少絕對增益,亦或 reward 訊號相對於更強 base 已飽和?
+- [ ] Smeta 採 Qwen3-VL 整數 0-9 評分除以 10,是否在訓練中段出現 plateau?連續化 (logits 或 regression head) 能否帶來更穩定收斂?
+- [ ] Periodic decoupled training 在 VBench Dynamic Degree、optical-flow magnitude 或人類動態評分上能否量化驗證其「保留非剛體動態」的功能,而非僅靠 qualitative example?
+- [ ] 為何 World-R1-Small 的 VBench Background Consistency 反而從 97.29 降至 96.67?是 Smeta 的 meta-view 視角偏好造成背景紋理飄移,抑或 noise wrapping 在無相機 token 時引入了背景不一致?
+- [ ] 在 Fantasyworld、Voyager、Geometry Forcing、GeoVideo 等 3D-aware 路線的同一測試集上,World-R1 的相對位置如何?Appendix D 的數字是否經 prompt 與軌跡對齊?
+- [ ] 三項 3D sub-reward 等權累加 ($S_{\text{meta}}+S_{\text{recon}}+S_{\text{traj}}$) 與 $\lambda_{\text{gen}}=1$ 的設定對結果有多敏感?是否存在更佳 Pareto 點?
+
+### 8.2 Improvement Directions
+
+1. **加入 reconstruction-independent 主指標**:在主文以 COLMAP-based PSNR、VGGT cross-view consistency 或 multi-view feature matching score 取代/補充 DA3+3DGS PSNR,直接打破 reward-evaluation 共用管線的循環。理由:目前最大爭議點是循環性,只要主表能在外部度量上維持顯著增益,核心宣稱即可成立。
+2. **用 Wan2.2-T2V-14B 重訓並報告增量**:在更強 base 上重做 RL 微調,公開絕對與相對 PSNR/SSIM。理由:可以區分「RL 帶來的 3D 注入」與「Wan2.1 本身偏弱」兩個混淆變因,並驗證方法是否隨 backbone 強化而 saturate。
+3. **將 Smeta 改為連續訊號**:取 Qwen3-VL 答案 token 的 logit 或改用學習型 regression head (例如以人工標註的 3DGS 品質分數做 supervised tuning),取代離散 0-9。理由:0.1 粒度限制了 advantage normalization 的有效範圍,連續訊號可降低 variance、加速收斂。
+4. **以深度感知光流取代 fronto-parallel homography**:以 per-frame depth predictor (例如 DA2/DA3) 構造 dense 3D-aware flow,再做 mass-transport noise warping。理由:Eq. 6 在強視差場景失真,改進後 implicit motion prior 與真實 3D parallax 對齊,可提升 Straj 上限與大幅鏡頭運動穩定度。
+5. **擴充 trajectory 空間至 free-form SE(3) spline**:以 LLM 直接輸出控制點或 6-DoF 序列取代固定 11-token taxonomy,並對應修改 Straj 的對齊度量。理由:當前框架的相機控制宣稱僅在受限軌跡空間中成立,擴充後才能聲稱通用 camera control。
+6. **新增 reward-weight 與 periodic-cycle 消融**:對 $\lambda_{\text{gen}}\in\{0.5, 1, 2\}$、$S_{\text{meta}}{:}S_{\text{recon}}{:}S_{\text{traj}}$ 不同比例、cycle 長度 $\in\{50, 100, 200\}$ 做網格 sweep,並在 VBench Dynamic Degree 上量化動態保留。理由:目前所有設計選擇都以單一配置呈現,sensitivity 不明,讀者無法判斷 robust 區間。
+7. **加入長 horizon (>121 frame) 與密集多物體 stress test**:作者已承認此為失敗模式 (page 11),建議將其量化進入主表,以 honest 揭示方法的適用邊界。理由:這比擴大 win-rate 更能建立信任,亦為後續工作提供可比較基準。

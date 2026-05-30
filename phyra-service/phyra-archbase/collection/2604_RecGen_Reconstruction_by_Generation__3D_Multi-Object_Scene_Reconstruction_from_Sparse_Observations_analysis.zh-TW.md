@@ -1,0 +1,579 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# RecGen — Reconstruction by Generation: 3D Multi-Object Scene Reconstruction from Sparse Observations
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | RecGen |
+| Paper full title | Reconstruction by Generation: 3D Multi-Object Scene Reconstruction from Sparse Observations |
+| arXiv ID | 2604.27106 |
+| Release date | 2026-04-29 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2604.27106 |
+| PDF link | https://arxiv.org/pdf/2604.27106 |
+| Code link | — |
+| Project page | https://reconstruction-by-generation.github.io |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Andrii Zadaianchuk | University of Amsterdam | https://zadaianchuk.github.io/ | first author / core contributor |
+| Leonardo Barcellona | University of Amsterdam | — | core contributor |
+| Lennard Schuenemann | University of Amsterdam | — | co-author |
+| Christian Gumbsch | University of Amsterdam | — | co-author |
+| Zehao Wang | KU Leuven | — | co-author |
+| Muhammad Zubair Irshad | Toyota Research Institute | — | co-author |
+| Fabien Despinoy | Toyota Motor Europe | — | co-author |
+| Rahaf Aljundi | Toyota Motor Europe | — | co-author |
+| Stratis Gavves | University of Amsterdam | — | co-author |
+| Sergey Zakharov | Toyota Research Institute | https://zakharos.github.io/ | core contributor / project lead / corresponding |
+
+### 1.2 Keywords
+
+3D scene reconstruction, shape and pose estimation, rectified flow, RGB-D, occlusion handling, generative 3D models, multi-view conditioning, real-to-sim, part-level reconstruction
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| SAM3D | baseline | Generative monocular scene reconstruction; primary SOTA baseline that RecGen surpasses by 30.1%/9.1%/33.9%. |
+| TRELLIS | base model | Image-conditioned 3D generative model providing structured-latent and rectified-flow design that RecGen extends. |
+| InstantMesh | predecessor | Image-to-3D reconstructor representative of feed-forward shape generators used in modular shape+pose pipelines. |
+| FoundationPose | predecessor | Unified model-based/model-free 6D pose estimation and tracking; representative of the pose-only stream RecGen unifies. |
+| MIDI | concurrent | Multi-instance diffusion for coherent 3D scenes from a single image; shares scene-level joint generation motivation. |
+| FoundationStereo | influence | Provides realistically estimated depth used to train RecGen, enabling robustness to imperfect commodity sensor depth. |
+| DINOv2 | base model | Self-supervised image backbone supplying multimodal conditioning features for the flow transformers. |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本論文研究如何從稀疏的 RGB-D 觀測（單張或少數幾張影像）中重建包含多個物件的真實 3D 場景，作為機器人模擬與 digital twin 建構的基礎。作者聚焦於遮擋嚴重、物件對稱、幾何複雜、深度量測有雜訊等真實世界條件下，同時估計每個物件的完整幾何形狀、紋理外觀，以及在相機座標下的 6-DoF 位姿與尺度（Sim(3)）。研究亦延伸至 part-level 表示，能將場景分解為物件、再將物件分解為可操作的零件，以支援關節式物件操作等下游任務。整體題目屬於電腦視覺與機器人感知交叉領域中的「real-to-sim 場景生成」與「生成式 3D 重建」。
+
+### 2.2 Domain Tags
+
+- Computer Vision
+- 3D Reconstruction
+- Generative Models
+- Robotics / Real-to-Sim
+
+### 2.3 Core Architectures Used
+
+- **Rectified Flow Transformer (Stage-1 $G_{SP}$ 與 Stage-2 $G_L$)**: RecGen 的兩階段核心生成器，皆採用以 AdaLN 與 gating 機制調變的 transformer，以 Conditional Flow Matching 目標分別聯合去噪「sparse structure $S$ 與 Sim(3) pose $T$」以及「local structured latents $\{z_i\}$」。
+- **3D Convolutional VAE**: 將 $64^3$ 的二值 occupancy grid $O$ 編碼為 $16^3 \times 8$ 的低解析連續 feature grid $S$，提供適合 rectified flow 訓練的平滑 latent 空間。
+- **TRELLIS-image-large (base representation)**: 提供約 1.2B 參數的預訓練 image-conditioned 3D 生成骨架，RecGen 直接從其權重起手並沿用其 structured-latent 與 rectified-flow 設計。
+- **DINOv2 image backbone**: 自監督影像特徵抽取器，作為多模態 cross-attention conditioning 的主要 RGB 特徵來源。
+- **Convolutional encoders for mask & pointmap**: 以可學習的 Conv2D 層分別編碼 object mask 與 normalized pointmap，並加到 image features 上，作為位置與幾何條件訊號。
+- **Sparse transformer with sparse convolutions (DiT-style)**: Stage-2 $G_L$ 將 latent 以 $2^3$ spatial neighborhood 打包後，以時間調變的 transformer block 處理，再經 convolutional upsampling head 還原空間細節。
+- **FlexiCubes Mesh Decoder $D_M$**: 將預測的 structured latents 解碼為三角網格幾何。
+- **Gaussian Splatting Decoder $D_{GS}$**: 將 structured latents 解碼為帶顏色的 3D Gaussians，再以多視角 render 烘焙到 mesh 上得到帶紋理的最終資產。
+- **6D / 9D Continuous Rotation Representation**: 為避免梯度不連續，$G_{SP}$ 使用 6D 表示（rotation matrix 前兩欄 + Gram–Schmidt），$G_L$ 改用 9D 表示，再加上 translation $t$ 與 isotropic scale $s$ 構成完整 Sim(3)。
+- **FoundationStereo (training-time depth source)**: 用於合成訓練資料的真實感立體深度估計，使模型對真實感測器雜訊深度具備強健性。
+- **View-ID Embedding for Multi-View Conditioning**: 在多視角設定下為每個 view 的 patch 與 pose token 加入可學習 frame token / view id embedding，使 cross-attention 能區分不同視角來源。
+
+### 2.4 Core Argument
+
+作者指出，現有的稀疏觀測 3D 場景重建之所以脆弱，根本原因在於把「形狀生成」「形狀補全」與「位姿估計」拆成多個獨立階段：影像條件式生成模型先輸出物件形狀，再以後處理方式對齊到 RGB 或深度資料。這種模組化流程在雜亂、遮擋、對稱、弱紋理或深度有雜訊時會出現誤差累積與配準失敗，且大多數模型訓練時只看到無遮擋、完整可見的物件，導致它們會把可見區域誤判為完整幾何，難以推理被遮擋區域。另一方面，若不顯式以位姿條件化紋理生成，對稱物件上的視角相關細節（如瓶身標籤）會錯位；單純依賴 RGB 而忽略深度，或只支援單視圖輸入，也限制了實際場景中的可用性。基於此因果分析，作者主張唯一合理的解法是建立一個「joint generative」框架：以 rectified flow 在相機座標中同時對形狀的稀疏結構與 Sim(3) 位姿進行機率聯合去噪，讓兩者能彼此約束、避免後處理配準；以 mask 作為位置訊號（而非裁掉背景）保留遮擋上下文；以 pointmap 將深度當成幾何條件而非校正步驟，並用 FoundationStereo 估計的真實感深度訓練以容忍量測雜訊；對紋理階段則明確以 stage-1 預測位姿做 conditioning 解決對稱歧義；同時以大規模合成的遮擋與零件資料集提供強先驗，並原生支援多視圖輸入。RecGen 因此是「以生成方式做重建」此一統一視角的必然產物。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(145 words)
+
+標題 "Reconstruction by Generation" 直接宣告全篇核心立場 — 把多物件場景重建視為 generative inference 問題,而非傳統的 reconstruct-then-register pipeline。子標題 "3D Multi-Object Scene Reconstruction from Sparse Observations" 限定問題域:不是單一物件 image-to-3D,也不是 dense scan,而是稀疏觀察下的 cluttered scene。
+
+Abstract 在三句話內鋪陳問題與動機。先把 multi-object scene reconstruction 定位為 robotics 可擴展模擬的關鍵瓶頸,並指出 occlusion 與 partial visibility 讓既有方法的 pose / shape 估計脆弱。緊接著定位 RecGen 為 generative framework,進行 object 與 part 的 shape 與 pose 的 probabilistic joint estimation,輸入支援單張或多張 RGB-D。
+
+接著鎖定泛化的兩個來源:compositional synthetic scene generation 與 strong 3D shape priors。最後以三項對 SAM3D 的相對改進收尾 — geometric shape quality $+30.1\%$、texture reconstruction $+9.1\%$、pose estimation $+33.9\%$ — 同時訓練 mesh 數量少了將近 $80\%$。這組數字同時刻畫「準確度更高」與「資料效率更高」兩個敘事支柱。
+
+Abstract 不展開方法細節,但留下三條將在 §3.2 被攻佔的問題坡道:為何要 joint generative、occlusion 下如何學 prior、symmetric objects 為何特別困難。這個鋪陳讓讀者預期 Introduction 會逐項拆解既有 pipeline 的失效模式並對應到 RecGen 的設計選擇,也預告 §3.5 的 evaluation 會針對「occluded、symmetric、part-level、不同 depth sensor」四個面向各別 stress-test。封面圖 (Fig. 1) 同步把這些挑戰視覺化:occluded geometry 還原、imperfect sensor depth 容忍、object symmetry 處理 — 三項與 abstract 提及的數字一一對齊,構成全文的第一層 thesis statement。
+
+### 3.2 Introduction
+
+(950 words)
+
+Introduction 採用「應用驅力 → 既有 pipeline failure modes → RecGen 設計逐項對應」的結構,並把 contribution 的論證骨架預埋在這個對應關係裡。
+
+開篇把問題上溯到 embodied AI simulation 的成本瓶頸:digital twin 需要昂貴掃描與手動 registration,而從稀疏 RGB-D 直接重建 structured multi-object scene 是 scalable 替代路徑;但 occlusion、symmetry、complex geometry 與 noisy depth 讓 pose-under-partial-visibility 仍然 brittle。接著作者把既有路線歸納為「分階段 pipeline」 — image-conditioned 3D generation 產 mesh、model-free pose method 再 register — 主張這種解耦會 compound errors,並引入 RecGen 為 unified joint generative framework,直接在 camera frame 對 shape 與 pose 做 probabilistic 推論。
+
+論證骨架接著以五道既有 limitation 配合 RecGen 設計逐項展開:(1) post-hoc pose registration 對 cluttered / symmetric / weakly-textured 物件脆弱 → joint probabilistic estimation in camera frame;(2) 既有訓練資料多為 occlusion-free 或全可見 mask → 引入大型 synthetic occluded dataset,且把 mask 編碼為 positional signal 而非 zero-out background,以保留環境上下文;(3) symmetric objects 的 pose 與 texture 都模糊,pose-agnostic texturing (如 SAM3D) 會錯置 label / 圖示 → 顯式以 estimated pose 條件化 texture generation;(4) 既有方法輸出 monolithic mesh,缺 part 結構,無法支援 articulated manipulation → 用 part-annotated assets 把 scene→object→part decomposition 統一在單一 generalizable framework;(5) 多數 generative model RGB-centric,僅在 alignment 階段使用 depth,且 SAM3D 對 commodity sensor noise 敏感 → 改在 FoundationStereo 估出的 realistic stereo depth 上訓練,以利用 3D 結構線索同時容忍 imperfect measurement。
+
+第六道限制是 multi-view conditioning 缺失:雖然真實 robotics setup 常有多相機,既有 generative 模型多為 single-view-only。RecGen 訓練統一支援 single-view 與 multi-view,推論時兩者皆可,讓模型能在資訊更多時降低 ambiguity、在資訊不足時退化為 single-view inference。
+
+Introduction 以三個 explicit contributions 收尾:multi-hypothesis joint shape / pose framework、synthetic occluded objects + parts 資料集、以及對 SAM3D 的 $+30.1\%$ shape / $+9.1\%$ texture / $+33.9\%$ pose 改進(訓練資料減少 $80\%$),並聲明對 part-level、occluded、symmetric、uncommon 物件的泛化能力。
+
+這個鋪排為 §3.3 Related Work 設下舞台:讀者已內化「shape 與 pose 必須耦合」、「scene-level joint generative 是新興方向」、「multi-view 與 part-level 是現有缺口」、「sensor noise 是 sim-to-real gap 的入口」四條判準。Related Work 因此能以 modular vs. unified、object-only vs. part-aware、single-view vs. multi-view 三條軸線直接對照既有工作,而不需要重新解釋為何這些軸線是相關的 — 這是 Introduction 把功能性與 contribution 預先綁定在「pipeline failure mode」框架下所達成的敘事效率。
+
+### 3.3 Related Work / Preliminaries
+
+(650 words)
+
+§2.1 Pose and Shape Prediction 走「兩條獨立路線收斂為 joint problem」的論證。Shape 側點名 image-conditioned 3D generation 的進展 — CRM、LGM、InstantMesh、TRELLIS、Hunyuan3D — 強調 fidelity 與 spatial consistency 的提升來自 stronger geometric / latent priors;pose 側則點名 novel-object 6D pose estimation — FoundationPose 統一 model-based 與 model-free、Any6D 從單張 RGB-D anchor 做 model-free pose。作者主張 shape 與 pose 在實作中 geometrically coupled,兩線最終必須合流。
+
+接著把 joint shape-pose 工作切成兩類:modular pipelines (GigaPose, Pos3R, OmniShape, SceneComplete, Gen3DSR) 把 image-to-3D reconstructor 接上 separate alignment stage,雖彈性但 error propagation;unified feed-forward (CenterSnap, ShAPO) 用 camera-centered spatial representation 在單次 forward 同時估計 shape 與 6D pose。最後點到 scene-level generative methods — MIDI 用 multi-instance diffusion、SAM3D 同時產 mesh + scene layout。作者明確指出這些 scene-level 工作仍以 single monocular 為主,沒有 native multi-view conditioning;而 part-level generation (PartGen, UniPart, BANG, PartCrafter) 又只專注於分解 / 合成,沒處理「從觀察 → pose」的推論。RecGen 因此被定位為「跨 single / multi-view RGB-D、跨 object / part-level」的 joint estimator,正好補上 §2.1 列出的所有缺口。
+
+§2.2 Real-to-Sim in Robotics 把場景重建放回 robotics deployment 脈絡。3D Gaussian Splatting 因 photorealistic rendering 與 explicit point-based structure 成為主流場景表徵,衍生出大量 GS-based manipulation / navigation 工作 (POGS、SplatSim、Splat-MOVER、GraspSplats、EmbodiedSplat、GSWorld 等)。接著切到 real-to-sim policy learning (X-Sim, DreMa, Real2Render2Real, ZeroBot) 與 policy evaluation (Real2Sim-Eval, RobotArena, PolaRiS) — 這些工作都依賴 reconstructed / generated 3D scene 作為 intermediate representation。最後一條線是 physics-aware refinement (Picasso、Physics-Consistent Inter-Object Reasoning、Simulation-Ready Cluttered Scene Estimation),把生成場景做後處理使物理合理。
+
+§2.2 結尾把這些觀察整合為對 scene-level generative model 的需求清單:visually faithful、scene-level accurate、physically plausible、readily usable under multi-view。RecGen 被定位為這份清單的「base model」 — 不解決 physics consistency,但提供 high-fidelity scene-level 生成與 multi-view conditioning,作為其它 robotics 工作的 reusable 基礎。
+
+這兩個 subsection 共同達成兩個敘事目的:一是把 RecGen 在「方法維度」(joint, multi-view, part-aware) 與「應用維度」(robotics real-to-sim base model) 鎖定唯一定位;二是把 §3.4 Method 的設計選擇 — joint flow transformer、multi-view training、part-level data — 預先合理化為「填補領域明確缺口」而非「任意工程選擇」。讀者進入方法章前已具備足以判讀每個設計的 reference frame。
+
+### 3.4 Method (overview narrative)
+
+(1600 words)
+
+Method 章開篇先把問題形式化:每個輸入視角提供 RGB image $I^{(v)}$、depth $D^{(v)}$、內參 $K^{(v)}$、mask $M^{(v)}$,目標是聯合估計 shape $s$、pose $T^{(v)} \in \text{Sim}(3)$、appearance $a$。作者點明 shape 與 pose 互依 — 缺一無法定義另一 — 必須建模 joint conditional $p(s, a, \{T^{(v)}\} \mid \{I^{(v)}, D^{(v)}, K^{(v)}\})$,且該分布 highly multimodal,因此整個框架被收編到 rectified flow 之下。這段為「為何 generative」立論,等於把 §3.2 Introduction 的「pipeline 解耦會 compound errors」翻譯成形式化的建模主張。
+
+§3.1 把流程拆成兩個 flow-based 階段。Stage 1 (Object Structure & Pose Generation) 由 transformer generator $G_{SP}$ 同時去噪 sparse structure 與 pose,把 pose 當作額外 token 與 structure features 串接,使 denoising 過程持續強化 shape-pose 的幾何一致性;Stage 2 (High-Fidelity Asset Recovery) 由 sparse transformer $G_L$ 在 stage 1 結構與 pose 條件下生成 local latents $\{z_i\}$,經 FlexiCubes mesh decoder 與 Gaussian Splatting decoder 還原 textured asset。Pose conditioning 在 stage 2 被點名為 symmetric objects「唯一可靠的 texture grounding」,直接呼應 §3.2 列出的 symmetry 痛點,並預告 §3.5 §4.2 會以 VLM-based orientation 評估驗證這一條設計。
+
+Method 接著鋪陳三條跨 stage 的設計主軸,每條都對應 §3.2 一個 failure mode。其一是 multimodal conditioning:DINOv2 image feature、conv-encoded mask、conv-encoded pointmap 三者相加後 cross-attention 注入 transformer。Mask 不再被當成 zero-out 工具而是 positional signal — 模型在 dynamic-cropped patch 上同時看見 foreground (待重建) 與 background (occlusion / layout 上下文);pointmap 則先被 mask 過濾並做 robust normalization (median 為 translation、5–95 percentile 為 scale,映射到 $[0,1]^3$),把 absolute scale 與 background depth noise 一同解耦。
+
+其二是 pose 表徵與正規化:採 6D continuous parameterization (避免 quaternion 不連續性) 加 translation $t \in \mathbb{R}^3$ 與 isotropic scale $s \in \mathbb{R}^+$,並以全資料集 z-score 把 rotation / translation / scale 三 component 拉到 zero-mean / unit-variance,避免任一 component 主導 flow matching loss。推論時再以 dataset 統計 denormalize。§3.5 §4.3 ablation 直接驗證:移除 pose normalization 不傷 shape 但顯著傷 pose,印證這條設計是 joint optimization 穩定性的必要條件。
+
+其三是 multi-view extension:不另起新模型,而是把第二視角的 conditioning features 沿 sequence 維度 concat、加 frame token embedding,並讓每個 pose token 也帶 view-id embedding 以區分兩個 pose 預測。為保留 single-view 推論能力,訓練時以 $p_{drop}=0.33$ 隨機丟棄第二視角。這個設計讓單一 checkpoint 同時支援兩種 inference mode,直接呼應 §3.2 末尾的 multi-view 缺口主張。
+
+訓練 loss 採 Conditional Flow Matching:$L_{total} = L_{CFM}(S) + \alpha \cdot L_{CFM}(\tilde{T})$,$\alpha = 0.01$ 平衡 pose 與 structure;Stage 1 與 Stage 2 獨立訓練。
+
+§3.2 與 §3.3 補上資料與訓練配方。RecGen Dataset 覆蓋 198K 3D assets 跨 6 個 public dataset (Objaverse-XL / ABO / HSSD 為 object,PhysXNet / PartNext / PartNet-Mobility 為 part),共渲染出 3.2M RGB / depth / mask / GT pose / stereo depth — stereo depth 用 FoundationStereo 估出以模擬真實 sensor noise,而非用完美 rendered depth,這是 §4.3 ablation 之 "w/o stereo" 變體的依據。Object scenes 為製造 occlusion 隨機放置同 dataset 其它 asset 做 compositional rendering;part scenes 因部件已 self-occlude 嚴重,只放單一物件。Implementation 細節點明 base 為 TRELLIS-image-large (1.2B params),CFG drop 0.1、AdamW lr $1\mathrm{e}{-4}$、55K iterations、batch 512、64 H100,訓練 ~48 小時;推論時 CFG scale 3.0、50 denoising steps。
+
+整節為實驗章鋪設清楚因果鏈:joint flow + pointmap conditioning → §4.1 的 pose 改進、pose-conditioned $G_L$ → §4.2 symmetric texture 對齊、stereo noise / pose normalization / part data / pretraining 四個設計 → §4.3 ablation 的四個變體。讀者在進入 §3.5 之前已被告知「每個數字會驗證哪個設計」,使後續 table 不只是 benchmarking,而是 hypothesis testing。
+
+### 3.5 Experiments (overview narrative)
+
+(1500 words)
+
+Experiments 章採「定義 setup → 主結果 → 條件分解 → ablation」的標準鋪排,但每一步都精準回扣 §3.4 的設計主張,使整章成為對 method 的 hypothesis testing 而非單純 benchmarking。
+
+開篇先列 evaluation suite:四個 object dataset (LM-O, HB, HOPE, ReOcS) 涵蓋 diverse occlusion、symmetric / textured objects 與三種 depth sensor (structured light / time-of-flight / stereo);part-level 自建 ArtVIP-extended benchmark (12 scenes、284 parts、924 RGB-D images),補足公開 part dataset 稀缺的問題。Metric 設計同樣對應 method 主張:ADD-SB (bidirectional ADD-S) 在 0.1 與 0.05 雙 threshold 報告以避免簡單 dataset 飽和;新引入的 DRE (Diameter Relative Error) 評估 occlusion 下的 scale 估計;Chamfer Distance 在 ICP 對齊後再 normalize by GT diameter,以分離 shape error 與 pose error;appearance 用 PSNR / SSIM / LPIPS 並分 before / after ICP 兩欄,以拆解 pose 誤差對視覺指標的污染。Baselines 鎖定三條代表路線:Any6D (model-free pose,搭配 InstantMesh 或 TRELLIS 作 mesh)、SceneComplete (inpainting + FoundationPose)、SAM3D (closest related, 同時估 mesh + pose)。
+
+§4.1 報主結果。RecGen 在所有 dataset / metric 全面領先,單視角已勝 SAM3D — object-centric 平均 CD $0.033$ vs $0.039$、ADD-SB @0.05 $71.1\%$ vs $38.6\%$,在嚴格 threshold 下接近翻倍;part-level (ArtVIP) CD 直接對半 ($0.056 \to 0.026$)、ADD-SB @0.05 進步 $+38.2$ percentage points。Two-view 變體進一步把 part CD 降到 $0.024$,印證 multi-view extension 的價值。Fig. 6 與 App. A.1 把樣本依 occlusion 嚴重度分箱後顯示 RecGen 與 SAM3D 的差距 隨 occlusion 上升而放大 (40–70% occlusion 時 ADD-SB $0.073$ vs $0.116$,$37\%$ relative improvement),直接驗證 §3.2 中 occlusion-aware data 與 mask-as-positional-signal 的設計動機。
+
+§4.2 處理 appearance。Before ICP 時 RecGen 在 LM-O+HB+HOPE 的 LPIPS / PSNR 領先;after ICP 與 SAM3D comparable,作者誠實點名這是 ICP 抹掉 pose error 的副作用。真正差異化發生在 symmetric subset:RecGen 在 LPIPS 顯著超前,且以 GPT-5 為 judge 的 VLM-based texture orientation 評估顯示 alignment rate $74\%$ vs SAM3D $41\%$ — 直接驗證 stage 2 pose conditioning 對 symmetric texturing 是 essential。這一節在敘事上把「pose-aware texturing」從 §3.4 的設計選擇升級為被獨立 metric 量化的 contribution。
+
+§4.3 ablation 對 §3.4 的四個設計各做一次 leave-one-out。移除 stereo noise augmentation 顯著傷害 object-centric 指標 (CD $0.048$ vs $0.042$),但對純合成的 ArtVIP 影響微小 — 證實 stereo noise 是 sim-to-real gap 的入口;移除 pose normalization 不傷 shape 但顯著傷 pose,對應 §3.4 z-score 設計;移除 part-centric data 維持 object 表現但 ArtVIP 大幅退步,說明 part 訓練「沒有 hurt object-level performance」這條設計成本是零;移除 pretraining 全面下降。章末引用 App. C 的 efficiency 比較:RecGen 比 SAM3D 快 $1.8\times$、GPU memory 少 $1.6\times$,把「more accurate, less data, less compute」三條敘事點同時封口。
+
+整章為 §3.6 conclusion 提供完整證據鏈:joint generative 設計、occluded synthetic data、pose-conditioned texturing、multi-view extension、stereo-realistic depth 五條主張,都在 4.1 / 4.2 / 4.3 中有對應 number 對照。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(135 words)
+
+Conclusion 僅一段,把 Introduction 的 contribution 列表用更聚合的語氣覆述:RecGen 是 generalist scene completion framework,從 partial observations 還原 multi-object shapes,對 occlusion / symmetric objects / object-parts 皆 robust、僅以合成資料訓練即可泛化到不同 RGB-D sensor 的真實資料、並支援 multi-view conditioning。再次封口三項對 SAM3D 的相對改進 ($+30.1\%$ shape / $+9.1\%$ texture / $+33.9\%$ pose) 與 $80\%$ less training mesh 的資料效率主張,並把 RecGen 定位為 robotics real-to-sim 的「easy-to-deploy、easy-to-build-on」base framework。
+
+值得記下的是,本文 main paper 中沒有獨立的 Limitations 與 Future Work 段落 — 作者明確把這部分推遲到 Appendix D。從 §4.2 與 §4.3 的措辭可以推測作者所認知的限制方向:appearance generation 仍受限於資料規模與 single-resolution 訓練,作者主動指出 larger training dataset、Depth-VAE (SAM3D 風格) 以及 multi-resolution training (TRELLIS 2) 是後續可改善的方向;此外目前僅支援 single + two-view,擴展到任意視角數仍是開放問題。Conclusion 也沒有承諾 physics consistency — 這個方向在 §3.3 §2.2 結尾已被明確保留給 physics-aware refinement 工作 (Picasso 等)。
+
+整段在敘事上的功能是「提醒讀者 introduction 的承諾在實驗中已逐項兌現」,並把 RecGen 從一篇 method paper 重新定位為 robotics real-to-sim 工具鏈中的「可重用基礎」,與 §3.3 §2.2 的 base-model 定位首尾呼應收束全篇。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 在四個物件資料集（HB、ReOcS、LM-O、ArtVIP）的 CDnorm 與 ADD-SB 上全面領先 SAM3D；以 SAM3D 為基準平均提升 30.1% 幾何品質、9.1% 紋理品質、33.9% 位姿準確度（Abstract, p.1; Table 1, p.8）。
+- 在僅使用約 198K 訓練 mesh、相當於比 SAM3D 少 80% 訓練資產的情況下取得上述提升，顯示 joint generative 設計帶來的 sample efficiency 優勢（Abstract, p.1）。
+- 在 LMO 的嚴格門檻 ADD-SB@0.05 上，RecGen (1-view) 達 50.0%、2-view 達 55.6%，相較 SAM3D 的 17.6% 幾乎是 3 倍（Table 1, p.8）。
+- 在 ArtVIP 零件層級基準上，1-view 將 CDnorm 從 SAM3D 的 0.056 砍半到 0.026，並把 ADD-SB@0.05 從 45.8% 提升到 84.0%，顯示 part-level 訓練資料能直接轉化為零件感知能力（Table 1, p.8）。
+- 對遮擋的退化曲線顯著平緩：物件資料集在 40–70% 遮擋時 RecGen ADD-SB 為 0.073、SAM3D 為 0.116（相對提升 37%），優勢隨遮擋加重而擴大（Fig. 6, p.9; Fig. S1, p.18）。
+- 對對稱物件的紋理方向性，以 GPT-5 進行 VLM 對齊判定，RecGen 對齊率 74% 對 SAM3D 的 41%，作者把改善歸因於 stage-2 texture 顯式 condition on stage-1 預測 pose（Fig. 7, p.10; Fig. 5, p.9）。
+- 推論成本明顯優於 SAM3D：在 A100-80GB 上分配記憶體 10.4 GB 對 17.8 GB（1.6×）、單物件推論 7.3 s 對 13.0 s（1.8×），同時準確度更高（Table S3, p.23）。
+- ablation 顯示 stereo 雜訊增強、pose 正規化、part-centric 資料、TRELLIS pretraining 四個元件各自獨立貢獻；移除 stereo 增強會把物件 ADD-SB 從 0.062 推到 0.078（Table 3, p.11）。
+- 推論期 multi-view pose selection 帶來免重訓的提升：cross-view alignment 在 LMO 把 CDnorm 從 0.056 拉回 0.043（相對 23%），逼近 oracle 的 0.039（Table S1, p.21）。
+- 採用 pointmap 作為幾何條件並以中位數 / 5–95 分位距正規化，使模型能直接吃 FoundationStereo 估計的深度而不再依賴後處理對齊，是 SAM3D 對 commodity sensor 雜訊敏感問題的具體解法（§3.1.1, p.6; §1, p.2）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- 假設輸入有準確的物件分割 mask；mask 不準時 background depth 會滲入 pointmap，導致幾何條件被污染並同時拖累 pose 與 shape（App. D, p.23）。
+- 紋理與幾何細節品質受限於底層 TRELLIS VAE 的容量，即使 pose 對齊正確，latent 編碼與 GS-based decoding 仍會丟失精細表面結構（App. D, p.23）。
+- 推論速度尚未達到實時：兩個生成階段各 50 步去噪加上 mesh 抽取與 texture baking，每物件需數秒，距離互動式機器人或 AR 用途仍遠（App. D, p.23）。
+- 物件層級 perceptual metric 在 ICP 後與 SAM3D 「performs comparably」，作者將其歸因於訓練資料量不足與未在 encoder-decoder 內整合 depth（§4.2, p.10; Table 2, p.10）。
+
+#### 4.2.2 Phyra-inferred
+
+- 「比 SAM3D 少 80% 訓練資料」的對比忽略 base model：RecGen 從 TRELLIS-image-large 約 1.2B pretrained checkpoint 開始 fine-tune（§3.3, p.7），而 ablation 也顯示移除 pretraining 後所有指標退化（Table 3, p.11），因此 sample efficiency 的歸因應屬於 pretraining + fine-tuning 組合而非純 RecGen 設計。
+- multi-view 不總是加分：LMO 的 1-view CDnorm 0.050 反而優於 2-view 的 0.056，作者僅以 inference-time pose selection 補救（Table 1, p.8; Table S1, p.21），代表 vanilla 多視圖 fusion 機制在某些場景仍會引入錯誤。
+- multi-sample oracle 在 HB 為 CDn 0.023、單 seed 0.031（差距 26%；Table S2, p.22），顯示模型多次採樣已包含遠優於平均的解，但作者提供的 pointmap-alignment selection 只能取回小部分頭部，等於把 stochastic flow 的多假設能力大量浪費掉。
+- 對稱物件方向性評估完全依賴 GPT-5 作為 judge（Fig. 7, p.10; Fig. S4, p.20），既無人類評估校驗也無傳統指標（如已有 GT pose 下的紋理 angular error），且 GPT-5 對 SAM3D 與 RecGen 渲染風格的偏差可能造成系統性偏誤。
+- 訓練資料完全由合成資料構成（§3.2, p.7），occlusion pattern 來自隨機放置 distractor，未模擬真實場景中常見的 contact-driven 遮擋（手持、堆疊、半透明），但所有 generalization 結論卻是在真實感測資料集上做的單樣本評估，未驗證 distribution shift 失敗模式。
+- pose loss 權重 α = 0.01（§3.1.2, p.7）、second-view drop pdrop = 0.33（§3.1.2, p.7）、CFG scale 3.0（§3.3, p.7）三個關鍵超參皆無 sensitivity 分析，雖然 pose 正規化的 ablation 證明了其需要性，但加權設計合理性未被驗證。
+- 紋理 generator 訓練時排除 PartNet-Mobility 與 PhysXNet（§3.2, p.7），這正是零件資料的主要來源，因此 ArtVIP 上回報的 perceptual metric 完全沒被計算（Table 2 僅含 LMO/HB/HOPE），等於零件層級紋理品質被表格集體跳過。
+- 與同期工作 MIDI [30] 在文中被列為 concurrent 但完全沒有量化比較（§2.1, p.4），而 MIDI 同樣處理 single-image 多 instance 場景生成，缺席使「scene-level joint generation」的 SOTA 主張未被檢驗到 closest peer。
+
+### 4.3 Phyra's Judgment (summary)
+
+RecGen 真正新穎的部分是把 sparse structure 與 Sim(3) pose 在同一個 rectified flow 內 joint denoise，並讓 stage-2 texture 顯式 condition on stage-1 預測 pose——這是對「對稱物件紋理錯位」與「形狀–位姿後處理配準」兩個結構性病灶的合理修復。其餘元件（pointmap conditioning、mask as positional signal、stereo noise augmentation、合成遮擋資料集）屬於高品質但本質工程性的改良，個別在 ablation 中可被驗證但都不算 conceptual leap。仍未解的核心問題是：在 stochastic 多假設能力豐富的同時，論文沒有提供可學習的 selection 機制（oracle gap 顯示有 23–26% 頭部尚未取得），也沒有把推論成本壓到能支持機器人 closed-loop 運作的尺度。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+RecGen 把多物件 3D scene reconstruction 重新表述為「以 rectified flow 在相機座標中對形狀稀疏結構 $\{p_i\}_{i=1}^{L}$ 與相似變換 $T \in \mathrm{Sim}(3)$ 的聯合機率去噪」。輸入由一張或多張 RGB 影像 $I^{(v)} \in \mathbb{R}^{d \times d \times 3}$、深度圖 $D^{(v)} \in \mathbb{R}^{d \times d}$、相機內參 $K^{(v)} \in \mathbb{R}^{3 \times 3}$ 與物件 mask $M^{(v)}$ 構成；目標是估計每個被分割區域的 shape $s$、appearance $a$ 與 pose $T^{(v)} = \{R, t, s\}$（$R \in \mathrm{SO}(3)$、$t \in \mathbb{R}^3$、isotropic scale $s \in \mathbb{R}_+$）。整體目標分布 $p(s, a, \{T^{(v)}\}_v \mid \{I^{(v)}, D^{(v)}, K^{(v)}\}_v)$ 因遮擋、對稱與深度雜訊呈高度多模態，作者主張此聯合形式是避免 modular pipeline 誤差累積與配準失敗的必要設計。
+
+整個 framework 由兩個 rectified flow stage 組成。**Stage 1（structure & pose generator $G_{SP}$）**以 transformer + AdaLN 同時去噪 voxel VAE latent $S \in \mathbb{R}^{16 \times 16 \times 16 \times 8}$ 與正規化後的 pose 參數 $\tilde{T}$，輸出 sparse occupancy $\{p_i\}_{i=1}^{L}$ 與 $T \in \mathrm{Sim}(3)$。**Stage 2（latent generator $G_L$）**以 sparse transformer 在 stage-1 預測的 pose 上 conditioning，去噪每個 active voxel 的 local latent $z_i$，再分別由 mesh decoder $D_M$（FlexiCubes）與 Gaussian Splatting decoder $D_{GS}$ 解碼為 textured mesh 與 colored Gaussians，最後將 GS 從多視角 render 並 bake 到 mesh 上得到帶紋理的資產。
+
+兩個 stage 的條件來自相同的 multimodal feature pipeline：DINOv2 影像 token、Conv2D 編碼的 pointmap 與 mask，以 cross-attention 注入 transformer；多視圖時於 sequence 維度串接並加上 view ID embedding，訓練時以 $p_{\text{drop}} = 0.33$ 隨機丟棄第二視圖以保留 single-view 推論能力。Stage 2 額外將 stage-1 的 $T$ 經 learnable linear layer 編碼後與其他條件一同注入，這對對稱物件（如有 label 的圓柱罐）的視角相關紋理至關重要。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input (per view v ∈ {1, 2}, B = batch):
+  I^(v)    : [B, d, d, 3]            (d = ?, paper does not specify)
+  P^(v)    : [B, d, d, 3]            (pointmap from D^(v) and K^(v))
+  M^(v)    : [B, d, d]               (binary object mask, dynamic crop)
+
+──────────────── Multi-view & Multimodal Conditioning ────────────────
+  I^(v)  ──DINOv2──────────► F_img^(v)   : [B, N_tok, d_cond]   (N_tok, d_cond = ?)
+  P^(v)  ──Conv2D──────────► F_pm^(v)    : [B, N_tok, d_cond]
+  M^(v)  ──Conv2D──────────► F_mask^(v)  : [B, N_tok, d_cond]
+  F_joint^(v) = F_img^(v) + F_pm^(v) + F_mask^(v)
+                                        : [B, N_tok, d_cond]
+  + view-id embedding e_v               : [B, N_tok, d_cond]
+  Concatenate over views ──► F_cond     : [B, V·N_tok, d_cond]   (V ∈ {1, 2})
+
+──────────────── Stage 1: Structure & Pose Generator G_SP ────────────────
+  Noise S_t                : [B, 16, 16, 16, 8]                       (VAE latent grid)
+  Pose token ̃T_t           : [B, 1, d_pose]    (d_pose = 6 + 3 + 1 for 6D rot + t + s)
+  Serialize S_t ──► tokens : [B, 16·16·16, 8]
+  Concat with ̃T_t ──►       : [B, 16·16·16 + 1, d_tok]   (d_tok = ?)
+   ├──► Flow Transformer (AdaLN, gated, cross-attn on F_cond)
+   │       └── Euler integration over t ──► (S_0, ̃T_0)
+   ├──► VAE decoder D_SS : S_0 [B, 16, 16, 16, 8]
+   │                       → O ∈ {0,1}^{B, 64, 64, 64}
+   │                       → active voxels {p_i}_{i=1..L}        (L = #active voxels)
+   └──► denormalize ̃T_0 ──► T = {R, t, s} ∈ Sim(3)              : [B, 1, d_pose]
+
+──────────────── Stage 2: High-Fidelity Asset Recovery G_L ────────────────
+  For each active voxel p_i, initialize noise z_i^t : [B, L, d_z]   (d_z = ?)
+  Pose conditioning:
+      T_enc = Linear(T)                 : [B, 1, d_cond]
+      F_cond_S2 = Concat(F_cond, T_enc) : [B, V·N_tok + 1, d_cond]
+  Pack z_i^t into 2³ neighborhoods via sparse Conv ──► tokens
+                                        : [B, L/8, d_tok]
+   ├──► Sparse Flow Transformer (AdaLN, cross-attn on F_cond_S2)
+   ├──► Conv upsample head + skip       : [B, L, d_z]
+   └──► Structured latents z = {(z_i, p_i)}_{i=1..L}
+            ├──► Mesh decoder D_M (FlexiCubes) ──► textured mesh
+            └──► GS decoder   D_GS           ──► colored 3D Gaussians
+                       └──► render multi-view + bake textures ──► final asset
+```
+
+未指定維度（標記為 `?`）的補充說明見 §5.3 的 Implementation Details。
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Multi-view & Multimodal Conditioning
+
+**Function:** 將每個視圖的 RGB、pointmap、mask 編碼為共享的 condition feature，用於兩個 flow transformer 的 cross-attention。
+
+**Input:**
+- Name: $I^{(v)}, P^{(v)}, M^{(v)}$
+- Shape: $[B, d, d, 3]$、$[B, d, d, 3]$、$[B, d, d]$
+- Source: RGB-D 觀測 + camera intrinsics $K^{(v)}$；mask 來自 segmentation
+
+**Output:**
+- Name: $F_{\text{cond}}$
+- Shape: $[B, V \cdot N_{\text{tok}}, d_{\text{cond}}]$（$V \in \{1, 2\}$）
+- Consumer: $G_{SP}$（stage 1）與 $G_L$（stage 2，再串接 pose token）
+
+**Processing:**
+
+1. RGB 經 DINOv2 backbone 取 patch token；pointmap 與 mask 各自經 learnable Conv2D 編碼為相同 token 形狀。
+2. 三者 element-wise 相加得到 per-view joint feature $F_{\text{joint}}^{(v)}$。
+3. 加上 learnable view-ID embedding $e_v$ 以區分不同視角；多視圖時於 sequence 維度串接。
+4. Pointmap 先以 mask 過濾背景：$P_{\text{obj}} = M \cdot P$，再以 robust translation $t_{\text{obj}}$（中位數）與 scale $s_{\text{obj}}$（5%–95% percentile 距離）正規化為 $P^{\text{norm}}_{\text{obj}} = (P_{\text{obj}} - t_{\text{obj}}) / s_{\text{obj}}$，使值落在 $[0, 1]^3$。
+5. RGB 與 mask 來自 dynamic crop（20%–100% padding），mask 作為 positional signal 而非 hard cutoff。
+
+**Key Formulas:**
+
+$$
+P^{\text{norm}}_{\text{obj}} = \frac{P_{\text{obj}} - t_{\text{obj}}}{s_{\text{obj}}}, \quad P_{\text{obj}} = M \cdot P
+$$
+
+**Implementation Details:**
+
+DINOv2 為 self-supervised 預訓練 backbone（凍結與否論文未明示）。pointmap 與 mask 的 Conv2D 為 learnable layer，輸出與 image feature 相同 token 維度後相加。輸入解析度 $d$、token 數 $N_{\text{tok}}$ 與 condition 維度 $d_{\text{cond}}$ 論文未具體說明（the paper does not specify）。第二視圖以 $p_{\text{drop}} = 0.33$ 隨機丟棄。
+
+#### 5.3.2 Stage 1 — Structure & Pose Flow Transformer $G_{SP}$
+
+**Function:** 在 voxel VAE latent space 中以 rectified flow 同時去噪 sparse structure 與 $\mathrm{Sim}(3)$ pose。
+
+**Input:**
+- Name: $(S_t, \tilde{T}_t, F_{\text{cond}})$
+- Shape: $S_t \in [B, 16, 16, 16, 8]$；$\tilde{T}_t \in [B, 1, d_{\text{pose}}]$（$d_{\text{pose}} = 6 + 3 + 1$）；$F_{\text{cond}} \in [B, V \cdot N_{\text{tok}}, d_{\text{cond}}]$
+- Source: 來自 noise schedule 的 noisy latent 與 noisy pose；condition 來自 §5.3.1
+
+**Output:**
+- Name: $(S_0, T)$，再經 VAE decoder 得 occupancy $O$ 與 active voxels $\{p_i\}_{i=1}^{L}$
+- Shape: $S_0 \in [B, 16, 16, 16, 8]$；$O \in \{0, 1\}^{B \times 64 \times 64 \times 64}$；$T \in \mathrm{Sim}(3)$
+- Consumer: $G_L$ 使用 $\{p_i\}$ 與 $T$ 作為 stage 2 條件
+
+**Processing:**
+
+1. 將 dense occupancy $O \in \{0, 1\}^{64 \times 64 \times 64}$ 透過 3D conv VAE encode 為連續 feature grid $S \in \mathbb{R}^{16 \times 16 \times 16 \times 8}$，作為 flow 的 latent。
+2. Serialize $S_t$ 為 token 序列並加上 positional encoding；將 $\tilde{T}_t$ 作為額外 token 與 structure tokens concatenate，使 transformer 可利用 shape–pose 幾何一致性。
+3. Transformer block 採用 AdaLN 與 gating 機制注入 timestep；以 cross-attention 接收 $F_{\text{cond}}$。
+4. 預測 $S$ 與 $\tilde{T}$ 的 velocity field，以 Euler integration 在 50 步內由 noise 推進到 $t = 0$。
+5. 解碼：$S_0$ 經 VAE decoder $D_{SS}$ 還原為 $O$，提取 active voxels $\{p_i\}_{i=1}^{L}$；$\tilde{T}$ 經 z-score 反正規化得 $T = \{R, t, s\}$。
+
+**Pose parameterization 與 normalization：**$G_{SP}$ 的 rotation 採用 6D continuous representation（前兩 column + Gram–Schmidt），加上 $t \in \mathbb{R}^3$ 與 isotropic scale $s \in \mathbb{R}_+$。所有 component 於整個 training set 上做 z-score normalization：
+
+$$
+\tilde{T} = \left\{ \frac{\rho - \mu_\rho}{\sigma_\rho},\; \frac{t - \mu_t}{\sigma_t},\; \frac{s - \mu_s}{\sigma_s} \right\}
+$$
+
+inference 時 denormalize 回 $T = \{\tilde{\rho} \cdot \sigma_\rho + \mu_\rho,\; \tilde{t} \cdot \sigma_t + \mu_t,\; \tilde{s} \cdot \sigma_s + \mu_s\}$。
+
+**Key Formulas:**
+
+$$
+\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{CFM}}(S) + \alpha \cdot \mathcal{L}_{\text{CFM}}(\tilde{T}), \quad \alpha = 0.01
+$$
+
+**Implementation Details:**
+
+Base architecture 沿用 TRELLIS-image-large（約 1.2B parameters）。Optimizer 為 AdamW，learning rate $1 \times 10^{-4}$，batch size 512，55K iterations on 64 NVIDIA H100 GPUs（約 48 小時）。Classifier-free guidance drop rate 0.1；inference 時 CFG scale 3.0、50 denoising steps。Token 維度 $d_{\text{tok}}$ 與內部 hidden size 論文未具體說明。
+
+#### 5.3.3 VAE Encoder/Decoder $D_{SS}$（Structure VAE）
+
+**Function:** 在 dense occupancy 與低解析度連續 feature grid 之間提供平滑且 information-preserving 的 latent space，使 rectified flow 可在連續空間訓練。
+
+**Input:**
+- Name: $O$（encode 時）/ $S_0$（decode 時）
+- Shape: $O \in \{0, 1\}^{B \times 64 \times 64 \times 64}$；$S_0 \in [B, 16, 16, 16, 8]$
+- Source: GT occupancy（訓練）或 $G_{SP}$ 的 denoised latent（推論）
+
+**Output:**
+- Name: $S$（encode）/ $\hat{O}$（decode）
+- Shape: $S \in [B, 16, 16, 16, 8]$；$\hat{O} \in \{0, 1\}^{B \times 64 \times 64 \times 64}$
+- Consumer: encode 端輸出供 $G_{SP}$ 訓練；decode 端輸出供提取 active voxels
+
+**Processing:**
+
+1. Encoder：3D convolution stack 將 $64^3$ binary occupancy 下採樣 4 倍到 $16^3$，並提升 channel 至 8 通道，得到連續 feature grid。
+2. Decoder：對稱的 3D conv stack 上採樣回 $64^3$，輸出每個 voxel 的 occupancy logit，閾值化得二值 occupancy。
+
+**Implementation Details:**
+
+VAE 細部架構（層數、kernel、KL 權重）論文未具體說明（the paper does not specify）。直接生成 $64^3$ occupancy 計算成本過高，故採用此 latent 表示。
+
+#### 5.3.4 Stage 2 — Latent Flow Transformer $G_L$
+
+**Function:** 條件於 stage-1 的 sparse structure 與 pose，去噪每個 active voxel 的 local latent $z_i$，產生支援 mesh 與 Gaussian Splatting 解碼的 structured latents。
+
+**Input:**
+- Name: $(\{z_i^t\}_{i=1}^{L}, \{p_i\}, T, F_{\text{cond}})$
+- Shape: $z_i^t \in [B, L, d_z]$；$p_i \in [B, L, 3]$；$T \in [B, 1, d_{\text{pose}}]$
+- Source: $\{p_i\}$ 與 $T$ 來自 §5.3.2；$F_{\text{cond}}$ 來自 §5.3.1
+
+**Output:**
+- Name: $z = \{(z_i, p_i)\}_{i=1}^{L}$
+- Shape: $[B, L, d_z + 3]$
+- Consumer: mesh decoder $D_M$ 與 GS decoder $D_{GS}$（§5.3.5）
+
+**Processing:**
+
+1. 將 stage-1 預測的 pose $T$ 經 learnable linear layer 編碼為 $T_{\text{enc}}$，與 image、mask、pointmap features 在 condition 端 concatenate，使 latent 生成可感知物件相對相機的方向，解決對稱物件 view-dependent 紋理對齊問題。
+2. 以 $2^3$ 鄰域為單位，用 sparse convolution 將 latent 打包，再 serialize 成 token sequence（仿 DiT），有效降低序列長度。
+3. Time-modulated transformer block 以 AdaLN 注入 timestep；cross-attention 接收 augmented condition $F_{\text{cond}}^{S2}$。
+4. 經 transformer 後再以 convolutional upsampling head + skip connections 還原空間細節，得到每個 active voxel 的最終 $z_i$。
+
+**Key Formulas:**
+
+$$
+\mathcal{L}_{G_L} = \mathcal{L}_{\text{CFM}}(z), \quad F_{\text{cond}}^{S2} = \mathrm{Concat}(F_{\text{cond}},\; \mathrm{Linear}(T))
+$$
+
+**Implementation Details:**
+
+Pose 採用 9D pose parameterization（論文指出於模型輸入端表現最佳）。Sparse 結構搭配 sparse conv 大幅減少計算量。Latent 維度 $d_z$ 論文未具體說明（the paper does not specify）。其餘超參數（CFG、learning rate、batch size、iterations）與 $G_{SP}$ 共用同一 training recipe。
+
+#### 5.3.5 Mesh & Gaussian Splatting Decoders $D_M$, $D_{GS}$
+
+**Function:** 將 stage-2 的 structured latents 解碼為幾何（mesh）與外觀（colored 3D Gaussians），並透過多視角 render + bake 產生 textured mesh。
+
+**Input:**
+- Name: $z = \{(z_i, p_i)\}_{i=1}^{L}$
+- Shape: $[B, L, d_z + 3]$
+- Source: $G_L$（§5.3.4）
+
+**Output:**
+- Mesh：以 FlexiCubes 提取的 textured mesh（vertices + faces + texture map）
+- 3D Gaussians：colored Gaussian set $\{(\mu_k, \Sigma_k, c_k, \alpha_k)\}$ 供 render
+
+**Processing:**
+
+1. Mesh decoder $D_M$ 採用 FlexiCubes 從 sparse latent 中提取連續可微的等值面，產生 mesh 幾何。
+2. GS decoder $D_{GS}$ 將 latent 解碼為一組 3D coloured Gaussians，捕捉 view-dependent appearance。
+3. 將 GS 從多個預定視角 render 出 RGB images，再將這些影像 bake 到 mesh 表面，得到帶紋理的 mesh 資產。
+
+**Implementation Details:**
+
+FlexiCubes 提供可微 mesh 提取，使整個 pipeline 可端到端訓練 stage 2 的損失。Gaussian 參數的具體層數與輸出細節（每 voxel 的 Gaussian 數量、預測 head 結構）論文未具體說明。Texture baking 的視角數與解析度論文未具體說明。
+
+#### 5.3.6 Multi-view Extension
+
+**Function:** 將框架擴展至 single-view 與 two-view 的統一訓練/推論，利用第二視圖降低對稱與遮擋造成的歧義。
+
+**Input:**
+- Name: 第二視圖 $\{I^{(2)}, P^{(2)}, M^{(2)}, T^{(2)}\}$
+- Shape: 與第一視圖同；$T^{(2)} \in \mathrm{Sim}(3)$
+- Source: 同源資料集，於相機座標下提供額外姿態真值
+
+**Output:**
+- Name: 多視圖 augmented condition 與 per-view pose token
+- Shape: $F_{\text{cond}} \in [B, 2 \cdot N_{\text{tok}}, d_{\text{cond}}]$；pose tokens $\in [B, 2, d_{\text{pose}}]$
+- Consumer: $G_{SP}$、$G_L$
+
+**Processing:**
+
+1. 對每視圖獨立計算 $F_{\text{joint}}^{(v)}$（§5.3.1），於 sequence 維度 concatenate；每視圖 patch 加上 learnable frame token embedding 以區分來源。
+2. 模型每視圖各預測一個 pose token，每個 output pose token 加上 view-id embedding 區分。
+3. 訓練時以 $p_{\text{drop}} = 0.33$ 隨機丟棄第二視圖（含其 pose），讓模型保留 single-view 推論能力。
+
+**Implementation Details:**
+
+該機制使同一網路同時支援 1-view 與 2-view，避免訓練兩個獨立模型。第二視圖丟棄機率 $p_{\text{drop}} = 0.33$ 為固定超參數。inference 時若僅有單視圖，pose 的 view-id embedding 固定為第一視圖 token。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| Objaverse-XL | Object shape & pose 訓練資產 | 屬於 RecGen 合成資料集 198K assets / 3.2M RGB images 的子集 | train |
+| ABO | Object shape & pose 訓練資產 | 屬於上述 198K assets / 3.2M RGB 子集 | train |
+| HSSD | Object shape & pose 訓練資產 | 屬於上述 198K assets / 3.2M RGB 子集 | train |
+| PhysXNet | Part-level 訓練資產（僅 structure 階段） | 屬於上述 198K 子集；texture 訓練時排除 | train |
+| PartNext | Part-level 訓練資產（僅 structure 階段） | 屬於上述 198K 子集；texture 訓練時排除 | train |
+| PartNet-Mobility | Part-level 訓練資產（僅 structure 階段） | 屬於上述 198K 子集；texture 訓練時排除 | train |
+| LM-O | Object 6DoF pose & shape benchmark | the paper does not specify 樣本數（Fig. 6 中與 HB、ReOcS 合計 988 樣本） | test |
+| HB (HomebrewedDB) | Object 6DoF pose & shape benchmark | 33 objects；App. A.2 使用 538 samples | test |
+| HOPE | Symmetric 物件外觀生成 benchmark | the paper does not specify 樣本數 | test |
+| ReOcS | Object 6DoF pose & shape benchmark（重度遮擋） | the paper does not specify 樣本數 | test |
+| ArtVIP | Part-level shape & pose benchmark | 6 原始場景 + 6 新增場景，284 parts、924 RGB-D images | test |
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+|---|---|---|
+| $\text{CD}_\text{norm}$ | ICP 對齊後計算的 Chamfer Distance，並以 GT 物件 diameter 正規化，用於衡量表面重建品質 | yes |
+| ADD-SB | 雙向對稱版的 ADD-S，計算預測與 GT posed mesh 之間的對稱距離（GT mesh 為生成而非提供） | yes |
+| ADD-SB@0.1 / @0.05 | 以 10% 與 5% 物件 diameter 為門檻時 ADD-SB 通過的樣本比例；@0.05 為更嚴格門檻 | yes |
+| DRE@0.05 | Diameter Relative Error $e_d = |d_\text{pred} - d_\text{gt}| / d_\text{gt}$ 小於 5% 的樣本比例，衡量遮擋下的尺度估計穩健度 | no |
+| PSNR / SSIM / LPIPS | 將預測物件以預測 pose 渲染後與 GT-posed 渲染比較的標準感知指標，分為 ICP 對齊前後兩種 | no |
+| VLM-based orientation alignment | 用 GPT-5 比對 RecGen 與 GT-posed 渲染的主視覺區域（顏色塊、標籤、圖案）是否落在相同位置，用於對稱物件 | no |
+
+### 6.3 Training and Inference Settings
+
+- 架構：以 TRELLIS-image-large [10] 為 base representation，從其預訓練權重初始化，總參數量約 1.2B；採用 rectified flow transformer 架構。
+- 硬體與規模：64 張 NVIDIA H100 GPU 上訓練 55K iterations，batch size 512，整體訓練時間約 48 小時。
+- Optimizer 與學習率：AdamW，learning rate 1e-4；the paper does not specify 學習率 schedule。
+- Classifier-free guidance：訓練 drop rate 0.1。
+- Loss：$L_\text{total} = L_\text{CFM}(S) + \alpha \cdot L_\text{CFM}(\tilde{T})$，$\alpha = 0.01$；$G_{SP}$ 與 $G_L$ 兩階段獨立訓練。
+- 多視角訓練：以 $p_\text{drop} = 0.33$ 機率丟棄第二視角，使單視角推論能力得以保留。
+- Ablation 訓練配置：因算力限制改用 150K iterations、batch size 64（§6.5、Table 3）。
+- Inference 設定：CFG scale 3.0、50 denoising steps；單張 NVIDIA A100-SXM4-80GB 上 RecGen 平均 7.3s、peak total GPU memory 約 14.1 GB（App. C, Table S3）。
+- Multi-sample 分析：HB 上以 5 個獨立 seeds 評估，標準差 $\pm 0.001$（App. B.2, Table S2）。
+
+### 6.4 Main Results
+
+物件型 benchmark 平均（HB / ReOcS / LM-O；數值轉自 Table 1）：
+
+| Method | $\text{CD}_\text{norm}$ ↓ | ADD-SB ↓ | ADD-SB@0.05 ↑ | DRE@0.05 ↑ | Notes |
+|---|---|---|---|---|---|
+| SceneComplete | 0.395 | 0.418 | 24.2% | 0.0% | 無 pose-aware 生成，依賴 inpainting + FoundationPose |
+| Any6D (InstantMesh) | 0.076 | 0.108 | 36.2% | 37.7% | Model-free pose；mesh 由 InstantMesh 生成 |
+| Any6D (Trellis) | 0.097 | 0.147 | 32.7% | 29.8% | 將 InstantMesh 換成 TRELLIS |
+| SAM3D | 0.039 | 0.076 | 38.6% | 31.6% | 先前 SoTA |
+| **RecGen (1-view)** | **0.034** | **0.050** | **71.1%** | **50.1%** | 本文方法，單視角 |
+| **RecGen (2-view)** | **0.034** | **0.052** | **73.6%** | **50.2%** | 本文方法，雙視角 |
+
+Part-level benchmark（ArtVIP，數值取自 Table 1）：
+
+| Method | $\text{CD}_\text{norm}$ ↓ | ADD-SB ↓ | ADD-SB@0.05 ↑ | DRE@0.05 ↑ | Notes |
+|---|---|---|---|---|---|
+| SceneComplete | 0.189 | 0.201 | 34.0% | 0.6% | |
+| Any6D (InstantMesh) | 0.089 | 0.100 | 39.1% | 16.2% | |
+| Any6D (Trellis) | 0.090 | 0.106 | 37.7% | 16.8% | |
+| SAM3D | 0.056 | 0.073 | 45.8% | 22.6% | |
+| **RecGen (1-view)** | **0.026** | **0.034** | **84.0%** | **24.4%** | $\text{CD}_\text{norm}$ 比 SAM3D 減半，ADD-SB@0.05 +38.2pp |
+| **RecGen (2-view)** | **0.024** | **0.032** | **86.4%** | **24.8%** | |
+
+Posed appearance（LMO+HB+HOPE，after ICP，Table 2）：SAM3D LPIPS 0.161 / SSIM 0.841 / PSNR 17.42；**RecGen (1-view)** LPIPS 0.170 / SSIM 0.834 / PSNR 16.54。對稱子集上 RecGen LPIPS 領先（0.142 vs. 0.156），且 GPT-5 的 orientation alignment 達 74% vs. SAM3D 41%（Fig. 7）。
+
+摘要主張：相對 SAM3D，shape quality $+30.1\%$、texture $+9.1\%$、pose $+33.9\%$，且訓練 mesh 數量少約 80%。
+
+### 6.5 Ablation Studies
+
+採用 base RecGen（150K iters、batch 64）於 HB+LM-O+ReOcS（物件）與 ArtVIP（part），Table 3：
+
+- **w/o stereo（移除 FoundationStereo 模擬的 stereo depth 增強）**：物件 $\text{CD}_\text{norm}$ 0.042 → 0.048、ADD-SB 0.062 → 0.078，明顯退步；ArtVIP 影響極小（depth 為合成無噪），符合「real sensor noise robustness」的假設，屬於有效的診斷性 ablation。
+- **w/o pose normalization（移除 z-score pose 正規化）**：shape 幾乎不變（$\text{CD}_\text{norm}$ 維持 0.042），但兩種 setting 的 pose 都顯著惡化（物件 ADD-SB 0.062 → 0.074、part 0.043 → 0.056），證明 normalization 主要影響 pose 學習穩定性，是針對性 diagnostic 而非 sanity check。
+- **w/o part-centric data**：物件 metrics 與 full model 相當（$\text{CD}_\text{norm}$ 0.040、ADD-SB 0.060），但 ArtVIP $\text{CD}_\text{norm}$ 0.033 → 0.073、ADD-SB 0.043 → 0.086 大幅退步，回答「part 訓練是否在保留物件能力的同時帶來 part 能力」這個問題，屬於 generality 的診斷實驗。
+- **w/o pretraining（不從 TRELLIS 預訓練權重初始化）**：所有 metrics 一致變差（如物件 $\text{CD}_\text{norm}$ 0.042 → 0.044、ADD-SB 0.062 → 0.067），主要驗證 pretraining 的貢獻，比較接近 sanity check 而非細部設計診斷。
+
+整體來看，stereo、normalization、part data 三項 ablation 切割得相對乾淨，能對應到方法章節的設計選擇；不過缺少對 pointmap conditioning、mask conditioning、pose-conditioned appearance generation、multi-view 設計（如不同 $p_\text{drop}$）等核心新元件的逐項剝離，這些只在主表跨 method 比較中間接體現。
+
+### 6.6 Phyra Experiment Assessment
+
+- [covered] Has at least one strong baseline — 與目前最接近的 SoTA SAM3D 以及 Any6D（InstantMesh / Trellis 兩變體）、SceneComplete 在四個物件 benchmark 上比較（Table 1）。
+- [covered] Has cross-task / cross-dataset evaluation — 跨 4 個物件資料集（LM-O、HB、HOPE、ReOcS）與 1 個 part-level 資料集（ArtVIP），且包含 shape、6DoF pose、appearance 三類任務。
+- [partial] Has ablations that diagnose the new components — Stereo 增強、pose normalization、part-centric 資料、pretraining 為診斷性 ablation（Table 3），但缺少對 pointmap / mask conditioning、pose-conditioned appearance、multi-view dropout 等核心新元件的個別剝離。
+- [missing] Has a scaling study — 論文未報告模型大小、訓練資料量或 denoising steps 等的 scaling 曲線，僅靜態提及 1.2B 參數與 198K assets。
+- [covered] Has an efficiency / wall-clock comparison — App. C / Table S3 在單張 A100 上回報 RecGen 7.3 s vs. SAM3D 13.0 s（1.8×）與 14.1 GB vs. 22.0 GB（1.6×）。
+- [partial] Reports variance / standard deviation / multiple seeds where relevant — 僅 App. B.2 在 HB 上以 5 個 seeds 報告 $\text{CD}_\text{norm}$ $0.031 \pm 0.001$ 與 ADD-SB $0.048 \pm 0.001$（Table S3 的效率亦含 std），主表 Table 1/2 未提供 seed 變異。
+- [partial] Releases code / weights / data sufficient for reproducibility — 僅提供 project page `reconstruction-by-generation.github.io`，論文文本未明確聲明 code、weights 或 RecGen Dataset / ArtVIP 擴充版的釋出狀態。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Claim 1 — Multi-hypothesis joint shape+pose framework from one or few images.** Supported. Two-stage rectified-flow 結構在 §3.1 與 Fig. 2（p.3, 5–7）有完整描述，pose 正規化的 ablation（Table 3, p.11）證明 joint optimization 在 ADD-SB 上比拆解版本（無正規化）顯著好；multi-sample 變異（Table S2, p.22）也證實確為多假設輸出。
+- **Claim 2 — Synthetic occluded objects + parts dataset enables robust occlusion handling.** Supported。Fig. 6（p.9）與 Fig. S1（p.18）顯示 occlusion bin 越深 RecGen 對 SAM3D 的相對優勢越大；Table 3 移除 part-centric 資料後 ArtVIP CDnorm 從 0.033 升到 0.073，零件監督的必要性已經量化（p.11）。
+- **Claim 3 — 比 SAM3D 提升 30.1% / 9.1% / 33.9%（幾何 / 紋理 / 位姿）。** 部分 overclaimed。幾何（Table 1, p.8）與 pose（Table 1, p.8）的提升直接可驗證；紋理 9.1% 對應的是 §4.2 的 pre-ICP perceptual metrics（Table 2, p.10），但 after-ICP 結果作者自己也承認「performs comparably」，且該數字依賴 GPT-5 VLM 評估與部分有限資料集（HB+LMO+HOPE），紋理優勢比表面數字脆弱。
+- **Claim 4 — 在 80% 更少 mesh 下達成 SOTA。** 部分支持。確實 198K 訓練 mesh 比 SAM3D 報告的數量少（Abstract, p.1），但 Table 3（p.11）顯示移除 TRELLIS pretraining 會全面退化，所以「資料效率」實際上是 RecGen 設計 + 1.2B 參數預訓練 base 的合計效果（§3.3, p.7），不應全部歸給 RecGen 本身。
+- **Claim 5 — 原生支持 single-view 與 multi-view conditioning。** 部分支持。training-time 的 view dropout 機制（§3.1.2, p.7）確實落實了 unified framework，但 Table 1（p.8）顯示 LMO 上 2-view 在 CDnorm 與 ADD-SB 都比 1-view 差；2-view 真正穩定地優於 1-view 必須加上 inference-time pose selection（Table S1, p.21），這已超出 vanilla 條件化所能涵蓋。
+- **Claim 6 — 對 commodity 深度感測器雜訊穩健。** 支持。Table 3（p.11）的「w/o stereo」直接驗證以 FoundationStereo 估計 depth 訓練的必要性，物件 ADD-SB 從 0.062 退化到 0.078，且該現象只在真實資料集發生（ArtVIP 合成資料變動很小），因果方向清楚。
+
+### 7.2 Fundamental Limitations of the Method
+
+**單物件 / 單零件條件化視角，缺少場景級互動性約束。** RecGen 的 segment-aware 設計把每個 mask 當成獨立樣本去做 joint shape+pose 推論（§3, p.4–5），不同物件之間沒有顯式的物理或互相支撐約束。當場景有堆疊、接觸或共平面（例如桌面物件群）時，逐物件最大化各自 likelihood 會導致 inter-object 穿透或浮空，論文也提到這類問題已成獨立研究方向（§2.2 引用 [55–57], p.4）。RecGen 的目前公式並無內建機制承擔這類聯合約束。
+
+**生成成本綁定 50 步去噪 × 2 階段。** rectified flow 的優勢之一是潛在能少步推論，但作者 inference 設定固定為 50 步且兩 stage 串接（§3.3, p.7），導致每物件數秒、無法 closed-loop。這不是工程瑕疵而是架構結果：texture 條件在 pose token 上意味著兩 stage 不能 parallelize；TRELLIS 預訓練 latent 也未支援 few-step distillation，使「快速」與「pose-conditioned texture」在現有定義下相互衝突。
+
+**Pose 表徵以 z-score 統計鎖定訓練資料的相機座標分佈。** §3.1.1（p.5）對 rotation / translation / scale 各維度都用整個訓練集的 µ, σ 做 z-score 正規化；雖然 ablation 證實這對 pose 學習有幫助，但這同時把網路學到的 pose 分佈先驗硬性綁定到訓練 camera 設定上。當部署相機距離分佈、視角分佈、scale 範圍偏離訓練統計時，模型沒有 mechanism 調整這些參考量；論文沒有任何 cross-camera-setup generalization 實驗。
+
+**Mask 作為位置訊號的設計不可扭曲處理 mask 雜訊。** §3.1.1（p.6）以 "M ⋅ P" 直接把背景 pointmap 歸零，這在 mask 完全乾淨時讓背景「不污染但保留 context」，但在 SAM3 / SAM2 等真實 segmentor 常見的邊緣外溢、孔洞、object-leaking 情況下，污染會被當作幾何 evidence 直接餵給 cross-attention，無 robustness 機制。作者也在 App. D 直白承認此限制（p.23），但這同時是 method 在現實機器人部署的最大結構性風險。
+
+### 7.3 Citations Worth Tracking
+
+- **TRELLIS [10] (Xiang et al., CVPR 2025)** — RecGen 的 base latent space、rectified-flow transformer 與 mesh decoder 都直接沿用；要評估 RecGen 的 fine-tuning gain 必須對比 base model 的能力上限。
+- **SAM3D [7] (Chen et al., 2025)** — 全篇 SOTA 對標對象，所有量化比較皆以其為基準；理解 SAM3D 對稱物件紋理為何失敗、depth 為何脆弱，能直接判斷 RecGen 的修補是否到位。
+- **FoundationStereo [19] (Wen et al., CVPR 2025)** — RecGen 的「真實感深度訓練」核心；其 zero-shot stereo matching 品質直接決定 RecGen 的 depth-augmentation 上限。
+- **MIDI [30] (Li et al., CVPR 2025)** — 同期 multi-instance diffusion 場景生成方法，論文掛 concurrent 但無量化比較；判斷 RecGen 是否在 scene-level 真正領先必須直接讀。
+- **Any6D [12] (Lee et al., CVPR 2025)** — RecGen 的主要 model-free pose baseline，使用 InstantMesh + 後處理對齊的代表，瞭解其失敗模式可清楚解釋為何 joint generative 比 modular pipeline 在 occlusion 下更穩健。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 在 SAM3 / SAM2 等真實 segmentor 輸出（含邊緣噪聲與內部孔洞）作為 mask 時，RecGen 的 CDnorm 與 ADD-SB 退化幅度多大？論文僅評估 GT mask，無從判斷部署可行性。
+- [ ] LMO 上 2-view CDnorm（0.056）為何反而比 1-view（0.050）差？是 view-id embedding 造成的 token competition、還是 cross-view 一致性 loss 缺失？論文未給出失敗分析。
+- [ ] multi-sample oracle 在 HB 顯示 26% 的頭部空間（Table S2, p.22）；什麼樣的 learned scoring（DINOv2 特徵一致性？re-projection error？）能夠取回這部分而不靠 GT？
+- [ ] 訓練時 α = 0.01 將 pose 和 structure CFM loss 綁在一起；α 在 [10⁻³, 10⁻¹] 區間移動對 ADD-SB 與 CDnorm 的 trade-off 曲線為何？此設計選擇缺乏 sensitivity study。
+- [ ] 部署相機 intrinsics、距離分佈或 scale 範圍偏離 RecGen 訓練 z-score 統計時，模型是否需要重訓？z-score 正規化是否能換成 pose-aware Fisher 標準化避免該綁定？
+- [ ] 同期 MIDI [30] 在 cluttered scene 下的 instance-level 與 scene-level 指標如何？沒有 head-to-head 的情況下，RecGen 對「scene-level joint generation」的 SOTA 主張仍是空白。
+- [ ] 三階段以上的關節物件（例如機械臂、抽屜內含可動零件）在 ArtVIP 評估之外的鏈式關節下，RecGen 的零件預測是否能保持 part-pose consistency？目前評估僅在 single-step articulation。
+
+### 8.2 Improvement Directions
+
+1. **Learned multi-sample / multi-view selector**（最可行）。基於 Table S1、S2 的明顯 oracle gap，訓練一個輕量 scoring head 同時吃 pointmap re-projection error、DINOv2 patch consistency 與 generated mesh 的 occupancy alignment 分數，預期能把 HB 的 single-seed CDn 從 0.031 拉到 oracle 的 0.023 一半以上，且不需重訓 base flow。
+2. **Mask robustness via random dilation/erosion training**（高可行）。針對 author-acknowledged 的 mask sensitivity，於訓練時對 GT mask 加上 ±k px 的 morphological 擾動並在 P_obj 計算前生效，預期可顯著降低部署於 SAM 系列輸出時的 pose 與 shape 退化。
+3. **Few-step distillation of the two-stage flow**（中可行）。沿用近年 rectified-flow distillation 工作把 50 步壓到 4–8 步，並把 stage-1 pose token 顯式蒸餾為 stage-2 條件，把每物件推論從 7.3 s 降到 sub-second 級，是讓 RecGen 進入 closed-loop 機器人應用的必要工程。
+4. **Inter-object physical consistency post-pass**（中可行）。借鑑 [55–57] 的 physics-aware joint optimization，將 RecGen 各物件 sample 經 physics-consistent refinement 統一最佳化，補上目前完全沒考慮的 inter-object 接觸與支撐約束，預期顯著減少桌面 cluttered 場景的浮空與穿透。
+5. **Higher-capacity texture decoder（如 [78]）取代 GS-bake 流程**（中可行）。author 自己列為改進方向；以原生 mesh-aware decoder 替換 GS 渲染再 baking 的兩步流水線，能避免採樣損失並提高 ArtVIP 級紋理細節，是擴展紋理 SOTA 的直接路徑。
+6. **Cross-camera-setup generalization via pose-statistics randomization**（較低可行）。在訓練時隨機化 z-score 的 µ, σ 而非用整個資料集 fix 值，迫使網路學會 scale-invariant 的 pose 表徵，預期能緩解 §7.2 指出的相機座標綁定問題；風險是訓練收斂可能變慢，但是長期跨域部署的關鍵。

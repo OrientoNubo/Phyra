@@ -1,0 +1,512 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale</h1>
+          <p class="cover-meta">Sven Elflein, Ruilong Li, Sérgio Agostinho, Zan Gojcic, Laura Leal-Taixé, Qunjie Zhou, Aljosa Osep</p>
+          <p class="cover-meta">2602.23361 · arXiv preprint · 2026-02-26</p>
+          <div class="cover-tagline"><p>本文研究大規模、無姿態(unposed)影像集合下的離線 feed-forward 三維場景重建,目標是同時預測各影像的相機外參、內參與密集深度圖。代表性方法 VGGT 透過 Transformer 的 global self-attention 在 token 空間做跨視圖融合,雖精度高,但計算與記憶體隨輸入影像數 $n$ 呈 $O(n^2)$ 增長,導致無法擴展到上千張遊客式影像或地標重建。作者觀察到此瓶頸源自 attention 中變動長度的 Key-Value (KV) 場景表示,因此提出 VGG-T3:在每個 global attention 層,以 test-time training 將 KV 對應壓縮為固定大小的 MLP 權重(快權重),前向時改為對 query 套用 MLP。如此將複雜度降為 $O(n)$,同時保留全域場景聚合能力,並支援單卡離線、CPU offload 與多卡分散式推論,且自然延伸至 feed-forward 視覺定位。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本文研究大規模、無姿態(unposed)影像集合下的離線 feed-forward 三維場景重建,目標是同時預測各影像的相機外參、內參與密集深度圖。代表性方法 VGGT 透過 Transformer 的 global self-attention 在 token 空間做跨視圖融合,雖精度高,但計算與記憶體隨輸入影像數 $n$ 呈 $O(n^2)$ 增長,導致無法擴展到上千張遊客式影像或地標重建。作者觀察到此瓶頸源自 attention 中變動長度的 Key-Value (KV) 場景表示,因此提出 VGG-T3:在每個 global attention 層,以 test-time training 將 KV 對應壓縮為固定大小的 MLP 權重(快權重),前向時改為對 query 套用 MLP。如此將複雜度降為 $O(n)$,同時保留全域場景聚合能力,並支援單卡離線、CPU offload 與多卡分散式推論,且自然延伸至 feed-forward 視覺定位。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張現有離線 feed-forward 多視圖重建模型(如 VGGT、Fast3R、π3)無法 scale 的「根因」並非 softmax attention 本身的算子設計,而是其所隱含的「變動長度 KV 場景表示」:每張新加入的影像都會延長 KV 序列,導致 attention 在 query 階段必須對全部 token 做點積,複雜度因而為 $O(n^2)$,且記憶體隨 $n$ 線性增長。FastVGGT、SparseVGGT 之類方法只是壓縮 KV 的常數因子,漸進複雜度仍為平方;線上方法如 CUT3R 雖採固定大小狀態,卻是 auto-regressive 且容易漂移,難以處理無序大型影像集。基於此,作者主張:若能把 KV 場景表示由「變動長度的隱式快取」改為「固定大小的隱式狀態」,複雜度才會本質上從 $O(n^2)$ 降為 $O(n)$。其方案是借鏡 DeepSDF 的固定 latent + test-time 最佳化思維,並結合 Sun et al. 的 TTT 層,在每個 global attention 層用一個小型 MLP 透過自監督目標 $L(T_\theta(k), v)$ 來「蒸餾」KV 對應;查詢時只需 $T_\theta(q)$,既保留全域聚合能力又得到線性複雜度。為了讓預訓練 VGGT 權重能順利 linearize,他們以 L2 normalization 取代 LayerNorm 以加速 TTT 收斂,並在 Value 端加入 ShortConv2D 進行 2D 空間混合,避免 K→V 因同源線性投影產生平凡解;同時透過增加 TTT 最佳化步數實現序列長度的 test-time scaling。這套設計使最佳化目標可分解為 mini-batch 梯度之和,從而支援 CPU offload 與多卡分散式重建,並讓凍結的 MLP 自然成為可被新影像查詢的場景表示,統一了 mapping 與視覺定位。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>將 VGGT 的 global softmax attention 改寫為 TTT-based 的 MLP 壓縮層,讓 KV 場景表示從可變長度變為固定大小,理論複雜度由 $O(n^2)$ 直接降為 $O(n)$(§3.2,Fig. 2b)。</li><li>在 1000 張影像的 1-minute time budget 下完成大型地標重建,VGGT 需 ≥11 分鐘、FastVGGT 需 &gt;4 分鐘,VGG-T3 僅 58 秒,單卡達到 11.6× 加速(Fig. 1b、Fig. 4)。</li><li>配合 mini-batch 梯度分片,可在 4 GPU 上 48.5 秒完成 2k 張影像重建,相對 VGGT 的 27 分鐘為 33× 加速(Tab. 4)。</li><li>在 pointmap estimation 上對另一個 $O(n)$ 方法 TTT3R 形成壓制,DTU/ETH3D/NRGBD-D 的 Chamfer Distance 降為 TTT3R 的 1/2 至 1/2.5,且 DTU 上甚至優於 VGGT 等 $O(n^2)$ baseline(Tab. 1)。</li><li>Linearization 從 VGGT 預訓練權重啟動,訓練成本僅為從零訓練 VGGT 的 ≈12%(8× A100-80GB、100k steps),為 post-training linearization 路線提供可行範例(§4 implementation details)。</li><li>透過將 Value 端加入 ShortConv2D 打破 $K, V$ 同源線性投影的平凡解,把 mAA(30) 從 72.16 提升到 74.14,逼近 softmax 上限 76.33(Tab. 6)。</li><li>提出以「增加 TTT 最佳化步數」作為 test-time scaling 機制,從 1 步增到 2 步即把 1k 影像的 Chamfer Distance 從 ≈0.15 拉回 ≈0.05,跨 50× 序列長度仍近乎常數(Fig. 3、Fig. 5)。</li><li>由 $\sum_i d/d\theta\, L(k_i,v_i)$ 可分解為 mini-batch 梯度之和,無需 ring attention 即可直接在 DDP 上分散式推論,並支援 CPU offload 在單卡跑 2k 影像(§3.3、Tab. 4)。</li><li>將 mapping 與視覺定位統一在同一模型:凍結 TTT MLP 後以 query image 之 $q$ 套用 $T_\theta(q)$,在 7Scenes 與 Wayspots 上的 10cm/10° localization 命中率分別優於 TTT3R 達 +6.1pp 與 +12.7pp(Tab. 5)。</li><li>把 LayerNorm 換成 L2 normalization,顯著加速 TTT 從預訓練權重收斂,使 post-training linearization 比 from-scratch TTT 訓練優異(Tab. 6:from-scratch CD 0.262 vs ours 0.066)(§3.2)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>論文標題「VGG-T3: Offline Feed-Forward 3D Reconstruction at Scale」直接點出三個關鍵定位：以 VGGT 為基底、屬於 offline feed-forward 類別、訴求是「at Scale」的可擴展性。Abstract 隨即把問題鎖定在現有 offline feed-forward 方法的核心痛點：計算與記憶體需求隨輸入影像數量呈 quadratic 成長。作者提出的關鍵洞察是，這個 bottleneck 來自於 global self-attention 中 variable-length 的 KV space 表示，並主張可以用 test-time training 把這個 KV space distill 成 fixed-size MLP。</p>
+<p>接著 Abstract 直接給出量化承諾：VGG-T3 (Visual Geometry Grounded Test Time Training) 對輸入影像數量呈 linear scaling，可在 54 秒內重建 1k 張影像的 collection，相對於 softmax-attention baselines 達到 11.6× 加速。並指出由於保留了 global scene aggregation 能力，point map 重建誤差大幅優於其他 linear-time 方法。最後預告一個延伸能力：可用 unseen images 查詢 scene representation，達成 visual localization。</p>
+<p>這段敘事建立了論文後續所有討論的核心主軸：「KV space 是 quadratic bottleneck 的根源，把它換成 fixed-size MLP 就能 unlock scalability 並順帶得到 query-able representation」，為 §1 Introduction 鋪陳問題框架。</p>
+<h3>3.2 Introduction</h3>
+<p>(620 words)</p>
+<p>Introduction 採用「現況→瓶頸根因→解法直覺→延伸應用→貢獻」的五段式結構。</p>
+<p>首先是 status quo：基於 Transformer 的 feed-forward 方法（VGGT、Fast3R、π3 等）在精度上已可媲美傳統 SfM pipeline (COLMAP、GLOMAP)，且對 rapid camera motion 與 low visual overlap 等挑戰更 robust。但作者立刻點出代價：computational 與 memory 需求對輸入影像數的 scaling 很糟。</p>
+<p>第二段把瓶頸根因明確化：問題來自 global self-attention layer 中 KV space 作為「dense, variable-length scene representation」的設計。要從這個 latent representation 萃取 3D 屬性必須執行 global softmax attention，而這個操作對輸入影像數呈 quadratic 複雜度。作者點名近期 sparse attention (SparseVGGT) 與 token merging (FastVGGT) 雖能壓縮表示長度，但並未改變 underlying quadratic scaling。</p>
+<p>第三段「Compress your KV」是論文的核心 insight：相對於 variable-length 表示，存在另一條路線——以 fixed-size implicit representation 表達場景（如 DeepSDF）。作者把 DeepSDF 的精神搬到 multi-view feed-forward 設定：保留 pre-trained encoder/decoder，但將 global attention layer 的 KV mapping 改用 fast weights 的 MLP，藉由 test-time optimization 在 token space 學習這個 mapping。如此一來，querying KV space 就退化為「對 input tokens 套用 MLP」，操作對影像數呈 linear。</p>
+<p>第四段「Large-scale feed-forward reconstruction」推導出此設計帶來的工程紅利：由於 TTT loss 是 token-level local loss 的加總，gradient 可以 minibatch 拆分。這支援兩種 inference strategy：(i) 單 GPU 透過 CPU offloading 處理大型 collection，(ii) 跨多 GPU 透過 token sharding 做 distributed inference。具體成效是 2k 影像可在 48.5 秒處理完畢，相較 VGGT 的 27 分鐘有 33× 提升。</p>
+<p>第五段「Visual localization」拋出一個延伸 capability：optimized MLP 可視為 scene 的 compressed representation，凍結後以 novel query view 詢問即可進行 feed-forward visual localization，而傳統上 reconstruction 與 localization 是兩條獨立 pipeline。</p>
+<p>最後條列四項 contribution：(i) 提出 linear-scaling 的 offline feed-forward 重建模型；(ii) 證明可將 variable-length KV scene representation 轉為 fixed-dimensional implicit state；(iii) 同時支援 single-GPU large-image-set inference 與 efficient distributed inference；(iv) 展示 mapping 與 visual localization 統一於單一模型的 proof-of-concept。</p>
+<p>整段 Introduction 的敘事邏輯是先確立「為什麼要 linear」、再給出「如何 linear 而不犧牲 global aggregation」的具體機制，最後 framing 為通用 representation 改造，為 §2 Related Work 與 §3 Method 同時鋪設舞台。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(1150 words)</p>
+<p>§2 Related Work 先把 3D reconstruction 領域分為四條主軸：(1) 古典 SfM pipeline (Bundler、COLMAP、GLOMAP)，特色是多階段、需要充分 visual overlap；(2) feed-forward pairwise/multi-view models (DUSt3R、MASt3R、VGGT、Fast3R、π3、Light3R-SfM、FLARE)，這類方法的共通骨架是 tokenizer + multi-view aggregator + decoder，差異在於如何做 multi-view fusion；(3) large-scale 重建分支，又分為 chunk-based (Slam3R、VGGT-SLAM、VGGT-Long) 與 attention-optimization 兩派 (FastVGGT 用 token merging、SparseVGGT 用 block-sparse)，作者強調這些做法只是 reduce constant factor，asymptotic 仍是 quadratic；(4) online 與 streaming 方法，其中 fixed-size implicit memory (CUT3R、Must3R) 與 explicit spatial memory (Point3R、Long3R、MapAnything) 已經是 linear-time，但屬於 auto-regressive。</p>
+<p>接著作者點名 concurrent work TTT3R——同樣使用 test-time training，但建構於 CUT3R 的 fixed-size memory 之上，本質仍是 auto-regressive。VGG-T3 則是 global (offline)，因此精度顯著更高。再來討論 linear attention 的整體研究脈絡：linear attention、SSM (S4、H3、Hyena、Mamba) 與 TTT 之間的等價性，並引述 LLM 領域的 post-training linearization 趨勢，把自己的工作 framing 為「將 post-training linearization 延伸到 multi-view reconstruction」。最後 visual localization 段落鋪陳 SCR 路線 (ACE、ACEZero) 與 feature matching + PnP 路線，作為 §4.3 的對照背景。</p>
+<p>§3.1 Preliminaries 為 §3.2 的方法做雙重鋪陳。先回顧 VGGT：image tokenizer 把每張影像轉為 token sequence $x_i$，再交給交替的 image-wise self-attention 與 global self-attention blocks 處理。每個 attention block 中 token 經由 learned linear projection $W_q, W_k, W_v$ 與 layer norms $\text{LN}_q, \text{LN}_k$ 得到 $q_i, k_i, v_i$，softmax attention 為</p>
+<p>$o_i = \sum_j \mathrm{softmax}_j\!\left(\frac{q_i^T k_j}{\sqrt{d}}\right) v_j.$</p>
+<p>prediction heads 直接從 output tokens 解出 per-image depth、camera poses、intrinsics。作者特別點出 global self-attention 是 multi-view understanding 不可或缺的部分，但也是 quadratic 複雜度的源頭。</p>
+<p>接著回顧 test-time training 的數學形式：從 Sun et al. 的觀點，attention 可以被重新詮釋為一個 fast weights $\theta$ 的最佳化問題，</p>
+<p>$$\arg\min_{\theta} \sum_i L_t\big(T_\theta(k_i) - v_i\big), \quad o_i = T_\theta(q_i),$$</p>
+<p>亦即 $T_\theta$ 學習 $K \to V$ 的 mapping，再用 query $q_i$ 取回對應 value，類比於 softmax 用 QK 相似度檢索 V 的行為。關鍵性質在於：這兩個操作對 sequence length 都是 linear 的。</p>
+<p>整體 Related Work 與 Preliminaries 的故事邏輯是：(a) 確立 quadratic 是 offline feed-forward 路線的根本病灶；(b) 既有所有解法 (chunk、token merging、sparse、auto-regressive memory) 都各有妥協；(c) TTT 提供一套「把 attention 轉為 fixed-size optimization variable」的數學工具，且已在 LLM、video、view synthesis 等領域 validated。這恰好為 §3.2 提出的「把 VGGT global attention 換成 TTT-based MLP」做出技術可行性與差異化定位的雙重背書。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1700 words)</p>
+<p>§3 Method 的整體敘事走「核心問題 → 概念性 substitution → 從 pre-trained 模型 linearize 的工程細節 → expressivity 修補 → test-time scaling → 大規模推論的工程含義 → query-able representation」的長弧線。</p>
+<p>§3.2 開場以一個尖銳的問題框定整章：「Can We Fit Rome into MLPs?」作者把 multi-view scalability 問題歸結為 scene representation 的選擇，並重申 VGGT quadratic 的根因是 KV scene representation 為 variable-length。Overview 給出方法骨架：每個 global attention layer 變成兩階段——(1) Update：將 input tokens 投影為 $q, k, v$，用 TTT 將 KV mapping 壓縮進 fixed-size MLP 的 fast weights $\theta$；(2) Apply：套用該 MLP 到 queries 取得 updated tokens，傳給下一層。decoder 仍只在最後一層 transformer 之後執行。</p>
+<p>接著 Linearizing the pre-trained model 段落把工程細節攤開：作者希望從 VGGT 的 pre-trained $W_q, W_k, W_v$ 初始化以省成本，但發現 naive 替換收斂極慢。診斷出原因是 LayerNorm 中可學習參數會扭曲 MLP 要學的 input space；移除 LN、改用 L2 normalization 後 convergence 顯著改善。同時也驗證一個訓練策略：先以 softmax attention 訓練、再做 post-training linearization，比起 from-scratch TTT 表現更佳。</p>
+<p>Non-linear spatial mixing 是 method 中最關鍵的 expressivity 修補。作者點出 TTT 目標 $K \to V$ 因為 $K = W_k x$ 與 $V = W_v x$ 都源自同一 token 的 linear projection，存在 trivial solution $V = W_v W_k^{-1} K$，使得 MLP 學不到有意義的場景關聯。為了打破這個 dependency，作者引入 ShortConv2D：把 1D token sequence 重塑回 2D image grid $(N, H/p, W/p, d)$、套用單層 2D convolution 聚合鄰域資訊得到 context-aware target $V&#x27;$、再 flatten 回 1D 後做 TTT optimization，把目標改為 $K \to V&#x27;$。直覺是 V 端帶有 local spatial context 而 K 端沒有，迫使 MLP 學習更 robust 的 geometric scene representation。</p>
+<p>Test-time scaling 處理 sequence length generalization 問題：訓練時 collection size 上限為 24，但部署時要面對 1k+ images。作者觀察到單一 optimizer step 在 1k images 上會導致 reconstruction error 比 100 images 上高約 5×，並透過 Fig. 3a 顯示 best optimizer step 隨 collection 規模上升而往後移。透過增加 TTT 內部 optimizer steps（最後 default 為 2 steps），可達到接近 constant 的 scaling，這被作者 framing 為一種 test-time scaling via additional computation。</p>
+<p>§3.3 Large-scale Reconstruction 接著把這個 representation change 的工程含義系統化。複雜度上，從 $O(n^2)$ 降為 $O(n)$。Flexible inference 部分仔細推導出關鍵性質：</p>
+<p>$$\frac{dL_{\text{total}}}{d\theta} = \sum_i \frac{d}{d\theta} L(k_i, v_i) = \sum_s \left(\sum_{i \in s} \frac{d}{d\theta} L(k_i, v_i)\right),$$</p>
+<p>也就是 total gradient 可被任意 minibatch 拆分。這 unlock 兩個場景：(a) 單 GPU 上 off-load minibatch 到 host memory 處理任意大 collection；(b) 多 GPU 上 shard image tokens、各自算 local gradient，再用 small-size all-to-all 同步 MLP weights。對比之下 softmax attention 必須把所有 $q, k, v$ 同時放在 GPU memory，遇到大 collection 必然 OOM。</p>
+<p>最後 Query-able reconstruction &amp; visual localization 把 representation 屬性轉成 capability：完成 mapping 後凍結 fast weights，對 query image 執行單張 forward pass，但在 global attention layer 只把凍結的 MLP apply 到 query features，不更新 $\theta$。這實際上把 model 轉為 single-image transformer，並自然延伸到 visual localization。</p>
+<p>整章敘事為 §4 Experiments 設好三條驗證軸線：standard benchmarks 上的精度持平、large-scale regime 上的 scaling、visual localization 的 capability 展示，每一條都對應方法章中明確的 design decision。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(700 words)</p>
+<p>§4 Experiments 開頭以四個子節的 roadmap framing 整章：standard benchmarks (§4.1) 驗證在傳統規模下精度沒有崩；large-scale regime (§4.2) 驗證 linear scaling 在實務上兌現；visual localization (§4.3) 把 method 中宣稱的 query-able representation 落地；ablations (§4.4) 拆解 design choice 的個別貢獻。</p>
+<p>Implementation details 一次交代清楚：以 public VGGT checkpoint 為起點，把所有 global attention layer 替換為 TTT layer；fast weights MLP 用 SwiGLU 結構，optimizer 為 Muon，loss 為 dot-product loss $L_t(T_\theta(k_i), v_i) = T_\theta(k_i)^T v_i$，並在 V 上加 $3\times 3$ ShortConv2D。訓練只 fine-tune global attention layer，凍結其餘 VGGT 參數，跑 100k steps 在 8 張 A100-80GB 上，成本約為從零訓練 VGGT 的 12%。</p>
+<p>Baselines 分兩類：offline 端以 VGGT 為精度上限、配上 FastVGGT 與 SparseVGGT 兩個 quadratic 但已最佳化的變體；online 端則對標 concurrent 的 TTT3R，後者是同樣使用 TTT 但建構於 auto-regressive memory 之上的 linear-complexity 方法。這個 baseline 設計直接對映 §2 中 framing 出的兩個競爭路線。</p>
+<p>§4.1 Standard Benchmarks 涵蓋三個 downstream task：pointmap estimation (NRGBD、7scenes、DTU、ETH3D，metric 為 Chamfer Distance 與 Normal Consistency)、video depth (Bonn、KITTI、Sintel)、camera pose estimation (TUM-RGBD、ScanNet、Sintel)。整體 narrative 是：相對於唯一的 $O(n)$ baseline TTT3R，VGG-T3 在 pointmap 與 video depth 多數 split 上有顯著優勢；相對於 $O(n^2)$ baselines 則保持競爭力，甚至在 DTU 上反超。Camera pose 是相對弱項，作者明確 attribute 給 VGGT 的 camera token 異質結構，難以被 MLP memorize，並把它列為 future direction。同時凸顯一個方法層面的優勢：VGG-T3 自然支援 unordered input，而 TTT3R 在 unordered 設定下大幅退化。</p>
+<p>§4.2 Large-Scale 3D Reconstruction 是論文最有 punch 的實驗區塊。在 7scenes 上以 100/500/1k 張 image 量測 runtime vs Chamfer distance，VGG-T3 在 1k 張時 58 秒完成、相對 VGGT 的 11 分鐘達到 11.6× 加速、相對 FastVGGT 的 4 分鐘有 4.3× 加速；對 TTT3R 雖然 runtime 接近但 reconstruction 精度顯著更高，且不會隨 sequence 長度 degrade。Distributed inference 表 (Tab. 4) 進一步顯示 VGG-T3 用 plain DDP 即可線性加速 (1500 影像：1/2/4 GPU 為 173.1/56.8/29.7 秒)，而 VGGT 需要 ring attention 等 context-parallel 工程才能勉強跑 2k images。</p>
+<p>§4.3 Feed-forward Visual Localization 在 7scenes 與 Wayspots 上對標 TTT3R，使用 rotation/translation error 與 10/20cm-10/20° accuracy。VGG-T3 在兩個 dataset 上都贏，Wayspots 的差距尤其明顯，佐證 MLP-based scene representation 的 query 能力。作者也誠實 caveat：與 explicit-mapping 的 SOTA visual localization (如 Reloc3R) 仍有差距，目標只是展示 feed-forward visual localization 不依賴顯式 mapping 的可行性。</p>
+<p>§4.4 Ablations 在 224×224 ScanNet++ small-scale 設定下，逐一驗證 design：from-scratch TTT 卡在 local optimum、必須從 softmax-attention pretrain linearize；T2R、LoLCats 兩個 LLM 領域的 linearization baseline 都明顯遜於本作；最後加入 ShortConv2D 進一步縮小與 softmax attention 的差距。整體實驗章節的故事弧線是：standard benchmarks 證明沒退步、large-scale 證明真值得換 representation、localization 展示 bonus capability、ablation 把功勞精準歸因到 design choices。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(160 words)</p>
+<p>§5 Conclusion 篇幅極短但定位清晰，純粹收束全文 thesis：作者重申 contribution 為「scalable feed-forward 3D reconstruction that gracefully scales with the number of input views」，核心機制是用 test-time optimization 學 $K \to V$ mapping 取代 softmax attention 的 KV querying。再以一組量化 punchline 收尾——VGG-T3 在 1k images 上 11.6× 加速、2k images 上達 33× 加速，同時在 pointmap 與 video depth estimation 上大幅優於其他 linear-time 方法。</p>
+<p>Limitations 段落作者誠實坦承 trade-off：linear-time MLP scene representation 雖然成功保留 scalability 與 global aggregation 屬性，並大勝 auto-regressive 的 online 方法，但相對於 softmax attention 仍存在精度差距，特別是在 wide-baseline 場景。作者把這個現象 frame 成一個 open research question：如何 reconcile fixed-expressivity MLP scene representation 與 quadratic attention 的高精度。</p>
+<p>雖然論文未獨立列出 Future Work 段，但結尾一句明確指出後續方向——尋找介於 fixed-size MLP 與 full softmax attention 之間、能 match softmax 精度卻保持 linear scaling 的更具表達能力 representation。Appendix D 補充的 Waymo wide-baseline 失敗案例，也呼應這個 future direction，並暗示自適應依場景複雜度調整 computation 的設計可能是一條路徑。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(620 words)</p>
+<div class="card"><p>Introduction 採用「現況→瓶頸根因→解法直覺→延伸應用→貢獻」的五段式結構。</p></div>
+<div class="card"><p>首先是 status quo：基於 Transformer 的 feed-forward 方法（VGGT、Fast3R、π3 等）在精度上已可媲美傳統 SfM pipeline (COLMAP、GLOMAP)，且對 rapid camera motion 與 low visual overlap 等挑戰更 robust。但作者立刻點出代價：computational 與 memory 需求對輸入影像數的 scaling 很糟。</p></div>
+<div class="card"><p>第二段把瓶頸根因明確化：問題來自 global self-attention layer 中 KV space 作為「dense, variable-length scene representation」的設計。要從這個 latent representation 萃取 3D 屬性必須執行 global softmax attention，而這個操作對輸入影像數呈 quadratic 複雜度。作者點名近期 sparse attention (SparseVGGT) 與 token merging (FastVGGT) 雖能壓縮表示長度，但並未改變 underlying quadratic scaling。</p></div>
+<div class="card"><p>第三段「Compress your KV」是論文的核心 insight：相對於 variable-length 表示，存在另一條路線——以 fixed-size implicit representation 表達場景（如 DeepSDF）。作者把 DeepSDF 的精神搬到 multi-view feed-forward 設定：保留 pre-trained encoder/decoder，但將 global attention layer 的 KV mapping 改用 fast weights 的 MLP，藉由 test-time optimization 在 token space 學習這個 mapping。如此一來，querying KV space 就退化為「對 input tokens 套用 MLP」，操作對影像數呈 linear。</p></div>
+<div class="card"><p>第四段「Large-scale feed-forward reconstruction」推導出此設計帶來的工程紅利：由於 TTT loss 是 token-level local loss 的加總，gradient 可以 minibatch 拆分。這支援兩種 inference strategy：(i) 單 GPU 透過 CPU offloading 處理大型 collection，(ii) 跨多 GPU 透過 token sharding 做 distributed inference。具體成效是 2k 影像可在 48.5 秒處理完畢，相較 VGGT 的 27 分鐘有 33× 提升。</p></div>
+<div class="card"><p>第五段「Visual localization」拋出一個延伸 capability：optimized MLP 可視為 scene 的 compressed representation，凍結後以 novel query view 詢問即可進行 feed-forward visual localization，而傳統上 reconstruction 與 localization 是兩條獨立 pipeline。</p></div>
+<div class="card"><p>最後條列四項 contribution：(i) 提出 linear-scaling 的 offline feed-forward 重建模型；(ii) 證明可將 variable-length KV scene representation 轉為 fixed-dimensional implicit state；(iii) 同時支援 single-GPU large-image-set inference 與 efficient distributed inference；(iv) 展示 mapping 與 visual localization 統一於單一模型的 proof-of-concept。</p></div>
+<div class="card"><p>整段 Introduction 的敘事邏輯是先確立「為什麼要 linear」、再給出「如何 linear 而不犧牲 global aggregation」的具體機制，最後 framing 為通用 representation 改造，為 §2 Related Work 與 §3 Method 同時鋪設舞台。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(1150 words)</p>
+<div class="card"><p>§2 Related Work 先把 3D reconstruction 領域分為四條主軸：(1) 古典 SfM pipeline (Bundler、COLMAP、GLOMAP)，特色是多階段、需要充分 visual overlap；(2) feed-forward pairwise/multi-view models (DUSt3R、MASt3R、VGGT、Fast3R、π3、Light3R-SfM、FLARE)，這類方法的共通骨架是 tokenizer + multi-view aggregator + decoder，差異在於如何做 multi-view fusion；(3) large-scale 重建分支，又分為 chunk-based (Slam3R、VGGT-SLAM、VGGT-Long) 與 attention-optimization 兩派 (FastVGGT 用 token merging、SparseVGGT 用 block-sparse)，作者強調這些做法只是 reduce constant factor，asymptotic 仍是 quadratic；(4) online 與 streaming 方法，其中 fixed-size implicit memory (CUT3R、Must3R) 與 explicit spatial memory (Point3R、Long3R、MapAnything) 已經是 linear-time，但屬於 auto-regressive。</p></div>
+<div class="card"><p>接著作者點名 concurrent work TTT3R——同樣使用 test-time training，但建構於 CUT3R 的 fixed-size memory 之上，本質仍是 auto-regressive。VGG-T3 則是 global (offline)，因此精度顯著更高。再來討論 linear attention 的整體研究脈絡：linear attention、SSM (S4、H3、Hyena、Mamba) 與 TTT 之間的等價性，並引述 LLM 領域的 post-training linearization 趨勢，把自己的工作 framing 為「將 post-training linearization 延伸到 multi-view reconstruction」。最後 visual localization 段落鋪陳 SCR 路線 (ACE、ACEZero) 與 feature matching + PnP 路線，作為 §4.3 的對照背景。</p></div>
+<div class="card"><p>§3.1 Preliminaries 為 §3.2 的方法做雙重鋪陳。先回顧 VGGT：image tokenizer 把每張影像轉為 token sequence $x_i$，再交給交替的 image-wise self-attention 與 global self-attention blocks 處理。每個 attention block 中 token 經由 learned linear projection $W_q, W_k, W_v$ 與 layer norms $\text{LN}_q, \text{LN}_k$ 得到 $q_i, k_i, v_i$，softmax attention 為</p></div>
+<div class="card"><p>$o_i = \sum_j \mathrm{softmax}_j\!\left(\frac{q_i^T k_j}{\sqrt{d}}\right) v_j.$</p></div>
+<div class="card"><p>prediction heads 直接從 output tokens 解出 per-image depth、camera poses、intrinsics。作者特別點出 global self-attention 是 multi-view understanding 不可或缺的部分，但也是 quadratic 複雜度的源頭。</p></div>
+<div class="card"><p>接著回顧 test-time training 的數學形式：從 Sun et al. 的觀點，attention 可以被重新詮釋為一個 fast weights $\theta$ 的最佳化問題，</p></div>
+<div class="card"><p>$$\arg\min_{\theta} \sum_i L_t\big(T_\theta(k_i) - v_i\big), \quad o_i = T_\theta(q_i),$$</p></div>
+<div class="card"><p>亦即 $T_\theta$ 學習 $K \to V$ 的 mapping，再用 query $q_i$ 取回對應 value，類比於 softmax 用 QK 相似度檢索 V 的行為。關鍵性質在於：這兩個操作對 sequence length 都是 linear 的。</p></div>
+<div class="card"><p>整體 Related Work 與 Preliminaries 的故事邏輯是：(a) 確立 quadratic 是 offline feed-forward 路線的根本病灶；(b) 既有所有解法 (chunk、token merging、sparse、auto-regressive memory) 都各有妥協；(c) TTT 提供一套「把 attention 轉為 fixed-size optimization variable」的數學工具，且已在 LLM、video、view synthesis 等領域 validated。這恰好為 §3.2 提出的「把 VGGT global attention 換成 TTT-based MLP」做出技術可行性與差異化定位的雙重背書。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>VGG-T3 將 VGGT 的 global self-attention 替換為 test-time training (TTT) 層,核心想法是在每個 global attention block 把可變長度的 KV cache「蒸餾」成固定大小的 MLP 權重(fast weights $\theta$),前向傳遞時改為對 query 套用該 MLP。形式上,給定影像 token 的 $q_i, k_i, v_i \in \mathbb{R}^d$,標準 softmax attention 為 $o_i = \sum_j \mathrm{softmax}_j(q_i^T k_j / \sqrt d) v_j$,複雜度 $O(n^2)$;TTT 則改為先解 $\arg\min_\theta \sum_i L_t(T_\theta(k_i), v_i)$,再以 $o_i = T_\theta(q_i)$ 產生輸出 (Eq. 3、Eq. 4),兩個步驟對序列長度皆為 $O(n)$。每層 global attention 因此分成兩個階段:<strong>Update</strong> 用 TTT 把 KV 對應壓縮為 MLP 權重(視為 fast weights,訓練與推論時同樣最佳化);<strong>Apply</strong> 將最佳化後的 $T_\theta$ 套到該層 queries 得到下一層的 token,只有在最後一層才解碼出 depth、相機外參與內參。</p>
+<p>為了讓預訓練 VGGT 權重能順利 linearize,本文先將 QK 端的 LayerNorm 換成 L2 normalization,因為 LN 中可學的縮放/偏移參數會扭曲 MLP 在測試時要學習的輸入空間,實驗證明能加速 TTT 收斂(§3.2,p.5)。同時,由於 $K = W_k x$ 與 $V = W_v x$ 來自同一 token 的線性投影,$L_t$ 容易塌成 $V = W_v W_k^{-1} K$ 的平凡解;因此在 V 端額外加入 ShortConv2D (重塑成 $(N, H/p, W/p, d)$ 後做 $3\times 3$ 2D 卷積,再展平),強迫 TTT 學習 $K \to V&#x27;$,其中 $V&#x27;$ 帶有局部空間鄰域資訊,提供更強的自監督目標。</p>
+<p>實作上採用 LaCT 的 SwiGLU MLP 作為 $T_\theta$、Muon 作為內層最佳化器、dot-product loss $L_t(T_\theta(k_i), v_i) = T_\theta(k_i)^T v_i$。inner hidden 維度為 $4d$($d=1024$),只在 global attention 的 QKV/output 投影與 TTT 模組訓練,VGGT 其餘參數凍結。Test-time scaling 透過增加 TTT 最佳化步數(預設 2 步)讓固定大小 MLP 能容納更大規模的場景(§3.2 與 Fig. 3)。最重要的是,$L_t$ 為 token 上的求和,梯度也可拆成 mini-batch 之和 (Eq. 5),因此在多 GPU 上以 DDP + all-to-all 同步 MLP 權重即可分散式推論,在單 GPU 上則可將 mini-batch offload 到 host memory,逐批計算梯度後同步,使單卡能處理上千張影像(§3.3)。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input multi-view images
+   {I_i}, i=1..N                                shape: [N, 3, H, W]
+   patch size p = 14, token dim d = 1024
+   │
+   ▼
+┌────────────────────────────────────────────────────┐
+│ (a) Image tokenizer (frozen, from VGGT)            │
+│     DINO-style ViT patch embed + per-image self-attn│
+│     produces per-image image tokens x_i             │
+└────────────────────────────────────────────────────┘
+   x  shape: [N, P, d],  P = (H/p)·(W/p)
+   (camera &amp; register tokens omitted in diagram;
+    they bypass ShortConv2D and TTT update)
+   │
+   ▼
+┌────────────────────────────────────────────────────┐
+│ For ℓ = 1..L global blocks (alternating with        │
+│ frozen image-wise self-attention):                  │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ (b) QKV projection + L2-norm (replaces LN)   │   │
+│  │     q = LN_q(W_q x) → L2(W_q x)              │   │
+│  │     k = LN_k(W_k x) → L2(W_k x)              │   │
+│  │     v = W_v x                                │   │
+│  └──────────────────────────────────────────────┘   │
+│       q, k, v  shape: [N·P, d]   (per head: d_h)    │
+│       │                                             │
+│       ▼ (V branch only, image patch tokens)         │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ (c) ShortConv2D on V                         │   │
+│  │     reshape [N, H/p, W/p, d]                 │   │
+│  │     3×3 depthwise conv → V&#x27;                  │   │
+│  │     flatten back to [N·P, d]                 │   │
+│  └──────────────────────────────────────────────┘   │
+│       v&#x27;  shape: [N·P, d]                           │
+│       │                                             │
+│       ▼                                             │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ (d) Update step: fit fast weights θ_ℓ        │   │
+│  │     T_θ : ℝ^d → ℝ^d  (SwiGLU MLP, hidden 4d) │   │
+│  │     θ_ℓ ← argmin_θ Σ_i L_t(T_θ(k_i), v&#x27;_i)   │   │
+│  │     L_t = T_θ(k_i)^T v&#x27;_i (dot-product loss) │   │
+│  │     optimizer: Muon, S inner steps           │   │
+│  │     gradient = Σ_s (Σ_{i∈s} ∂L/∂θ)  (Eq. 5)  │   │
+│  │     mini-batches s sharded across GPUs / CPU │   │
+│  └──────────────────────────────────────────────┘   │
+│       θ_ℓ  shape: same as MLP params (fixed size)   │
+│       │                                             │
+│       ▼                                             │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ (e) Apply step: query the scene memory       │   │
+│  │     o_i = T_{θ_ℓ}(q_i)                       │   │
+│  │     output projection W_o, residual + MLP    │   │
+│  └──────────────────────────────────────────────┘   │
+│       o  shape: [N·P, d]  → next block input        │
+└────────────────────────────────────────────────────┘
+   │
+   ▼ after final global block (layer L)
+┌────────────────────────────────────────────────────┐
+│ (f) Prediction heads (frozen, from VGGT)           │
+│   ├─ Depth head      → X_i ∈ ℝ^{H×W}, shape [N,H,W]│
+│   ├─ Pose head       → P_i = (R_i ∈ SE(3), T_i∈ℝ³) │
+│   └─ Intrinsics head → K_i ∈ ℝ^{3×3}               │
+└────────────────────────────────────────────────────┘</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Image Tokenizer (frozen, from VGGT)"><h2 class="slide-title">Method — 5.3.1 Image Tokenizer (frozen, from VGGT)</h2><div class="card"><p><strong>Function:</strong> 將每張輸入影像轉換為 patch token 序列,並在每張影像內部做 image-wise self-attention,提供進入 global block 的 token 表示。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I = \{I_i\}_{i=1}^N$</li><li>Shape: <code>[N, 3, H, W]</code></li><li>Source: 原始多視圖影像集合</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $x$</li><li>Shape: <code>[N·P, d]</code>,其中 $P = (H/p)(W/p)$、$p=14$、$d=1024$</li><li>Consumer: 第一層 global attention block 的 QKV 投影</li></ul>
+<p><strong>Processing:</strong></p>
+<p>每張影像被切成 $H/p \times W/p$ 個 patch,以 ViT-style patch embedding 投影到 $d=1024$ 維;在每個 alternating block 中先執行 image-wise self-attention(僅限同一張影像內 token),其後再進入 global attention(本文替換之處)。輸出 token 會與 camera token、register token 一起進入下一個 block,但僅 image patch token 會經過 ShortConv2D 與 TTT update;camera/register token 直接 pass through(Implementation Details, p.10)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>The paper does not specify the exact tokenizer formula; 本模組沿用 VGGT 設計。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Tokenizer 與 image-wise self-attention 的所有參數在訓練 VGG-T3 時皆凍結,只 fine-tune 全域 attention 層的 QKV/output 投影與新加入的 TTT 模組(§A, p.10)。輸入影像的長邊 resize 至 518,aspect ratio 從 $[0.5, 2.0]$ 均勻取樣;使用 patch size $p=14$,因此 VGGT 訓練時的最大 token 數為 $N_T = 24 \times (518/14)^2 = 32{,}856$(§B, p.11)。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 QKV Projection with L2 Normalization"><h2 class="slide-title">Method — 5.3.2 QKV Projection with L2 Normalization</h2><div class="card"><p><strong>Function:</strong> 從 token 投影 query/key/value,並以 L2 normalization 取代原 VGGT 的 LayerNorm,避免可學參數扭曲 TTT 要學習的輸入空間,加速從預訓練權重收斂。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $x$</li><li>Shape: <code>[N·P, d]</code>($d=1024$)</li><li>Source: 上一層的 image-wise self-attention 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $(q, k, v)$</li><li>Shape: 每個皆為 <code>[N·P, d]</code>(多 head 時為 <code>[N·P, h, d_h]</code>,$h \cdot d_h = d$)</li><li>Consumer: $v$ 進入 ShortConv2D;$k, v&#x27;$ 進入 TTT update;$q$ 進入 Apply step</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對輸入 token $x_i$ 計算 $q_i = \text{L2}(W_q x_i)$、$k_i = \text{L2}(W_k x_i)$、$v_i = W_v x_i$。L2 normalization 即 $\text{L2}(u) = u / \lVert u \rVert_2$,沿特徵維度做單位化。原 VGGT 使用 LayerNorm 對 QK 做 normalization 以穩定 softmax attention(QK-norm, Eq. 1);改用 L2 後不再含可學的 affine 參數,經驗上能讓 TTT 從預訓練權重快速收斂(§3.2 Linearizing the pre-trained model, p.5)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ q_i = \mathrm{L2}(W_q x_i), \quad k_i = \mathrm{L2}(W_k x_i), \quad v_i = W_v x_i $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>只 fine-tune $W_q, W_k, W_v$ 與 output projection,以及新增的 TTT 模組;VGGT 其他部分(encoder、image-wise attention、prediction heads)全部凍結(§A, p.10)。$d=1024$ 與 VGGT hidden size 對齊。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 ShortConv2D on Value"><h2 class="slide-title">Method — 5.3.3 ShortConv2D on Value</h2><div class="card"><p><strong>Function:</strong> 對 V 端 token 在 2D 影像格上做 $3\times 3$ 深度卷積,聚合局部空間鄰域,把 $K \to V$ 的線性可逆關係打破為 $K \to V&#x27;$,讓 TTT 目標不再有平凡解,並提供更強的自監督訊號。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $v$</li><li>Shape: 序列形式 <code>[N·P, d]</code></li><li>Source: §5.3.2 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $v&#x27;$</li><li>Shape: <code>[N·P, d]</code></li><li>Consumer: §5.3.4 TTT update step 的目標 value</li></ul>
+<p><strong>Processing:</strong></p>
+<p>(1) Reshape:將 V 從 1D token sequence 轉成 2D image grid,形狀 <code>[N, H/p, W/p, d]</code>,$p$ 為 patch size。 (2) Convolve:沿空間維 $H/p \times W/p$ 做 $3\times 3$ ShortConv2D(2D 卷積比語言模型常用的 1D conv 更適合影像結構),產生 context-aware 的 $V&#x27;$。 (3) Flatten:再展回 <code>[N·P, d]</code>,作為 TTT 目標。</p>
+<p>cameras token 與 register token 不參與 ShortConv2D,直接 pass through(§A Inference details, p.10)。卷積核大小 $3\times 3$ 在 ablation 中最佳;$5\times 5$ 並未進一步改善,將 ShortConv2D 同時加在 $K, V$ 反而下降,因為 $K, V$ 共用相同空間混合會重新建立兩者線性依賴(§C Table 9 ShortConv2D ablation, p.12)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>The paper does not specify an exact formula beyond the three-step description above; ShortConv2D 為 single-layer 2D convolution。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>預設 $3\times 3$ filter,僅作用於 image patch token 對應的 V(§A Inference details, p.10);僅在 V 端套用,不對 K 套用。Concurrent 工作 ViT3 也採用了類似的 inner convolution(§3.2 Non-linear spatial mixing, p.5)。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Test-Time Training (Update)"><h2 class="slide-title">Method — 5.3.4 Test-Time Training (Update)</h2><div class="card"><p><strong>Function:</strong> 在每個 global attention 層,用自監督 loss 將該層所有 KV 對應「蒸餾」成一個固定大小 MLP 的 fast weights $\theta_\ell$,作為該層的隱式場景表示。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\{(k_i, v&#x27;_i)\}_{i=1}^{N \cdot P}$</li><li>Shape: 每個皆為 <code>[N·P, d]</code></li><li>Source: §5.3.2($k$)與 §5.3.3($v&#x27;$)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\theta_\ell$(該層 fast weights)</li><li>Shape: 與 MLP 參數同形(SwiGLU MLP,輸入/輸出 1024 維,hidden $4 \times 1024 = 4096$);其大小固定、不隨 $N$ 變化</li><li>Consumer: §5.3.5 Apply step</li></ul>
+<p><strong>Processing:</strong></p>
+<p>固定大小 MLP $T_\theta : \mathbb{R}^d \to \mathbb{R}^d$ 採 SwiGLU 結構,輸入維度 1024,hidden 維度 $4d=4096$。對該層所有 token 求解</p>
+<p>$$ \theta_\ell = \arg\min_\theta \sum_{i=1}^{N \cdot P} L_t\bigl(T_\theta(k_i), v&#x27;_i\bigr), \quad L_t(T_\theta(k_i), v&#x27;_i) = T_\theta(k_i)^T v&#x27;_i $$</p>
+<p>inner optimizer 使用 Muon(5 次 Newton–Schulz 迭代,learning rate 0.1),訓練時內部步數預設 1,推論時預設 2(§A Training, p.10)。由於 $L_t$ 對 $\theta$ 的梯度為 token 上之和,可拆成 mini-batch 子和:</p>
+<p>$$ \frac{dL_{\text{total}}}{d\theta} = \sum_i \frac{d}{d\theta} L(k_i, v&#x27;_i) = \sum_s \Bigl( \sum_{i \in s} \frac{d}{d\theta} L(k_i, v&#x27;_i) \Bigr) \quad (\text{Eq. 5}) $$</p>
+<p>於是分散式推論時將影像分片到不同 GPU 各自累加梯度後 all-to-all 同步 $\theta$;單 GPU 大規模推論時把每個 mini-batch offload 到 host memory,只保留當前批次在 device,逐批計算梯度後再 offload 回去(§3.3, p.5–6)。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \arg\min_\theta \sum_i L_t\bigl(T_\theta(k_i) - v_i\bigr) \quad (\text{Eq. 3, V replaced by } v&#x27;) $$</p>
+<p>$$ \frac{dL_{\text{total}}}{d\theta} = \sum_s \Bigl( \sum_{i \in s} \frac{d}{d\theta} L(k_i, v_i) \Bigr) \quad (\text{Eq. 5}) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>SwiGLU MLP 的 input/output 維度 $=1024$,hidden $=4096$(§A, p.10)。Inner optimizer 為 Muon、lr $=0.1$、Newton–Schulz 迭代 5 次,訓練時 1 步、推論時預設 2 步;序列越長(out-of-distribution)時提高內部步數能近似常數誤差縮放(§3.2 Test-time scaling, Fig. 3, p.5;§C Number of optimizer steps, Fig. 5, p.11)。Loss 採 dot-product 形式 $T_\theta(k_i)^T v&#x27;_i$ 而非平方差(§4 Implementation details, p.6)。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Test-Time Training (Apply) and Output Projection"><h2 class="slide-title">Method — 5.3.5 Test-Time Training (Apply) and Output Projection</h2><div class="card"><p><strong>Function:</strong> 用最佳化後的 fast weights $\theta_\ell$ 對 query 做前向,得到該層替代 softmax attention 的輸出,再經 output projection 與後續 image-wise block,直到最後一層才解碼出深度、相機姿態與內參。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $q$, $\theta_\ell$</li><li>Shape: <code>[N·P, d]</code>,$\theta_\ell$ 為固定大小 MLP 參數</li><li>Source: §5.3.2($q$)與 §5.3.4($\theta_\ell$)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $o$(該層輸出 token);最終為 $\{P_i, K_i, X_i\}$</li><li>Shape: $o$ 為 <code>[N·P, d]</code>;$P_i$ 為 $(R_i \in SE(3), T_i \in \mathbb{R}^3)$、$K_i \in \mathbb{R}^{3\times 3}$、$X_i \in \mathbb{R}^{H \times W}$</li><li>Consumer: 下一個 alternating block;最後一層後接 prediction heads</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對該層所有 query 計算 $o_i = T_{\theta_\ell}(q_i)$(Eq. 4),整體計算為 $O(N \cdot P)$,無須對全部 KV 做點積。然後接原 VGGT 的 output projection、residual 與 image-wise self-attention,進入下一層。Visual localization 設定下,對 mapping 影像跑完所有 update 後保留 $\theta_\ell$ 不再更新,query 影像走過模型時只執行 apply step,以 frozen $\theta_\ell$ 取得 token,等價於把模型當成 single-image transformer 處理新影像(§3.3 Query-able reconstruction &amp; visual localization, p.6)。最終由 VGGT 三組 prediction heads 解碼出 per-view depth $X_i$、相機外參 $P_i = (R_i, T_i)$、pinhole intrinsics $K_i$。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$o_i = T_\theta(q_i) \quad (\text{Eq. 4})$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>實際輸出 pointmap 時,作者使用 VGGT 的 global pointmap head 直接輸出,而非 unproject(depth, pose),因為 TTT 線性化後相機姿態較不準確,unproject 會放大誤差(§A Inference details, p.10)。Visual localization 時,query 影像的 camera token 仍會與 mapping 影像的 camera token 一起進入 camera head 的 softmax attention,再解出相機參數,因為 VGGT camera head 需要全部 camera token(§A Inference details, p.10)。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>Aria Synthetic Environments</td><td>Multi-view 3D reconstruction (indoor)</td><td>大規模合成室內</td><td>train</td></tr><tr><td>DynamicReplica</td><td>Multi-view 3D reconstruction (indoor)</td><td>動態室內影片</td><td>train</td></tr><tr><td>Hypersim</td><td>Multi-view 3D reconstruction (indoor)</td><td>室內合成</td><td>train</td></tr><tr><td>Replica</td><td>Multi-view 3D reconstruction (indoor)</td><td>室內掃描</td><td>train</td></tr><tr><td>Cubify Anything</td><td>Multi-view 3D reconstruction (indoor)</td><td>室內物件</td><td>train</td></tr><tr><td>ScanNet++</td><td>Multi-view 3D reconstruction (indoor)</td><td>高品質室內</td><td>train (亦用於 ablation 的 224×224 設定)</td></tr><tr><td>ScanNet</td><td>Multi-view 3D reconstruction (indoor)</td><td>室內掃描</td><td>train / test (camera pose)</td></tr><tr><td>Taskonomy</td><td>Multi-view 3D reconstruction (indoor)</td><td>室內</td><td>train</td></tr><tr><td>Mapillary Metropolis</td><td>Multi-view 3D reconstruction (outdoor)</td><td>城市街景</td><td>train</td></tr><tr><td>MatrixCity</td><td>Multi-view 3D reconstruction (outdoor)</td><td>城市規模合成</td><td>train</td></tr><tr><td>MegaDepth</td><td>Multi-view 3D reconstruction (outdoor)</td><td>網路照片</td><td>train</td></tr><tr><td>Mid-Air</td><td>Multi-view 3D reconstruction (outdoor)</td><td>低空無人機</td><td>train</td></tr><tr><td>Mapillary Planet-scale Depth</td><td>Multi-view 3D reconstruction (outdoor)</td><td>行星級</td><td>train</td></tr><tr><td>ParallelDomain4D</td><td>Multi-view 3D reconstruction (outdoor)</td><td>合成 4D</td><td>train</td></tr><tr><td>vKITTI2</td><td>Multi-view 3D reconstruction (outdoor)</td><td>合成駕駛</td><td>train</td></tr><tr><td>CO3Dv2</td><td>Object-centric reconstruction</td><td>物件中心</td><td>train</td></tr><tr><td>Kubric</td><td>Object-centric reconstruction</td><td>合成物件</td><td>train</td></tr><tr><td>Wild-RGBD</td><td>Object-centric reconstruction</td><td>真實 RGB-D</td><td>train</td></tr><tr><td>BlendedMVG</td><td>Mixed multi-view stereo</td><td>通用 MVS</td><td>train</td></tr><tr><td>DL3DV-10K</td><td>Mixed scene-level</td><td>大規模場景</td><td>train</td></tr><tr><td>Spring</td><td>Mixed flow/stereo</td><td>高解析度</td><td>train</td></tr><tr><td>TartanAirV2</td><td>Mixed SLAM</td><td>視覺 SLAM</td><td>train</td></tr><tr><td>UnrealStereo4k</td><td>Mixed stereo</td><td>4K 合成</td><td>train</td></tr><tr><td>NRGBD</td><td>Pointmap estimation</td><td>dense / sparse split</td><td>test (Tab. 1, Fig. 5)</td></tr><tr><td>7scenes</td><td>Pointmap estimation, visual localization, large-scale 重建</td><td>dense / sparse + 視訊</td><td>test (Tab. 1, Tab. 5, Fig. 4, Tab. 4)</td></tr><tr><td>DTU</td><td>Pointmap estimation</td><td>多視角立體</td><td>test (Tab. 1)</td></tr><tr><td>ETH3D</td><td>Pointmap estimation</td><td>高解析多視角</td><td>test (Tab. 1)</td></tr><tr><td>Bonn</td><td>Video depth</td><td>RGB-D 影片</td><td>test (Tab. 2)</td></tr><tr><td>KITTI</td><td>Video depth, in-the-wild localization</td><td>駕駛序列</td><td>test (Tab. 2, Fig. 8)</td></tr><tr><td>Sintel</td><td>Video depth, camera pose</td><td>合成電影</td><td>test (Tab. 2, Tab. 3)</td></tr><tr><td>TUM-RGBD</td><td>Camera pose</td><td>室內 RGB-D</td><td>test (Tab. 3)</td></tr><tr><td>Wayspots</td><td>Visual localization</td><td>戶外定位</td><td>test (Tab. 5)</td></tr><tr><td>Waymo</td><td>大空間範圍重建可視化</td><td>自駕序列</td><td>qualitative (Fig. 9)</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Chamfer Distance (CD)</td><td>預測點雲與 GT 點雲間的 Chamfer 距離,越小越好</td><td>yes</td></tr><tr><td>Normal Consistency (NC)</td><td>重建表面法向量一致度,越大越好</td><td>yes</td></tr><tr><td>Abs Rel</td><td>Absolute Relative Error of depth</td><td>yes (video depth 任務)</td></tr><tr><td>$\delta &lt; 1.25$</td><td>depth 預測落在 GT 的 1.25 倍誤差比例</td><td>yes (video depth 任務)</td></tr><tr><td>ATE</td><td>Absolute Trajectory Error,相機軌跡誤差</td><td>yes (camera pose)</td></tr><tr><td>RPEr</td><td>Relative Pose Error (rotation)</td><td>yes (camera pose)</td></tr><tr><td>RPEt</td><td>Relative Pose Error (translation)</td><td>yes (camera pose)</td></tr><tr><td>$e_r$ (deg)</td><td>定位 query view 的旋轉誤差</td><td>yes (visual localization)</td></tr><tr><td>$e_t$ (m)</td><td>定位 query view 的平移誤差</td><td>yes (visual localization)</td></tr><tr><td>Recall @ (10cm, 10°) / (20cm, 20°)</td><td>query 影像被定位於門檻內的比例</td><td>yes (visual localization)</td></tr><tr><td>mAA(30)</td><td>相機姿勢估計平均準確率(門檻 30°),用於 ablation</td><td>partial (僅 ablation §6.5)</td></tr><tr><td>Forward time / Latency (s)</td><td>推論 wall-clock 時間</td><td>yes (核心 scalability claim)</td></tr><tr><td>Speed-up 倍數</td><td>相對 VGGT 的加速比</td><td>yes (核心 scalability claim)</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><p>訓練從公開的 VGGT checkpoint 出發,將所有 global attention layer 替換為 TTT layer,並只 fine-tune QKV 投影、output projection 與新增的 TTT 模組參數,encoder、per-image attention、prediction heads 全部 frozen(Sec. A)。硬體為 8 張 NVIDIA A100-80GB GPU,訓練 100k steps,作者宣稱整體訓練成本約為 VGGT from-scratch 的 12%。</p>
+<p>採用 adaptive batch size:每個 collection 含 2–24 張影像,單 GPU 上影像總數維持約 48 張;影像長邊 resize 至 518,aspect ratio 從 $[0.5, 2.0]$ 均勻取樣,並對每張影像獨立做 color jitter。Image collection sampling 採 greedy 方式,先隨機抽一張,再從與目前集合中任一影像 co-visibility $&gt; 0.3$ 的候選集均勻抽取,co-visibility matrix 透過 depth consistency check 預先計算(Sec. A)。</p>
+<p>Outer optimizer 為 AdamW,lr $= 10^{-4}$,weight decay $= 0.05$,$\beta_1 = 0.9$、$\beta_2 = 0.95$;前 1,000 steps 線性 warmup 至 10×,之後 cosine decay 至 $10^{-6}$。Inner (TTT) optimizer 採 Muon,5 次 Newton-Schulz 迭代,lr $= 0.1$,訓練時每層只跑 1 個 optimizer step。TTT 內部 MLP 採 SwiGLU,輸入/輸出維度 1024(對齊 VGGT hidden state),hidden layer 為 4× 擴張;loss 為 dot-product loss $L_t(T_\theta(k_i), v_i) = T_\theta(k_i)^\top v_i$。在 V 上額外套用 3×3 ShortConv2D,且僅 image patch token 的 V 參與 ShortConv2D,camera 與 register token 直接 pass-through(Sec. A)。</p>
+<p>推論時 default 使用 2 個 TTT optimizer step(Fig. 3a, Fig. 5);pointmap 採 global pointmap head 直接輸出,而非由 depth + camera unprojection(因 camera pose 預測較不精確,Sec. 4.1, Sec. A);visual localization 時保留所有 mapping 影像的 camera token 一起送入 camera head,query 的 camera token 才在 camera head 的 softmax attention 中被解碼(Sec. A)。Localization sub-sample 設定:7Scenes stride 200、Wayspots stride 20;pointmap 評估則因 ICP 對齊太慢,選 10 個等距 keyframe 計算指標,其他 frame 視為 supporting view(Sec. A)。所有 benchmark 在 NVIDIA A100-80GB 上進行。</p></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>Pointmap estimation(Chamfer Distance / Normal Consistency,Tab. 1):</p>
+<table><thead><tr><th>Method</th><th>7scenes-D CD</th><th>7scenes-S CD</th><th>DTU CD</th><th>ETH3D CD</th><th>NRGBD-D CD</th><th>NRGBD-S CD</th><th>Notes</th></tr></thead><tbody><tr><td>VGGT</td><td>0.024</td><td>0.054</td><td>1.537</td><td>0.279</td><td>0.014</td><td>0.055</td><td>$O(n^2)$ 上界</td></tr><tr><td>SparseVGGT</td><td>0.023</td><td>0.094</td><td>1.541</td><td>0.327</td><td>0.018</td><td>0.079</td><td>$O(n^2)$</td></tr><tr><td>FastVGGT</td><td>0.021</td><td>0.065</td><td>1.683</td><td>0.594</td><td>0.033</td><td>–</td><td>$O(n^2)$;NRGBD-S 失敗</td></tr><tr><td>TTT3R</td><td>0.035</td><td>0.129</td><td>5.708</td><td>0.885</td><td>0.071</td><td>0.094</td><td>$O(n)$ baseline</td></tr><tr><td><strong>VGG-T3 (ours)</strong></td><td><strong>0.030</strong></td><td><strong>0.107</strong></td><td><strong>1.654</strong></td><td><strong>0.480</strong></td><td><strong>0.029</strong></td><td><strong>0.056</strong></td><td>$O(n)$;在 DTU/ETH3D/NRGBD-D 比 TTT3R 降低 2–2.5× 誤差</td></tr></tbody></table>
+<p>Video depth(Tab. 2):</p>
+<table><thead><tr><th>Method</th><th>Bonn $\delta&lt;1.25$</th><th>Bonn AbsRel</th><th>KITTI $\delta&lt;1.25$</th><th>KITTI AbsRel</th><th>Sintel $\delta&lt;1.25$</th><th>Sintel AbsRel</th></tr></thead><tbody><tr><td>VGGT</td><td>0.967</td><td>0.059</td><td>0.964</td><td>0.071</td><td>0.646</td><td>0.300</td></tr><tr><td>SparseVGGT</td><td>0.968</td><td>0.057</td><td>0.963</td><td>0.070</td><td>0.639</td><td>0.304</td></tr><tr><td>FastVGGT</td><td>0.969</td><td>0.058</td><td>0.964</td><td>0.073</td><td>0.630</td><td>0.307</td></tr><tr><td>TTT3R</td><td>0.969</td><td>0.061</td><td>0.818</td><td>0.151</td><td>0.510</td><td>0.469</td></tr><tr><td><strong>VGG-T3 (ours)</strong></td><td><strong>0.963</strong></td><td><strong>0.063</strong></td><td><strong>0.967</strong></td><td><strong>0.076</strong></td><td><strong>0.581</strong></td><td><strong>0.345</strong></td></tr></tbody></table>
+<p>Camera pose(Tab. 3,unordered 最佳以 <em>blue</em> 標示,此處粗體表示本方法):</p>
+<table><thead><tr><th>Method</th><th>ScanNet ATE</th><th>Sintel ATE</th><th>TUM ATE</th><th>Notes</th></tr></thead><tbody><tr><td>VGGT</td><td>0.035</td><td>0.172</td><td>0.012</td><td>$O(n^2)$</td></tr><tr><td>SparseVGGT</td><td>0.036</td><td>0.177</td><td>0.013</td><td>$O(n^2)$</td></tr><tr><td>FastVGGT</td><td>0.035</td><td>0.158</td><td>0.013</td><td>$O(n^2)$</td></tr><tr><td>TTT3R (ordered)</td><td>0.063</td><td>0.196</td><td>0.025</td><td>sequential 處理</td></tr><tr><td>TTT3R (unordered)</td><td>0.094</td><td>0.325</td><td>0.029</td><td>unordered 顯著退化</td></tr><tr><td><strong>VGG-T3 (ours)</strong></td><td><strong>0.070</strong></td><td><strong>0.234</strong></td><td><strong>0.037</strong></td><td>同時支援 ordered/unordered;但落後 TTT3R(ordered)</td></tr></tbody></table>
+<p>Large-scale runtime(7scenes,單位:秒,Tab. 4):</p>
+<table><thead><tr><th>Method</th><th>1500 imgs / 1 GPU</th><th>1500 / 2 GPU</th><th>1500 / 4 GPU</th><th>2000 / 1 GPU</th><th>2000 / 2 GPU</th><th>2000 / 4 GPU</th></tr></thead><tbody><tr><td>TTT3R</td><td>90.1</td><td>N/A</td><td>N/A</td><td>126.2</td><td>N/A</td><td>N/A</td></tr><tr><td>VGGT</td><td>OOM</td><td>1779.3</td><td>913.6</td><td>OOM</td><td>2827.1</td><td>1590.2</td></tr><tr><td><strong>VGG-T3 (ours)</strong></td><td><strong>173.1</strong></td><td><strong>56.8</strong></td><td><strong>29.7</strong></td><td><strong>230.7</strong></td><td><strong>74.8</strong></td><td><strong>48.5</strong></td></tr></tbody></table>
+<p>依 Fig. 4,1k 影像時 VGGT 約 11 分鐘、FastVGGT 約 4 分鐘,而 VGG-T3 僅 58 秒(11.6× / 4.3× 加速);2k 影像則達到約 33× 對 VGGT 的加速。Fig. 1b 顯示 forward time 對 view 數呈線性,而所有 softmax-attention baseline 在 ~1k–2k views 之間 OOM。</p>
+<p>Visual localization(Tab. 5):</p>
+<table><thead><tr><th>Method</th><th>7Scenes $e_r$</th><th>7Scenes $e_t$</th><th>7Scenes 10cm/10°</th><th>7Scenes 20cm/20°</th><th>Wayspots $e_r$</th><th>Wayspots $e_t$</th><th>Wayspots 10cm/10°</th><th>Wayspots 20cm/20°</th></tr></thead><tbody><tr><td>TTT3R</td><td>7.18</td><td>0.17</td><td>34.59</td><td>70.21</td><td>74.45</td><td>4.38</td><td>0.69</td><td>2.94</td></tr><tr><td><strong>VGG-T3 (ours)</strong></td><td><strong>6.71</strong></td><td><strong>0.16</strong></td><td><strong>40.69</strong></td><td><strong>73.00</strong></td><td><strong>32.04</strong></td><td><strong>1.90</strong></td><td><strong>13.41</strong></td><td><strong>30.64</strong></td></tr></tbody></table>
+<p>論文亦指出 Reloc3R 在 7scenes 達 $e_r = 1.02°$、$e_t = 0.04$ m,本方法目標僅在於展示「無需顯式 mapping 的 feed-forward localization 是可行的」,而非追平專用 localization pipeline。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>於 ScanNet++、224×224 解析度、2–24 views 的小規模設定下進行(Tab. 6):</p>
+<ul><li>Linearization 來源(Tab. 6 i):若 TTT-from-scratch,CD 從 softmax 的 0.061 退化到 0.262,NC 0.844 → 0.727,mAA(30) 76.33 → 52.95。<strong>診斷</strong>:確認「先用 softmax 預訓再線性化」是必要 recipe 而非裝飾,屬有意義的 ablation。</li><li>替代 linearization 方法(Tab. 6 ii–iii):T2R CD 0.137 / mAA 66.27、LoLCats CD 0.097 / mAA 62.87,均大幅落後本方法 (iv) CD 0.074 / mAA 72.16。<strong>診斷</strong>:在相同 base architecture 下比較,合理回答「為何選 TTT 形式的 linearization」。</li><li>ShortConv2D(Tab. 6 v / Tab. 9):加上 3×3 後 CD 0.074 → 0.066、NC 0.833 → 0.838、mAA 72.16 → 74.14;Tab. 9 進一步比較 V-3 / V-5 / K-3 / KV-3,顯示 5×5 沒有更好(0.069),只套在 K 微弱(0.068),同時套用在 K 與 V 反而退化(KV-3 CD 0.081),呼應 Sec. 3.2 中「同時做 spatial mixing 會破壞 K→V 解耦」的論述。<strong>診斷</strong>:屬有目的的設計驗證,直接連結到 §3.2 的可表達性論點。</li><li>TTT optimizer steps(Fig. 3 / Fig. 5):in-distribution(20 imgs)1 step 即足夠;1k–2k imgs 升到 2 steps 將誤差由 ~5× 退化壓回近常數,3、4 steps 並未進一步改善。<strong>診斷</strong>:回答 sequence-length generalization 的具體機制,屬診斷性實驗。</li><li>VGGT baseline 強化(Tab. 8):為了「公平比較」,作者對 VGGT 加上 entropy-scaling(Eq. (7))與 memory 優化,例如 1000 imgs 時 CD 0.041 → 0.029。<strong>診斷</strong>:此並非對本方法的 ablation,而是對 baseline 的增強,屬合理的對照處理但接近 sanity check。</li></ul>
+<p>整體 ablation 主要回答「pre-training + linearization 是否必要」、「為何不選 T2R/LoLCats」、「ShortConv2D 該套在哪」、「inference step 數如何隨 scale 調整」四個問題,屬診斷性而非單純 sanity check;唯獨缺乏對 Muon vs. 其他 inner optimizer、TTT MLP 寬度/深度的消融,這部分 the paper does not specify。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — VGGT 作為 $O(n^2)$ 上界,加上 FastVGGT、SparseVGGT、TTT3R 共四條近期 baseline,都是 2025 年同期工作。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 跨 pointmap (4 個資料集)、video depth (3 個)、camera pose (3 個) 與 visual localization (2 個) 共 4 大任務、12 個資料集。</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — Tab. 6/9 直接比較 linearization 替代品 (T2R, LoLCats) 與 ShortConv2D 的 K/V/KV/filter size 變體,連結到 §3.2 的核心論點。</li><li>[covered] Has a scaling study (size, length, or compute) — Fig. 1b、Fig. 3、Fig. 4、Fig. 5、Tab. 4 系統性掃過 100–2000 views、1/2/4 GPU、0–4 TTT steps。</li><li>[covered] Has an efficiency / wall-clock comparison — Tab. 4、Fig. 1b、Fig. 4 給出秒級 wall-clock 並對照 OOM 行為,1k imgs 11.6×、2k imgs 33× 對 VGGT 加速。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 所有表格皆為單次數值,未報告 std、seed scan 或信賴區間;Fig. 3a 雖呈分布但屬 best-step 統計,非性能變異。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 文中載明從公開 VGGT checkpoint 出發、列出全部訓練資料集與超參數(Sec. A),但 the paper does not specify 是否會釋出 VGG-T3 的 code 或 fine-tuned weights。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>相機姿態估計顯著弱於 $O(n^2)$ baseline:作者推測與 VGGT 的「dedicated camera token + image tokens」異質結構難以被 TTT 層中單一 MLP 同時記憶有關(§4.1、Tab. 3)。</li><li>相對 softmax attention 仍存在精度差距,尤其在 wide-baseline 場景下,作者明列為主要 future work(§5 Limitations,page 8)。</li><li>在空間範圍較大的 Waymo 序列上,部分複雜佈局仍出現重建退化(Fig. 9b、§D)。</li><li>Visual localization 精度與專用方法仍有顯著差距(Reloc3R 在 7Scenes 達 $e_r = 1.02^\circ$,本文為 $6.71^\circ$),作者明說只是 proof-of-concept(§4.3,page 8)。</li><li>為了能在 query 階段預測相機,在視覺定位設定中仍保留所有 mapping 影像的 camera tokens 以餵入 VGGT 的 camera head softmax attention,亦即整體推論並非完全擺脫 softmax(Appendix A inference details,page 11)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>VGGT baseline 在大規模實驗中被作者「悄悄加強」:Appendix B 引入 attention entropy-scaling 與 context-parallel 改寫,Tab. 8 顯示這些修改本身就使 VGGT 在 1000 影像時 CD 從 0.041 降到 0.029,因此 Tab. 1–4 中的「VGGT」並非公開 checkpoint,讀者難以據此校準與其他文獻的差距。</li><li>TTT3R 比較缺乏訓練資料與計算量對齊:作者僅將其視為 concurrent linear baseline,未控制 dataset、token 數、訓練步數,因此 Tab. 1/2/5 中對 TTT3R 的大幅領先有可能部分來自訓練資源而非架構優勢。</li><li>大規模 pointmap 評估用 10 個 equally spaced keyframes 跑 ICP 對齊(Appendix A),這對輸出較平滑、低頻誤差較小的方法更有利,VGG-T3 的 MLP 隱式狀態本質偏向低頻,此評估設定可能放大其相對優勢。</li><li>Test-time scaling 結論建立在 1 vs 2 步的窄樣本上(Fig. 3a),Fig. 5 雖延伸到 4 步,但僅在 NRGBD 一個資料集驗證;若場景幾何遠比訓練分佈複雜,2 步固定設定能否維持「近乎常數」誤差缺乏壓力測試。</li><li>ShortConv2D 將 mAA 由 72.16 拉到 74.14,但與 softmax 上限 76.33 間仍有 2.2pp 缺口(Tab. 6),表示「打破 $K \to V$ 平凡解」只解掉一部分容量問題,文章把它定位為核心貢獻之一,實際影響相對偏小。</li><li>「unordered 輸入支援」的優勢主要來自 TTT3R 在 unordered 上崩壞(Tab. 3 RPEr 從 0.617 暴升到 3.942);這比較等於拿一個 auto-regressive 模型在違反其輸入假設下對打,並不能直接證明 VGG-T3 對 unordered 場景具備正面優勢。</li><li>固定大小 MLP 作為「整個場景的隱式狀態」缺乏容量隨場景複雜度成長的機制:Fig. 9b 已可見大空間範圍 Waymo 失效,但文章未量化「scene complexity vs MLP hidden dim」的 Pareto 曲線,讓 scaling claim 停在序列長度而非場景幾何複雜度。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>Claim (i):</strong> offline feed-forward 3D reconstruction 隨輸入視圖數線性 scale。<strong>Supported.</strong> Fig. 1b、Fig. 4、Tab. 4 在 100/500/1000/1500/2000 影像下皆證實 runtime 隨 $n$ 近乎線性,且 1k 影像 58 秒、2k 影像 48.5 秒(4 GPU)的端到端結果可重現此 claim。</li><li><strong>Claim (ii):</strong> 變動長度 KV 隱式狀態可被「轉換」為固定維度隱式狀態而保留 global 聚合能力。<strong>Partially supported.</strong> Tab. 1/2 在 pointmap、video depth 上接近 $O(n^2)$ baseline,但 Tab. 3 camera pose 與 §5 wide-baseline 限制顯示「保留全域聚合」並不完全成立,固定 MLP 仍有結構性容量損失。</li><li><strong>Claim (iii):</strong> 同時支援單卡大規模推論與分散式推論。<strong>Supported.</strong> Tab. 4 顯示 1 GPU/2 GPU/4 GPU 的線性加速,單卡在 1500 影像 173.1s、2000 影像 230.7s,VGGT 同條件 OOM。</li><li><strong>Claim (iv):</strong> 統一 mapping 與 visual localization 於同一 feed-forward 模型。<strong>Partially supported / proof-of-concept.</strong> Tab. 5 顯示對 TTT3R 有清晰優勢,但相對 Reloc3R(7Scenes $e_r = 1.02^\circ$ vs 本文 $6.71^\circ$)精度仍遠遠落後;作者亦只把它定位為 feasibility demonstration 而非 SoTA localizer。</li><li><strong>Implicit claim:</strong> TTT-based linearization 顯著優於既有 transformer→linear-attention 蒸餾方法。<strong>Supported within the chosen baselines.</strong> Tab. 6 顯示 mAA(30) 由 T2R 66.27 / LoLCats 62.87 拉到 74.14,惟對齊資源與資料的條件未控制,因此這只是「在本文設定下優於」而非全面性結論。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>MLP 隱式狀態的容量瓶頸。</strong> 每層只用一個固定大小 SwiGLU MLP(input/output 1024,hidden $4\times$)壓縮整個場景的 KV;這個容量與場景幾何複雜度脫鉤。當輸入是大空間範圍、多分區、結構複雜的戶外駕駛場景(Fig. 9b)時,MLP 缺乏可隨 $n$ 或場景熵成長的自由度,品質退化在所難免。增加 TTT 步數只是在同一容量上做更精細的擬合,並無法繞過這個 information-theoretic 上限。</p>
+<p><strong>$K, V$ 同源線性投影的內在平凡解。</strong> Eq. (1) 中 $K = W_k x, V = W_v x$,使 TTT 目標 $\min_\theta \sum_i \|T_\theta(k_i) - v_i\|$ 存在解析平凡解 $V = W_v W_k^{-1} K$。本文的 ShortConv2D 是一個 band-aid:讓 $V&#x27;$ 注入 2D 局部空間混合,迫使 MLP 學一個非平凡映射。但 Tab. 6 顯示其只把 mAA 從 72.16 拉到 74.14,與 softmax 上限 76.33 仍有 2.2pp 缺口,代表「破除平凡解」這一步並未真正補滿 softmax 的對比式檢索能力。任何把 $K, V$ 都從同一 token 線性投影出來的 TTT 變體都會繼承這個結構問題。</p>
+<p><strong>Camera pose 與 token 異質性的根本不相容。</strong> TTT 層假設輸入 token 服從同一個 $K \to V$ 對應;但 VGGT 在每層 attention 之前插入專屬 camera token,其分佈與 image tokens 顯著不同。MLP 同時記憶兩種 modality 的 K→V 映射效率低落,Tab. 3 中 ATE/RPE 指標的全面退化即是此問題的外顯。要真正修補,需要對 camera token 設計獨立的 fast-weight 通道或保留 softmax 路徑,這已不是 hyperparameter 微調可解。</p>
+<p><strong>Wide-baseline 下的全域對比資訊被壓掉。</strong> softmax attention 隱含跨 token 的 pairwise 對比與排序;TTT MLP 蒸餾後的 $T_\theta$ 只是個 amortized regressor,丟失了「在大量候選中找出真正匹配 view」這種長尾、稀疏匹配能力。作者在 §5 自承在 wide-baseline 上有 gap,但這不是 future work 的 hyperparameter 問題,而是 fixed regressor 取代 retrieval 的本質代價。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>[88] Sun et al., &quot;Learning to (Learn at Test Time)&quot; (TTT layer)</strong> — 本文方法的直接母本,讀後才能判斷 VGG-T3 的「TTT 化」做了哪些 3D-specific 改動,以及哪些是直接繼承(包括 fast weights、self-supervised 目標)。</li><li><strong>[114] Zhang et al., LaCT, &quot;Test-Time Training Done Right&quot;</strong> — 提供 SwiGLU MLP、Muon optimizer、mini-batch 梯度同步的完整實作細節,本文核心訓練配方幾乎逐項沿用,要復現 VGG-T3 必須先讀懂 LaCT。</li><li><strong>[95] Wang et al., VGGT</strong> — 基礎模型,§4.1 camera pose 的弱點與 §B 的 entropy-scaling 修改都直接綁在 VGGT 架構決策上。</li><li><strong>[16] TTT3R (Chen et al.)</strong> — 唯一同期、線性時間、且採 TTT 視角的 3D 重建方法,要客觀評估「offline + 全域 vs auto-regressive + 漂移」的取捨需直接讀其論文。</li><li><strong>[69] DeepSDF (Park et al.)</strong> — 概念上的祖先,本文「fixed-size latent + test-time optimization」的哲學動機在此書寫得最清楚,且能幫助理解為什麼 MLP 容量會是天花板。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] MLP hidden 寬度與深度如何 trade off 場景容量?paper 固定 input/output 1024、hidden $4\times$,但未提供「hidden dim vs CD vs scene complexity」的 Pareto 曲線,使「fixed-size 是否真的夠用」無法被檢驗。</li><li>[ ] 為何 camera pose token 與 image tokens 在 TTT 層中無法共存?是 token 數量不平衡(1 個 vs 上萬)、分佈差異,還是其 query 必須走 softmax 路徑造成 train/test 不一致?目前作者只給「heterogeneous structure」的猜測。</li><li>[ ] Test-time 最佳化步數該如何隨輸入規模或場景熵自適應?Fig. 5 只在 NRGBD 上掃 0–4 步,並無 scene-adaptive 的 step scheduler。</li><li>[ ] ShortConv2D 對非 grid-like 輸入(panorama、object-centric、稀疏 sparse-view)是否還有效?2D conv 假設了 patch 排列在規則影像格上,object-centric CO3D / 6 自由度 sparse view 並不滿足。</li><li>[ ] Appendix B 對 VGGT 加入 entropy-scaling 後的「強化版 baseline」與公開 VGGT checkpoint 的差距有多大?這直接影響 Tab. 1–4 對外文獻的可比性。</li><li>[ ] 100k steps × 8× A100-80GB 的訓練成本是否真的只是 12% of VGGT?paper 的 12% 估算基於哪個 VGGT 版本(原 paper 還是內部 reproduction)?</li><li>[ ] 在 visual localization 中保留 mapping 影像 camera tokens 餵入 softmax camera head(App A),意味著推論並非真正 $O(n)$;若要去除這個 softmax 後本文 localization 精度會掉多少?</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>(高可行)為 camera token 設計獨立 fast-weight 通道或保留 softmax 路徑。</strong> 作者已在 §4.1 自指 camera token heterogeneity 是 pose 弱化主因;只需在 global attention 層中對 camera token 走 softmax-over-camera-tokens、image token 走 TTT,即可保留 image side 的 $O(n)$ 同時恢復 pose 精度。對應 Tab. 3 中明顯落後的 ATE/RPE 指標,這是邊際收益最高的修補。</li><li><strong>(中可行)把最後 1–2 層 global attention 留給 softmax,前段全部 TTT 化。</strong> wide-baseline 與精細匹配通常仰賴最後幾層的長距對比;混合架構可保住 §5 自承的 wide-baseline 缺口,且因為最後層 token 數已小(image tokens),softmax 成本可控,整體仍接近 $O(n)$。</li><li><strong>(中可行)以可學的 step-count predictor 取代固定 2 步 TTT。</strong> Fig. 3a 顯示最優步數隨輸入規模分佈不同,固定 2 步是 heuristic;可由場景大小、token 多樣性等 cheap statistics 預測 optimizer steps,在小場景省算力、大場景加足夠步數,是 Fig. 5 直接暗示的 low-hanging fruit。</li><li><strong>(中可行)讓 MLP 容量隨輸入規模自適應(stacked / mixture-of-MLPs)。</strong> Fig. 9b 的 Waymo 失敗暴露固定 MLP 的容量上限;一個簡單方案是 mixture-of-fast-weights,依據輸入 token 統計選擇/融合多個 MLP 專家,維持 mini-batch 梯度可分解性,因此仍能 CPU offload + DDP。</li><li><strong>(低可行)以 contrastive auxiliary loss 訓練 fast weights,補回 softmax 的 retrieval 能力。</strong> softmax 的本質是 normalized retrieval;若在 TTT 內部加入「對其他 mini-batch 的 negative samples 做對比」的輔助目標,有望縮小 wide-baseline 差距。代價是訓練更複雜、需重新驗證 §3.3 的梯度可分解性,故排在後位。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(160 words)</p>
+<div class="card"><p>§5 Conclusion 篇幅極短但定位清晰，純粹收束全文 thesis：作者重申 contribution 為「scalable feed-forward 3D reconstruction that gracefully scales with the number of input views」，核心機制是用 test-time optimization 學 $K \to V$ mapping 取代 softmax attention 的 KV querying。再以一組量化 punchline 收尾——VGG-T3 在 1k images 上 11.6× 加速、2k images 上達 33× 加速，同時在 pointmap 與 video depth estimation 上大幅優於其他 linear-time 方法。</p></div>
+<div class="card"><p>Limitations 段落作者誠實坦承 trade-off：linear-time MLP scene representation 雖然成功保留 scalability 與 global aggregation 屬性，並大勝 auto-regressive 的 online 方法，但相對於 softmax attention 仍存在精度差距，特別是在 wide-baseline 場景。作者把這個現象 frame 成一個 open research question：如何 reconcile fixed-expressivity MLP scene representation 與 quadratic attention 的高精度。</p></div>
+<div class="card"><p>雖然論文未獨立列出 Future Work 段，但結尾一句明確指出後續方向——尋找介於 fixed-size MLP 與 full softmax attention 之間、能 match softmax 精度卻保持 linear scaling 的更具表達能力 representation。Appendix D 補充的 Waymo wide-baseline 失敗案例，也呼應這個 future direction，並暗示自適應依場景複雜度調整 computation 的設計可能是一條路徑。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

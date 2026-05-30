@@ -1,0 +1,7 @@
+test/
+.DS_Store
+*.log
+.phyra/
+.claude/
+__pycache__/
+*.pyc

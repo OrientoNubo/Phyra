@@ -1,0 +1,43 @@
+# ── Phyra monorepo .gitignore ─────────────────────────────────────────
+# Consolidated from the former per-repo ignores (phyra-plugin, dualtrans)
+# plus monorepo-wide excludes for big artifacts and secrets.
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+
+# ── Node ──
+node_modules/
+
+# ── Secrets / per-host settings (NEVER commit) ──
+.env
+.env.*
+!.env.example
+config.json
+
+# ── Runtime / generated artifacts ──
+# archbase personal paper library — the heavy PDFs (originals + bilingual
+# duals, ~2.5GB / 146 files) stay on disk (archbase reads them there) but
+# are NOT version-controlled; the small text analyses (.md/.html) ARE kept.
+phyra-service/phyra-archbase/collection/*.pdf
+# dualtrans job working dirs (translated PDFs, slice meta, child logs)
+jobs/
+# plugin run cache — holds large translated dual PDFs (tens of MB each)
+.phyra/
+# per-service + root logs
+.logs/
+*.log
+
+# ── Local backups (full tar snapshots live here, never tracked) ──
+_backups/
+
+# ── Editor / OS / agent scratch ──
+.claude/
+.DS_Store
+*.swp

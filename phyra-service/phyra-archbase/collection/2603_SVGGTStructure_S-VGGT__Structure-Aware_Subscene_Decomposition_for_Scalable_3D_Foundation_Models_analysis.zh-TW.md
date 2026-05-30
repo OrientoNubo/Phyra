@@ -1,0 +1,599 @@
+<!-- type: paper-read-notes | generated: 2026-05-02 | lang: zh-TW -->
+
+# S-VGGT — S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | S-VGGT |
+| Paper full title | S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models |
+| arXiv ID | 2603.17625 |
+| Release date | 2026-03-18 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2603.17625 |
+| PDF link | https://arxiv.org/pdf/2603.17625v1 |
+| Code link | — |
+| Project page | — |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|------|------|------|------|
+| Xinze Li | Beijing Normal-Hong Kong Baptist University | — | first author; co-first |
+| Pengxu Chen | Jilin University; Beijing Normal-Hong Kong Baptist University | — | co-first |
+| Yiyuan Wang | Hong Kong Baptist University; Beijing Normal-Hong Kong Baptist University | — | co-first |
+| Weifeng Su | Beijing Normal-Hong Kong Baptist University; Guangdong Provincial Key Laboratory of Interdisciplinary Research and Application for Data Science | — | co-author |
+| Wentao Cheng | Beijing Normal-Hong Kong Baptist University | https://wtchengcv.github.io/ | corresponding author |
+
+### 1.2 Keywords
+
+3D reconstruction, feed-forward 3D foundation models, subscene partitioning, scene graph, attention acceleration, soft assignment, anchor frame sharing
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|------|------|------|
+| VGGT (Visual Geometry Grounded Transformer) | base model | 提供 alternating frame/global attention 主幹，S-VGGT 直接套用其權重並在輸入端進行 subscene 分解。 |
+| FastVGGT | baseline | 代表 token-level token-merging 加速法；本文宣稱 frame-level 與其正交，可疊加組合。 |
+| DUSt3R | predecessor | 建立 feed-forward pointmap 預測架構，是後續 3D foundation model 的起點。 |
+| Fast3R | baseline | 1000+ 影像並行多視角重建系統，用於長序列 baseline 比較。 |
+| Spann3R | baseline | 以 spatial memory 處理長序列；長序列下出現 OOM 失敗，凸顯 S-VGGT 的擴展性。 |
+| CUT3R | baseline | 使用 recurrent state 的 feed-forward 重建模型，作為長軌跡比較對象。 |
+| DINOv2 | influence | VGGT 的 patch token backbone；S-VGGT 直接利用其輸出特徵作為 frame descriptor。 |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本文聚焦 feed-forward 3D foundation model（如 VGGT）在密集多視角輸入下的可擴展性問題。當輸入幀數成長時，global attention 的二次計算成本急速膨脹，而既有 token-level 加速（如 token merging）因需做最近鄰相似度搜尋而帶來額外負擔，且高壓縮比會扭曲特徵分布。作者主張在「結構/幀層級」處理冗餘：先以 VGGT 中介特徵建立 dense scene graph，計算 frame similarity 與 scene density，再透過可微分 soft assignment 把幀分到少量 subscene；所有 subscene 共享同一 anchor frame 以維持統一座標系，並可平行處理。研究主題涵蓋 3D 重建、相機位姿估計、scene graph、attention 加速與 submap-style 序列分解，目標是在不重新訓練 VGGT、不犧牲重建精度的前提下，於 ScanNet、NRGBD、7-Scenes 等長序列資料集上取得顯著加速，並驗證其與 token-level 方法的正交組合效益。
+
+### 2.2 Domain Tags
+
+- Computer Vision
+- 3D Reconstruction
+- Multi-View Geometry
+- Efficient Foundation Models
+
+### 2.3 Core Architectures Used
+
+- **VGGT (Visual Geometry Grounded Transformer)**：本文直接沿用的 base model，提供 alternating frame-attention / global-attention 主幹與既有預訓練權重；S-VGGT 不改動其內部結構，僅在輸入序列層面做 subscene 分解。
+- **DINOv2 backbone**：VGGT 的 patch embedding 模組，將每幀 $I_s \in \mathbb{R}^{3 \times H \times W}$ 編碼為 $P$ 個 patch token $F_s \in \mathbb{R}^{P \times C}$；S-VGGT 把這些 token 平均成單一 $C$ 維 frame descriptor 用於相似度計算。
+- **Dense Scene Graph + Soft Assignment Module**：本文提出的輕量前處理元件，先用 cosine similarity 建構 $S \in \mathbb{R}^{N \times N}$ 與 scene density，再以可微分軟分配矩陣 $A \in \mathbb{R}^{N \times K}$ 在約 10 步梯度下降中以 coherence、balance、sharpness 三個正則化項收斂到接近 one-hot 的群組。
+- **Anchor Frame Sharing 機制**：本文提出的座標對齊策略，將全域 Frame 0 接在每個 subscene 之前，使所有平行子場景天然共享 VGGT 第一幀座標系，免除任何顯式 alignment 或 bundle adjustment。
+- **DPT depth head 與 camera head**：直接繼承自 VGGT 的下游解碼頭，在每個 subscene 的 token 序列上獨立輸出 depth map、point map 與 camera pose。
+- **FastVGGT (token merging)**：作為正交的 token-level 加速基線，用於驗證本文 frame-level 分解可與其疊加，產生複合加速 ($3.4\times$ 於 300 幀、$5.8\times$ 於 700 幀)。
+
+### 2.4 Core Argument
+
+作者識別的根本問題不是 token-level 的特徵冗餘，而是 dense capture 場景中「幀層級的結構冗餘」：相鄰幀視角重疊度高，global attention 在這些幀之間的邊際資訊增益急速衰減，使得 $O((NT)^2)$ 成本在結構上不被需要。既有 token merging 雖能局部省算力，但仍以全部 $N$ 幀進入 global attention，對二次成本的源頭沒有處理，且其相似度搜尋與特徵融合本身就引入額外負擔與分布漂移。S-VGGT 的解法因此在邏輯上是必要的：(1) 先以 VGGT 內生 patch token 平均得到輕量 frame descriptor，計算 frame similarity 與 density，density 直接決定 subscene 數 $K$（並以 $K_{\max}$ 夾住），讓分群隨輸入冗餘自適應；(2) 透過 soft assignment 矩陣 $A \in \mathbb{R}^{N \times K}$ 並結合 coherence、balance、sharpness 三個輕量正則化，在少量梯度步內逼近 one-hot、平衡、且保持全域一致的硬分群，避免傳統 SfM 之迭代與顯式幾何對齊與單次前向架構相衝突；(3) 最關鍵的是 Anchor Frame Sharing：每個 subscene 都把全域 Frame 0 接在最前面，使所有平行子場景天然落於 VGGT 以第一幀為基準的同一座標系，免除明確 alignment。如此 global attention 成本由 $O((NT)^2)$ 降為 $O((NT)^2/K)$，理論加速因子為 $K$，而 frame-level 操作本身只佔 $O(N^2)$，相對 token-level $O(N^2 T^2)$ 可忽略。由於分解只發生在輸入序列層面，與 token merging 完全正交，因此可與 FastVGGT 疊加，得到複合加速；同時實驗顯示限制 attention 範圍反而過濾掉長距噪聲關聯，使 ScanNet 上 ATE 反勝原 VGGT，論證此結構性重組不僅必要且兼具精度收益。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(240 words)
+
+標題 "S-VGGT: Structure-Aware Subscene Decomposition for Scalable 3D Foundation Models" 把論文的三個關鍵字 (structure-aware、subscene decomposition、scalable) 直接攤在表面：作者要做的是「以結構為依據、以子場景為單位、以可擴展為目標」的 3D foundation model 加速方案。Abstract 開門見山指出 feed-forward 3D foundation models 的核心痛點是 global attention 帶來的 quadratic cost，而 input length 一旦增加便不可承受。接著作者把當前的對手 token merging 拉出來定位：它確實能在 token level 帶來局部節省，但 nearest-neighbor search 的 overhead 抵銷了部分加速，且這條路線並未觸及 dense capture 場景中真正主導的 structural redundancy。Abstract 因此導出本文的立場：要在 frame level 處理冗餘，把優化焦點從 token 層拉到結構層。隨後 Abstract 緊湊地描述方法骨架：用初始 features 建 dense scene graph 衡量結構冗餘、以 soft assignment 把 frames 分配到少量 subscenes 並保證群組均衡與幾何過渡平滑、再以共用 reference frame 建立平行幾何橋樑讓 subscenes 可獨立並行處理而免於顯式對齊。最後一段是論文的兩個主賣點預告：(1) 從根源削減 global attention cost 帶來 intrinsic acceleration；(2) S-VGGT 與 token-level acceleration 完全 orthogonal，可疊加為 compounded speedup 而不損失 reconstruction fidelity。Abstract 沒有給出實驗數字 (數字留給 Fig. 1 與正文)，而是把整篇論文的論證骨幹 (frame-level 冗餘 → 子場景分解 → 共用錨點 → 與 token 法正交) 一次性鋪好，為後續章節的展開預留軌道。
+
+### 3.2 Introduction
+
+(720 words)
+
+Introduction 用四步推進建立論證。第一步先把領域脈絡攤開：DUSt3R 開啟了 feed-forward 3D 重建的時代，後續的 memory-augmented 路線 (CUT3R、Spann3R)、large-scale systems (Fast3R、MUSt3R)、以及 feed-forward SfM (Light3R-SfM、MASt3R-SfM) 都在強化「免優化、可泛化」這條主線；VGGT 與其他 global-attention 模型則把 camera pose、depth、point cloud 的恢復統一到單次 forward pass 內。這段鋪陳既建立信譽 (本文站在 VGGT 之上)，也暗示可加速的目標物。
+
+第二步指出 critical bottleneck：global attention 的 quadratic cost 隨 input sequence length 急遽放大，而 dense capture 情境中相鄰幀的 information gain 又遞減，於是「付出 quadratic 代價、卻換到邊際遞減的訊息量」這個矛盾被點出。作者把問題重新框架為「如何在保留必要空間 context 的前提下高效抽取每幀的幾何細節」，而非單純追求更快的 attention。
+
+第三步檢視既有解法 token-level redundancy reduction (ToMe、FastV、FastVGGT)：作者承認這條路線確有 speedup，但提出兩項弱點 — 大規模 merging 必須在巨大 token 集合上算 similarity，overhead 部分抵銷加速；token fusion 改變底層 feature distribution，造成 representation shift，在高壓縮比下會損及 geometric precision。這段不是抹煞對手，而是把 token-level 的天花板釘住，為後續「我們改在 frame level 動手」鋪好對照。
+
+第四步提出本文的核心 insight：dense sequences 的冗餘主要顯現於 frame level，呼應經典 SfM 的 view graph sparsification 與 submap reconstruction。但作者也立刻劃清界線 — classical SfM 倚賴 iterative pose refinement 與 explicit alignment，與 modern foundation models 的 forward-only、single-pass 本質衝突，因此需要一個全新的 formulation 來「橋接結構效率與幾何 foundation model 的單次前向特性」。這個張力是 Introduction 的關鍵戲劇點，也直接導出 S-VGGT 的設計目標。
+
+接著 Introduction 把方法骨架敘述完整：(1) 利用模型內部 intermediate features 算出 density-aware affinity score 引導序列分解；(2) 為所有 subscenes 指派一個 common reference frame，使各群組可在統一座標系下獨立並行處理而免除顯式對齊；(3) 由此把 global attention 從 $O((NT)^2)$ 削減到 $O((NT)^2/K)$，獲得理論 K 倍加速。
+
+最後 Introduction 給出實驗劇透與 orthogonality 主張：在 ScanNet、NRGBD、7Scenes 上對比 VGGT，S-VGGT 取得顯著加速且保持重建保真度 (Fig. 1 中 500 frames 從 185.9s 降到 46.7s，即 3.97× speedup)。同時作者強調 sequence optimization 與 token techniques (如 FastVGGT) 完全正交，兩者組合可達 compounded speedup。Introduction 結束時，讀者已經清楚知道 (a) 為什麼 quadratic cost 是真痛點、(b) 為什麼 token-level 不夠、(c) 為什麼 frame-level 是新空間、(d) 作者要怎麼做、(e) 結果有多好，順勢交棒給 Method 章節展開細節。
+
+### 3.3 Related Work / Preliminaries
+
+(110 words)
+
+本論文沒有獨立的 Related Work 章節，相關文獻已散見於 Introduction (DUSt3R、CUT3R、Spann3R、Fast3R、VGGT、FastVGGT、ToMe、classical SfM submap 與 view graph sparsification)，因此本子章節聚焦在 §II.A Preliminaries。Preliminaries 的目的是把 VGGT 的相關元件壓縮成符號定義，讓後續的 cost 分析與 anchor sharing 機制有共同語彙：(1) 輸入 $N$ 張 RGB 影像 $I = \{I_s\}_{s=1}^N$，每張經 DINOv2 backbone 編碼為 $F_s \in \mathbb{R}^{P \times C}$ 共 $P$ 個 patch tokens；(2) 每幀附加 1 個 camera token 與 4 個 register tokens，使單幀總 token 數為 $P+5$；(3) VGGT 的 $L$ 層 backbone 採 alternating-attention，先做 frame-wise self-attention，再對 $F = F_1 \| F_2 \| \cdots \| F_N \in \mathbb{R}^{N(P+5) \times C}$ 做 global cross-frame attention。Preliminaries 的最後一句直接點出論文要攻擊的痛點：global attention 一次處理 $N(P+5)$ 個 tokens，計算量隨 $N$ 呈 quadratic，這正是 dense / long sequence 場景下的主導瓶頸 — 這個結論為 §II.B 起的方法鋪設了攻擊面。
+
+### 3.4 Method (overview narrative)
+
+(1180 words)
+
+Method 章節以「為什麼要分、怎麼分、分完怎麼接、分完便宜了多少」這條主軸串聯 §II.A–§II.E。Preliminaries (§II.A) 已把 VGGT 的 token 結構與 alternating-attention 寫成明確符號 (詳見 §3.3)，並把 global attention 的 quadratic cost 釘為攻擊目標；後續四個小節依序展開作者如何分解輸入序列。
+
+§II.B Frame Similarity and Scene Density 把方法的入口建立在「frame 對 frame 的相似度」之上，呼應 classical incremental SfM 用 image pair 比對搭出 scene graph 的習慣，但作者刻意不引入額外的 image retrieval feature，而是直接把 VGGT 既有的 per-frame token map 平均成單一 $C$-dim descriptor，再用 cosine similarity 構造 $S \in \mathbb{R}^{N \times N}$。這份 similarity matrix 既是分組依據，也用來估出 scene density — 對每幀統計與其相似度高於門檻的鄰幀數量，並對全體取平均。density 大代表觀察內容高度重疊，density 小代表視角多樣。density 直接決定子場景數 $K = \min(\text{density}, K_{\max})$，於是 dense 輸入產生較少而較大的群組，diverse 輸入則自然產生較多而較細的群組，避免任何手工常數。
+
+§II.C Grouping via Soft Assignment 是 Method 的核心建模章節。作者明確列出三個 subscene 必須具備的性質：(1) strong internal connectivity，使群組內部 frames 互相支援、能完成穩健的 local reconstruction；(2) reduced internal redundancy，以壓縮計算量；(3) fidelity to overall scene geometry，使各 subscene 能共用 anchor frame、隱式對齊到共同座標系。為此作者引入 soft assignment matrix $A \in \mathbb{R}^{N \times K}$，每列是一個對 subscenes 的分布。soft 形式保留可微性與 GPU friendliness，避開 hard clustering 的 instability 與 iterative overhead。三個輕量正則化項分別對應上述三個目標：
+
+$$L_{\text{coh}} = \sum_{k=1}^{K} \| h_k - h_{\text{avg}} \|_2^2$$
+
+其中 $h_k = \frac{1}{m_k} \sum_s A_{sk} S_{s:}$、$h_{\text{avg}} = \frac{1}{N} \sum_s S_{s:}$、$m_k = \sum_s A_{sk}$；$L_{\text{coh}}$ 鼓勵每個 subscene 與全體場景保持一致的相似度結構。
+
+$$L_{\text{bal}} = \sum_{k=1}^{K} \left( m_k - \frac{N}{K} \right)^2$$
+
+避免任一 subscene 過大而抵銷分組的計算收益。
+
+$$L_{\text{sharp}} = \sum_{s=1}^{N} \sum_{k=1}^{K} A_{sk}(1 - A_{sk})$$
+
+驅使 $A$ 的每列向 one-hot 收斂，使後續的 hard 分配 GPU 友善。三項組合為 $L_{\text{group}} = \lambda_{\text{coh}} L_{\text{coh}} + \lambda_{\text{bal}} L_{\text{bal}} + \lambda_{\text{sharp}} L_{\text{sharp}}$，僅在 $A$ 上做少量 gradient descent 步驟便收斂。最後對 $A$ 取 argmax 得 hard assignment，再對少數溢位 frames 做基於 similarity 的微調，使每個 subscene 的 frame 數幾乎相等以塞進單一 batch。整個流程嚴格 feed-forward，不需要額外的模型推論。
+
+§II.D Anchor Frame Sharing 是把「分」與「接」橋接起來的關鍵設計。獨立處理 subscenes 雖能解耦 attention，但會破壞 VGGT 把 3D 座標錨在第一幀的慣例，造成 subscene 間幾何錯位。作者的解法簡潔到接近 trivial，卻扛起整個系統的對齊保證：把 global Frame 0 prepend 到每個 subscene，使所有群組共用同一個 reference frame；於是各 subscene 自然落在同一全局座標系內，不需要顯式 rigid alignment 或事後幾何優化。這個設計直接對應 §II.C 第 (3) 條設計目標。
+
+§II.E Complexity Analysis 收尾並量化收益。VGGT 的 global attention 為 $O((NT)^2)$；S-VGGT 將序列拆成 $K$ 個獨立 subscenes，總成本變為 $\sum_{k=1}^{K} O((NT/K)^2) = O((NT)^2/K)$，理論加速 $K$ 倍。方法引入的額外開銷僅是 frame-level descriptor 上的 $O(N^2)$ similarity 與 soft assignment 計算；由於 $T \gg 1$ (典型 $T \approx 1000$)，這份 overhead 相對 token-level $O(N^2 T^2)$ 是可忽略的。Method 章節因此完成完整論證鏈：feature 推 similarity，similarity 推 density，density 決定 $K$，soft assignment 在三項損失下產生平衡且結構一致的子場景，anchor sharing 保證單一座標系，最終 quadratic cost 被 $K$ 倍稀釋而不引入顯著開銷 — 這套敘事直接交棒給 §III 的實驗驗證。
+
+### 3.5 Experiments (overview narrative)
+
+(840 words)
+
+Experiments 的敘事結構刻意呼應 Method 的三個承諾 — 速度、保真度、與 token-level 方法正交 — 並依此安排四個實證面向加上一個解析章節。
+
+§III.A Experimental Setup 先把基準與條件鋪好。三個資料集分工明確：ScanNet 主攻 large-scale camera pose estimation (報 ATE、ARE、RPE)，Neural RGB-D 與 7-Scenes 則用來檢測 dense reconstruction 品質 (Acc、Comp、NC)。為了考驗可擴展性，輸入序列被刻意推到 500–1000 frames 的長度。對手陣容覆蓋兩條主線：與 VGGT (採 VRAM-efficient 變體 VGGT*) 直接對戰本文宣稱的 quadratic bottleneck，與 FastVGGT 對戰本文 frame-level 路線是否優於 token-level，再加 Fast3R、Spann3R、CUT3R 這些 DUSt3R 系後代以提供 long-sequence 韌性脈絡。Implementation 強調幾項論證上的關鍵：A100 + bfloat16、$K_{\max}=8$ 預設、grouping 模組僅做 10 步 inference-time 優化、且整個方法是 zero-shot — 不對 VGGT 權重做任何 fine-tuning，這直接支撐了 Conclusion 的「training-free intrinsic acceleration」主張。
+
+§III.B 3D Reconstruction (Table I) 驗證效率與保真度的雙重承諾。在 NRGBD 上 S-VGGT 推到約 9.93 FPS，相對 VGGT* 的 2.73 FPS 為 3.6× speedup，並超過 FastVGGT 的 8.09 FPS；7-Scenes 上呈現一致趨勢，FPS 9.43 對 VGGT* 2.61。重點是這份加速並未犧牲幾何品質：S-VGGT 的 Acc / Comp / NC 與 VGGT* 接近 (例如 7-Scenes Acc 0.022)，並大幅領先 Fast3R、CUT3R 等 DUSt3R 系變體。作者把這份結果歸因於 density-aware subscenes 抓到了 depth 與 pointmap 預測必要的幾何 context，並把 anchor frame sharing 連結到 normal consistency 的維持 — 為跨 subscene 的全局一致性提供具體證據。
+
+§III.C Camera Pose Estimation (Table II) 把實驗推到更嚴苛的 1000 frames ScanNet。S-VGGT 不僅速度 3.9× 領先 VGGT*，pose 精度反而最佳 (ATE 0.145 vs. VGGT* 0.190)，連 token-accelerated 的 FastVGGT 也被超過。作者點出一個出乎意料的現象 — 限制 attention 範圍居然提升 geometric accuracy。其論述是：在長序列上 VGGT 的 global attention 會累積長距離的雜訊相關，而 subscene partitioning 把 attention 限制在 density-consistent 區域內，等於在做 noise filter。CUT3R 高 FPS 但 absolute pose 累積誤差大、Spann3R 因 spatial memory 限制直接 OOM，這兩個對照恰好凸顯 S-VGGT 在長序列下兼顧 scalability 與 accuracy。Fig. 3 提供 qualitative 對照支撐定量結果。
+
+§III.D Complementarity with Token-Level Acceleration 是檢驗 orthogonality 主張的關鍵實驗。作者把 S-VGGT 的 frame partitioning 與 FastVGGT 的 token merging 疊加為 "Ours+Fast"。Fig. 4 顯示在 NRGBD 上的趨勢隨序列長度單調發散：300 frames 時 "Ours+Fast" 達 3.4× speedup vs. FastVGGT 單獨的 2.2×，700 frames 時前者推到 5.8×。這個結果不只是「比較快」，而是直接驗證 frame-level 與 token-level 是兩個彼此正交的優化軸，可疊加而不互相抵銷，呼應 Abstract 與 Introduction 強調的 compounded speedup。
+
+§III.E Analysis 提供消融與時間剖析作為內在合理性的證據。三項損失中，$L_{\text{cons}}$ 確保準確度，$L_{\text{bal}}$ 與 $L_{\text{sharp}}$ 則對「並行 speedup 是否成立」直接負責 — 移除任一項都會讓 partitioning 退化成不平衡或不收斂的指派，使得平行加速消失。Anchor Frame Sharing 也經受了同樣的反向檢驗：拿掉它要嘛幾何錯位災難性放大，要嘛被迫做事後優化，等於否定了 efficient inference 的目標。Fig. 5 的時間剖析顯示 VGGT* 與 S-VGGT 的時間都以 global attention 為主，但 S-VGGT 引入的 similarity graph 與 soft assignment 兩個額外模組僅佔很小比例 — 這個剖析直接回應 §II.E 中的 overhead 可忽略性論證，把理論分析與實測一致地對齊起來，並把 Experiments 的論證收束回 Conclusion。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(110 words)
+
+Conclusion (§IV) 把整篇論文壓縮成四個 take-aways，但沒有獨立的 Limitations 或 Future Work 段落，因此本子章節除了綜述 Conclusion 的主張，也指出論文在這方面的缺口。
+
+Conclusion 的第一個訊息是 problem framing：global attention 的 scalability bottleneck 被定位為結構性 (而非實作性) 問題，因此需要結構性的解法。第二個訊息是方法定位：S-VGGT 透過 density-aware partitioning 與 anchor frame sharing 提供 efficient parallel inference，把 frame-level 結構冗餘當作優化的真正槓桿。第三個訊息是性能定位：S-VGGT 不只是更快，還在 long-sequence 上提升幾何精度，理由是 partitioning 過濾掉長距離的 noisy correlations — 這把 §III.C 的意外結果升格為設計層面的貢獻。第四個訊息是 ecological positioning：方法與 token-level 加速完全正交，可疊加為 compounded acceleration，於是不取代而是擴大既有的加速生態。
+
+論文沒有明確列出 limitations。從正文可以推斷幾個未被正面討論的潛在限制：(1) $K_{\max}=8$ 在更長序列下的擴展性仍依賴序列長度做 proportional scaling，但門檻設計、density threshold 的選擇對結果的敏感度未被量化分析；(2) anchor frame sharing 的成功仰賴 Frame 0 確實能涵蓋所有 subscene 的視角範圍，當輸入軌跡橫跨多個不重疊空間時 (例如多房間 walkthrough) 是否仍成立未被檢驗；(3) grouping 的 10 步 inference-time optimization 在 batch / sequence 變化下的穩定性未被剖析。Future Work 也未被明示，論文以「scalable, efficient solution for high-fidelity 3D perception」作為展望落幕，把延伸方向 (例如更激進的 hierarchical decomposition、與 SfM bundle adjustment 的混合、或對 streaming / online 場景的擴展) 留給後續研究。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 在 ScanNet 1000-frame 序列上 ATE 由 VGGT* 的 0.190 降到 0.145，作者主張限制 attention 範圍反而過濾掉長距噪聲關聯而提升精度（Table II, p.4；§III.C, p.5）。
+- 在 NRGBD 500-frame 序列從 VGGT* 的 2.73 FPS 提升至 9.93 FPS，達到約 3.6× 加速（Table I, p.4；Fig. 1, p.1）。
+- 在 ScanNet 1000-frame 序列達 5.70 FPS，較 VGGT* 1.46 FPS 加速約 3.9×，且 RPE-rot 也優於 VGGT*（Table II, p.4）。
+- 與 FastVGGT 疊加的混合配置 "Ours+Fast" 在 700-frame 序列達 5.8× 複合加速，且 300-frame 序列已達 3.4×（Fig. 4, p.5），實證 frame-level 與 token-level 的正交性。
+- 完全 zero-shot：不需重新 fine-tune VGGT 預訓練權重，全部加速來自推論時的輸入序列重組（§III.A.c, p.4）。
+- 自適應 $K$：用 frame similarity matrix $S \in \mathbb{R}^{N \times N}$ 衍生的 scene density 自動決定 subscene 數，避免手動指定，僅以 $K_{\max}$ 設上限（§II.B, p.2-3）。
+- Anchor Frame Sharing 為核心設計：每個 subscene 前都接上全域 Frame 0，使 $K$ 個平行 subscene 自然落在 VGGT 以首幀為基準的同一座標系，免除顯式對齊（§II.D, p.4）。
+- Complexity 由 $O((NT)^2)$ 降到 $O((NT)^2/K)$，而 frame-level overhead 為 $O(N^2)$，因 $T \approx 1000 \gg 1$ 故相對 token-level $O(N^2 T^2)$ 可忽略（§II.E, p.4）。
+- 在 Spann3R 於 1000-frame 直接 OOM 失敗的設定下仍能完成推論，證明結構分解亦帶來顯著記憶體擴展性（Table II, p.4）。
+- Time breakdown 顯示 similarity graph 與 soft assignment 兩個新增模組對總時間影響極小，瓶頸仍是被分散後的 global attention（Fig. 5, p.6）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+論文未公開討論方法上的限制，§III.E 的 Analysis 與 §IV Conclusion 皆以正面語氣陳述。對 $L_{bal}$、$L_{sharp}$、Anchor Frame Sharing 的「移除即崩潰」描述屬於必要性論證而非限制承認，因此本節結論為：the paper does not openly discuss limitations.
+
+#### 4.2.2 Phyra-inferred
+
+- 理論加速因子 $K$ 與實測 3.6 至 3.9× 之間的落差完全未拆解：以 $K_{\max}=8$ 應有 8× 上限，論文沒有量化 attention 占比、anchor frame 重複、setup overhead 各自貢獻多少（Table I/II, p.4 vs §II.E, p.4）。
+- §II.E 的複雜度分析忽略 anchor 重複：每個 subscene 都 prepend Frame 0，實際 token 總數為 $(N+K)T$，正確上界應為 $O((N+K)^2 T^2 / K)$；當 $K$ 增大時與 $O((NT)^2/K)$ 的差距並不可忽略。
+- 整體幾何一致性繫於 Frame 0 一幀：若全域首幀為運動模糊、低紋理或視角極端，所有 $K$ 個 subscene 都繼承此差勁基準，論文無診斷實驗或健壯性消融（§II.D, p.4）。
+- Normal Consistency 確實量化退化但被「comparable」帶過：NRGBD 上 NC 從 0.642 降到 0.622、7-Scenes 從 0.632 降到 0.622（Table I, p.4），於敘述中未明示。
+- $K_{\max}$ 預設為 8 但無 sweep：對 $K_{\max} \in \{4,16,32\}$ 的精度-速度曲線缺失，讀者無法判斷此預設值是否經 cherry-pick（§III.A.c, p.4）。
+- 關鍵超參數未公開：§II.B 的 density 閾值具體數值、§II.C 的 $\lambda_{coh}, \lambda_{bal}, \lambda_{sharp}$ 權重均未列出，僅 §III.A.c 給「10 iterations」，再現性受限。
+- 缺少對「最樸素 baseline」的對照：例如沿時序均勻切 $K$ 段並加 overlap 即可在不需 learnable component 下實現大部分加速；論文未做此 ablation，因此 soft assignment + 三項 loss 的「必要性」無法獨立驗證。
+- 評測偏窄：ScanNet、NRGBD、7-Scenes 皆為室內 RGB-D 場景，缺少室外、合成或純 RGB 長序列；密集視角重疊假設在稀疏長基線下未必成立。
+- Abstract 宣稱 "Code is available at Github" 但無實際連結（BIBLIO `code: null`），無法立即驗證實作細節。
+
+### 4.3 Phyra's Judgment (summary)
+
+S-VGGT 真正創新的是 Anchor Frame Sharing：在 VGGT「以首幀為座標基準」這個既有約束之上，巧妙地用「全部 subscene 都把 Frame 0 接在前面」一行 trick 換掉了傳統 submap SfM 的顯式對齊步驟，這是與 feed-forward 單向架構相容的乾淨橋接。Soft assignment + 三項 loss 屬於合理但可替換的工程實作；目前證據無法排除「均勻時序切段 + overlap」這類更簡單方案的競爭力。最關鍵的未解問題是理論加速 $K$ 與實測 ~3.6× 的差距從何而來，以及單一 anchor frame 的脆弱性是否會在更野的資料分布上暴露。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+S-VGGT 的核心策略是在進入 VGGT global attention 之前，於**幀層級**重組輸入序列：先將 $N$ 張影像分到 $K$ 個 subscene，每個 subscene 內含 $\lceil N/K \rceil$ 張幀（含一張共享的 anchor frame），再讓所有 subscene 平行通過 VGGT 主幹。整體框架由四個模組構成：(1) Frame Similarity 與 Scene Density 計算；(2) Soft Assignment 分群；(3) Anchor Frame Sharing；(4) 套用原 VGGT 的 alternating frame/global attention，最後接 DPT 與 Camera Head 解碼。第二章 §A 明示作者直接沿用 VGGT 預訓練權重，零次微調（zero-shot），論文實驗段稱「all results are obtained in a strictly zero-shot manner」（page 4）。
+
+第一階段先以 DINOv2 backbone 將每張 RGB 影像 $I_s\in\mathbb{R}^{3\times H\times W}$ 編碼成 $F_s\in\mathbb{R}^{P\times C}$ 的 patch tokens，再對 $P$ 個 patch token 取平均，得到輕量 frame descriptor $d_s\in\mathbb{R}^{C}$。pairwise cosine similarity $S_{ij}=\frac{d_i^\top d_j}{\|d_i\|\|d_j\|}$ 構成 $S\in\mathbb{R}^{N\times N}$（page 2，§B）。對每幀統計與其相似度超過固定閾值的鄰幀數量，再對所有幀取平均得到 scene density，並以 $K=\min(\text{density}, K_{\max})$ 自適應決定 subscene 數，使分群隨輸入冗餘程度變化。$K_{\max}=8$ 為 standard sequences 預設，較長序列依比例放大（page 4，§III-A-c）。
+
+第二階段以可微分 soft assignment 矩陣 $A\in\mathbb{R}^{N\times K}$ 描述「幀屬於哪個 subscene」，並以三項輕量正則 $L_{coh}+L_{bal}+L_{sharp}$ 在僅 10 步左右的 gradient descent 中收斂到接近 one-hot、平衡且全域一致的硬分群，再以最大值取 hard assignment；過程嚴格 feed-forward，無需額外 model evaluation（page 3，§C）。第三階段為核心創新 Anchor Frame Sharing：每個 subscene 都把全域 Frame 0 接在最前面，使所有平行子場景天然落在 VGGT 以第一幀為基準的同一座標系下，免除 explicit alignment（page 4，§D）。第四階段把 $K$ 組 subscene tokens 平行送入原始 VGGT 的 L 層 alternating attention，global attention 成本從 $O((NT)^2)$ 降為 $\sum_k O((NT/K)^2)=O((NT)^2/K)$，理論加速因子為 $K$；frame similarity 與 soft assignment 額外負擔僅 $O(N^2)$，相對 token-level $O(N^2T^2)$ 在 $T\approx 1000$ 時可忽略（page 4，§E）。由於分解只發生在輸入序列層面，與 token merging 完全正交，可與 FastVGGT 疊加得到複合加速（page 5，§D）。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input: I = {I_s}_{s=1..N}, I_s ∈ R^{3×H×W}                    [N, 3, H, W]
+   │
+   ├─(a) Patch Embed (DINOv2 backbone, f_DINO)
+   │       per-frame patch tokens F_s = f_DINO(I_s)             [N, P, C]
+   │       append 1 camera token + 4 register tokens            [N, P+5, C]
+   │       (P ≈ 1000, T = P+5)
+   │
+   ├─(b) Frame Descriptor (mean over P patch tokens)
+   │       d_s = mean_p F_s[p, :]                               [N, C]
+   │
+   ├─(c) Frame Similarity (cosine)
+   │       S_ij = d_i^T d_j / (||d_i|| ||d_j||)                 [N, N]
+   │
+   ├─(d) Scene Density → K
+   │       per-frame neighbour count above threshold τ          [N]
+   │       density = mean over N                                scalar
+   │       K = min(density, K_max),  K_max = 8 default          scalar
+   │
+   ├─(e) Soft Assignment Optimisation
+   │       initialise A ∈ R^{N×K}                               [N, K]
+   │       minimise L_group = λ_coh L_coh + λ_bal L_bal
+   │                          + λ_sharp L_sharp
+   │       (≈10 gradient steps, A only, no model fwd)
+   │       hard cluster c_s = argmax_k A[s, k]                  [N]
+   │       lightweight rebalancing → batches of ⌈N/K⌉ frames    K × [⌈N/K⌉]
+   │
+   ├─(f) Anchor Frame Sharing
+   │       for each subscene k ∈ {1..K}:
+   │           prepend global Frame 0 token block               K × [N/K + 1, T, C]
+   │       (all subscenes now in Frame 0 coordinate system)
+   │
+   ├─(g) VGGT Backbone (L layers, parallel over K subscenes)
+   │       per layer:
+   │         ├─ Frame Attention (intra-frame, per token set)    K × [N/K + 1, T, C]
+   │         └─ Global Attention on concat F_k                  K × [(N/K + 1)·T, C]
+   │       cost: Σ_k O((NT/K)^2) = O((NT)^2 / K)
+   │
+   ├─(h) DPT Head (per frame)
+   │       depth maps                                           [N, H, W]
+   │
+   └─(i) Camera Head (per frame)
+           camera poses (intrinsics + extrinsics)               [N, ?]
+           (the paper does not specify the exact pose tensor layout)
+
+Output: per-frame depth, point map and camera pose, all expressed in
+        the global Frame-0 coordinate system shared across subscenes.
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Patch Embedding (DINOv2 backbone)
+
+**Function:** 將每張 RGB 影像獨立編碼為 patch token 序列，並附加 VGGT 既定的 1 個 camera token 與 4 個 register tokens。
+
+**Input:**
+- Name: $I$
+- Shape: `[N, 3, H, W]`
+- Source: 原始輸入影像序列
+
+**Output:**
+- Name: `tokens_per_frame`
+- Shape: `[N, P+5, C]`，其中 $P\approx 1000$，$T=P+5$
+- Consumer: Frame Descriptor 模組與 VGGT Backbone
+
+**Processing:**
+
+對每張影像 $I_s\in\mathbb{R}^{3\times H\times W}$ 透過 DINOv2 backbone 得到 $F_s=f_{DINO}(I_s)\in\mathbb{R}^{P\times C}$，再依 VGGT 原架構在每幀後追加 1 個 camera token 與 4 個 register tokens，形成 $T=P+5$ 個 token 的序列（page 2，§II-A）。本步驟與 baseline 完全相同，S-VGGT 不修改 patch embedding。
+
+**Key Formulas:**
+
+$$
+F_s = f_{DINO}(I_s),\quad F_s \in \mathbb{R}^{P\times C}
+$$
+
+**Implementation Details:**
+
+DINOv2 為固定的 ViT backbone，其 patch size、$P$ 與 $C$ 沿用 VGGT 預設；論文未列具體數值，僅指出 $T\approx 1000$（page 4，§II-E）。所有實驗在單張 NVIDIA A100、bfloat16 精度下進行，且不微調 VGGT 權重（page 4，§III-A-c）。
+
+#### 5.3.2 Frame Descriptor and Pairwise Similarity
+
+**Function:** 由 patch tokens 抽出輕量 frame-level 描述子，並計算 pairwise cosine similarity 以建立 dense scene graph。
+
+**Input:**
+- Name: `tokens_per_frame` 中的 $F_s\in\mathbb{R}^{P\times C}$ 部分
+- Shape: `[N, P, C]`
+- Source: Patch Embedding
+
+**Output:**
+- Name: $S$
+- Shape: `[N, N]`
+- Consumer: Scene Density 計算與 Soft Assignment（透過 row-wise 統計與 group mean）
+
+**Processing:**
+
+對每幀的 $P$ 個 patch token 取平均得到 $d_s\in\mathbb{R}^{C}$，再以 cosine similarity 計算對稱矩陣 $S$，描述任兩幀間的視角重疊程度（page 2，§II-B）。論文指出，雖可使用專門的 image retrieval 特徵，作者選擇直接重用 VGGT 內生的 patch token 平均，作為足以反映 viewpoint overlap 與粗略結構線索的 lightweight descriptor。
+
+**Key Formulas:**
+
+$$
+d_s = \frac{1}{P}\sum_{p=1}^{P} F_s[p,:],\qquad
+S_{ij}=\frac{d_i^\top d_j}{\|d_i\|\,\|d_j\|}
+$$
+
+**Implementation Details:**
+
+frame descriptor 完全 inherited，無新增可學參數；similarity 矩陣計算成本為 $O(N^2 C)$，對 $T\gg 1$（典型 $T\approx 1000$）的 token-level 相似度搜尋而言可忽略（page 4，§II-E）。論文未指定 $C$ 的具體數值，亦未指定相似度閾值之外的數值參數。
+
+#### 5.3.3 Scene Density and Group Count K
+
+**Function:** 由 frame similarity 推得整段輸入的視角冗餘程度，並自適應決定 subscene 數 $K$。
+
+**Input:**
+- Name: $S$
+- Shape: `[N, N]`
+- Source: Frame Descriptor and Pairwise Similarity
+
+**Output:**
+- Name: $K$
+- Shape: scalar
+- Consumer: Soft Assignment Optimisation
+
+**Processing:**
+
+對每一幀 $s$，統計 $|\{j: S_{sj}>\tau\}|$，即與其相似度超過固定閾值 $\tau$ 的鄰幀數；再對所有幀取平均得到 density 值。density 直接決定 subgroup 數，並以 $K=\min(\text{density}, K_{\max})$ 夾住上界，使 dense capture 場景產生較少、較大的 group，而視角多樣的輸入則自然產生更多較細的 group（page 3，§B；page 4，§III-A-c）。
+
+**Key Formulas:**
+
+$$
+\text{density} = \frac{1}{N}\sum_{s=1}^{N}\bigl|\{j: S_{sj}>\tau\}\bigr|,\quad
+K = \min(\text{density},\, K_{\max})
+$$
+
+**Implementation Details:**
+
+$K_{\max}=8$ 為 standard sequences 預設，較長序列按比例放大（page 4，§III-A-c）。閾值 $\tau$ 為 fixed threshold，論文沒有給出具體數值，僅描述其角色與用途。density 計算完全在 frame-level 上完成，成本可忽略。
+
+#### 5.3.4 Soft Assignment Optimisation (Grouping)
+
+**Function:** 透過可微分的 soft assignment 將 $N$ 幀分到 $K$ 個 subscene，要求三項性質：強內部連通性、降低內部冗餘、保持全域結構一致。
+
+**Input:**
+- Name: $S$, $K$
+- Shape: `[N, N]`, scalar
+- Source: Scene Density module
+
+**Output:**
+- Name: hard cluster index $\{c_s\}_{s=1..N}$
+- Shape: `[N]`，每個值 $\in\{1..K\}$，且每個 subscene 含約 $\lceil N/K \rceil$ 幀
+- Consumer: Anchor Frame Sharing
+
+**Processing:**
+
+定義 soft assignment $A\in\mathbb{R}^{N\times K}$，每列為 subscene 上的分布。記 group 大小 $m_k=\sum_{s} A_{sk}$、group 加權均值 $h_k=\frac{1}{m_k}\sum_s A_{sk}\,S_{s:}$，並以全域均值 $h_{avg}=\frac{1}{N}\sum_s S_{s:}$ 作對照，最小化下列 group objective（page 3，§II-C）：
+
+$$
+L_{coh}=\sum_{k=1}^{K}\|h_k-h_{avg}\|_2^2
+$$
+
+$$
+L_{bal}=\sum_{k=1}^{K}\Bigl(m_k-\frac{N}{K}\Bigr)^2
+$$
+
+$$
+L_{sharp}=\sum_{s=1}^{N}\sum_{k=1}^{K} A_{sk}(1-A_{sk})
+$$
+
+$$
+L_{group}=\lambda_{coh}L_{coh}+\lambda_{bal}L_{bal}+\lambda_{sharp}L_{sharp}
+$$
+
+於 $A$ 上以少量 gradient descent 步（典型 10 iterations，見 page 4，§III-A-c）逼近 one-hot、平衡、且各 subscene 與全域 similarity 結構一致的軟分群。最後以 $c_s=\arg\max_k A_{sk}$ 取 hard assignment，再以 lightweight correction 依相似度重新指派少量臨近幀，使每個 subscene 含相同數量幀以塞入單一 batch；整個過程嚴格 feed-forward，不再呼叫 VGGT 主幹（page 3，§C）。論文中的 ablation 將此整體 grouping objective 寫作 $L_{cons}$，並指出 $L_{bal}$ 與 $L_{sharp}$ 對於維持平行加速至關重要（page 5–6，§E；該段使用 $L_{cons}$ 表示 grouping 整體一致性目標）。
+
+**Key Formulas:**
+
+$$
+m_k=\sum_{s=1}^{N} A_{sk},\quad
+h_k=\frac{1}{m_k}\sum_{s=1}^{N} A_{sk}\,S_{s:},\quad
+h_{avg}=\frac{1}{N}\sum_{s=1}^{N} S_{s:}
+$$
+
+**Implementation Details:**
+
+inference-time 優化僅作用於 $A$，需要 $K_{\max}=8$、約 10 gradient steps；損失權重 $\lambda_{coh},\lambda_{bal},\lambda_{sharp}$ 的具體數值論文未指定。整體 grouping 模組成本為 frame-level $O(N^2)$，相較 token-level $O(N^2 T^2)$ 在 $T\approx 1000$ 時可忽略（page 4，§II-E）。
+
+#### 5.3.5 Anchor Frame Sharing
+
+**Function:** 透過將全域 Frame 0 拼接到每個 subscene 最前面，建立平行幾何橋樑，使所有 subscene 共享 VGGT 的第一幀座標系，免除 explicit alignment。
+
+**Input:**
+- Name: hard cluster $\{c_s\}$、`tokens_per_frame`
+- Shape: `[N]`, `[N, T, C]`
+- Source: Soft Assignment、Patch Embedding
+
+**Output:**
+- Name: `subscene_tokens`
+- Shape: $K$ 個張量，每個形狀為 `[N/K + 1, T, C]`（其中第 0 幀為共享的 Frame 0）
+- Consumer: VGGT Backbone
+
+**Processing:**
+
+對每個 subscene $k$：依 $c_s=k$ 收集對應幀 tokens；將全域 Frame 0 的 token block prepend 到該 subscene 序列最前。此操作將原本 size $N/K$ 的 group 擴增為 $N/K+1$，但確保所有 subscene 都「看到」同一 anchor frame，使 VGGT 在每個 subscene 內部以 Frame 0 為基準恢復的相機系自然對齊到同一全域座標系（page 4，§II-D）。論文強調此設計是必要的：若移除 anchor sharing，將「causes catastrophic geometric misalignment or introduces costly post-hoc optimization」（page 6，§E）。
+
+**Key Formulas:**
+
+無新增公式；此模組為純 token 序列的索引與拼接運算。
+
+**Implementation Details:**
+
+不引入可學參數；對 $K$ 個平行序列獨立執行，可直接打包為一個大 batch 提交至 VGGT。論文未指定當 $N$ 不能整除 $K$ 時 padding 的具體實作細節，僅描述 lightweight correction 在 grouping 階段已使各 subscene 幀數接近相同（page 3，§C）。
+
+#### 5.3.6 VGGT Backbone with Parallel Subscenes
+
+**Function:** 套用原始 VGGT 的 alternating frame/global attention，以 $K$ 個 subscene 平行處理，將 global attention 成本由 $O((NT)^2)$ 降為 $O((NT)^2/K)$。
+
+**Input:**
+- Name: `subscene_tokens`
+- Shape: $K$ × `[N/K + 1, T, C]`
+- Source: Anchor Frame Sharing
+
+**Output:**
+- Name: `subscene_features`
+- Shape: $K$ × `[N/K + 1, T, C]`
+- Consumer: DPT Head 與 Camera Head
+
+**Processing:**
+
+每個 subscene 獨立通過 $L$ 層 alternating attention：每層先做 frame-wise self-attention（在每幀的 $T$ 個 token 上），再做 global cross-frame attention，將該 subscene 內所有幀的 token concat 後一次性參與（page 2，§II-A；page 4，§II-D）。Subscenes 之間不交換 token，因此 $K$ 個前向傳播在 GPU 上可平行進行；其總 global attention 成本為 $\sum_{k=1}^{K} O((NT/K)^2) = O((NT)^2/K)$，相較 baseline 的 $O((NT)^2)$ 給出理論加速因子 $K$（page 4，§II-E）。論文亦觀察到，由於 subscene 內 attention 範圍受限，filter out 了 dense capture 中長距噪聲關聯，反而在 ScanNet 上得到更佳 ATE：S-VGGT 0.145 vs. VGGT$^*$ 0.190（page 5，Table II）。
+
+**Key Formulas:**
+
+$$
+\text{Cost}_{global} = \sum_{k=1}^{K} O\!\left(\left(\frac{NT}{K}\right)^{2}\right) = O\!\left(\frac{(NT)^2}{K}\right)
+$$
+
+**Implementation Details:**
+
+直接重用 VGGT 預訓練權重，無需 fine-tuning（page 4，§III-A-c）。實驗顯示在 NRGBD 上達到 9.934 FPS（VGGT$^*$ 為 2.732 FPS），在 ScanNet 1000-frame 上達到 5.699 FPS（page 4，Table I；page 5，Table II）。論文未明示具體 $L$、注意力頭數等超參，僅指出沿用 VGGT 架構（page 2，§II-A）。
+
+#### 5.3.7 DPT Head and Camera Head
+
+**Function:** 依 VGGT 既有架構，以 per-frame token 解碼出每幀的 dense depth/point map 與 camera pose；S-VGGT 不修改該段。
+
+**Input:**
+- Name: `subscene_features`
+- Shape: $K$ × `[N/K + 1, T, C]`
+- Source: VGGT Backbone
+
+**Output:**
+- Name: per-frame depth/point map、per-frame camera pose
+- Shape: depth `[N, H, W]`；camera pose 形狀論文未明示
+- Consumer: 下游評估（Acc, Comp, NC, ATE, ARE, RPE 指標）
+
+**Processing:**
+
+DPT Head 依 patch tokens 解碼為每幀 depth/point map，Camera Head 由 per-frame 的 camera token 與 register tokens 解碼為相機內外參（page 3，Fig. 2 框架圖）。由於所有 subscene 共享 Frame 0，這些 per-frame 結果天然對齊到全域第一幀座標系；論文並未在此模組對輸出再做 explicit alignment 或 bundle adjustment，呼應 §A 中「optimization-free reconstruction」與「single forward pass」的設計目標。
+
+**Key Formulas:**
+
+無新增公式；DPT 與 Camera Head 為 VGGT 既有解碼模組。
+
+**Implementation Details:**
+
+Head 結構與權重沿用 VGGT 預訓練模型，不微調（page 4，§III-A-c）。論文僅在 Fig. 2 中以方塊呈現 DPT 與 Camera Head，未提供 head 內部之詳細實作數值，本筆記不另行猜測；camera pose 的具體 tensor layout 在原文中未明示，標記為 `?`。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+| --- | --- | --- | --- |
+| ScanNet [20] | Camera pose estimation (ATE / ARE / RPE) | 1000-frame input sequences (uniformly sampled subset) | test only (zero-shot) |
+| Neural RGB-D (NRGBD) [21] | Dense 3D reconstruction (Acc / Comp / NC) | 500-frame input sequences | test only (zero-shot) |
+| 7-Scenes [22] | Dense 3D reconstruction (Acc / Comp / NC) | 500-frame input sequences | test only (zero-shot) |
+
+由於 S-VGGT 不對 VGGT 權重做 fine-tuning,所有資料集僅用於 zero-shot 評估,沒有 train/val 切分。
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+| --- | --- | --- |
+| Acc (Mean / Med.) | 重建點雲與 ground-truth 表面之距離,衡量 reconstruction accuracy | yes |
+| Comp (Mean / Med.) | ground-truth 點到預測點雲之距離,衡量 completeness | yes |
+| NC (Mean / Med.) | normal consistency,評估法向量一致性 | no |
+| ATE | Absolute Trajectory Error,主鏡頭位姿絕對誤差 | yes |
+| ARE | Absolute Rotation Error,絕對旋轉誤差 | no |
+| RPE-rot / RPE-trans | Relative Pose Error 之旋轉與平移分量 | no |
+| FPS | 推論吞吐量,衡量 wall-clock efficiency | yes |
+
+論文核心主張為「在不犧牲重建保真度下取得顯著加速」,因此 Acc / Comp、ATE 與 FPS 同時是 primary;NC 與 ARE / RPE 為輔助指標。
+
+### 6.3 Training and Inference Settings
+
+- **Hardware**: 單張 NVIDIA A100 GPU,使用 `bfloat16` 精度以節省記憶體 (§III-A c)。
+- **Training**: 不需要對 pre-trained VGGT 權重進行 fine-tuning,所有結果以嚴格 zero-shot 方式取得;因此沒有 batch size、optimizer、learning-rate schedule 與 training-step 設定。
+- **Inference-time grouping optimization**: 對 soft assignment matrix $A$ 執行少量 gradient descent 步驟,典型為 10 iterations;優化目標為 $L_{\text{group}} = \lambda_{\text{coh}} L_{\text{coh}} + \lambda_{\text{bal}} L_{\text{bal}} + \lambda_{\text{sharp}} L_{\text{sharp}}$,但 the paper does not specify 各 $\lambda$ 的具體數值。
+- **Subscene 數量**: 標準序列採用最大 subscene 數 $K_{\max} = 8$,並對更長的輸入按比例縮放;實際 $K = \min(\text{density}, K_{\max})$,由 density 自適應決定。
+- **VGGT baseline 變體**: 為了在長序列下能放進記憶體,baseline 使用 VRAM-efficient 的 $\text{VGGT}^{\ast}$。
+- **Frame-level descriptors**: 由 VGGT 中介 patch tokens 對 patch 維度做平均得到 $C$ 維 descriptor,pairwise similarity 採 cosine similarity。
+- **未說明項目**: similarity threshold 用於統計 density 的具體數值、$\lambda_{\text{coh}}/\lambda_{\text{bal}}/\lambda_{\text{sharp}}$、子場景 batch 修正細節,the paper does not specify。
+
+### 6.4 Main Results
+
+NRGBD / 7-Scenes(500 frames,Table I):
+
+| Method | NRGBD Acc Mean ↓ | NRGBD Comp Mean ↓ | NRGBD NC Mean ↑ | NRGBD FPS ↑ | 7-Scenes Acc Mean ↓ | 7-Scenes FPS ↑ | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Fast3R [5] | 0.088 | 0.031 | 0.607 | 5.484 | 0.058 | 5.312 | DUSt3R 系並行多視角 baseline |
+| CUT3R [2] | 0.286 | 0.105 | 0.567 | 15.342 | 0.175 | 15.435 | recurrent state,FPS 最高但精度顯著退化 |
+| Spann3R [3] | 0.700 | 0.221 | 0.559 | 7.961 | 0.379 | 7.895 | spatial memory baseline |
+| VGGT$^{\ast}$ [8] | 0.031 | 0.025 | 0.642 | 2.732 | 0.019 | 2.612 | VRAM-efficient 全域注意力 baseline |
+| FastVGGT [13] | 0.027 | 0.022 | 0.638 | 8.092 | 0.018 | 8.011 | token-level acceleration baseline |
+| **Ours (S-VGGT)** | **0.031** | **0.020** | **0.622** | **9.934** | **0.022** | **9.425** | frame-level structural partitioning |
+
+ScanNet 相機位姿(1000 frames,Table II):
+
+| Method | ATE ↓ | ARE ↓ | RPE-rot ↓ | RPE-trans ↓ | FPS ↑ | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Fast3R | 1.065 | 42.024 | 28.461 | 0.456 | 2.673 | 長序列下位姿崩壞 |
+| CUT3R | 1.235 | 56.756 | 0.968 | 0.048 | 11.725 | 高 FPS 但累積誤差嚴重 |
+| Spann3R | OOM | OOM | OOM | OOM | OOM | 1000 frames 下記憶體耗盡 |
+| VGGT$^{\ast}$ | 0.190 | 4.351 | 0.864 | 0.038 | 1.458 | full-attention baseline |
+| FastVGGT | 0.162 | 3.805 | 0.656 | 0.030 | 5.200 | token-level 加速 |
+| **Ours (S-VGGT)** | **0.145** | **3.576** | **0.665** | **0.053** | **5.699** | 同時取得最佳 ATE/ARE 與最高 FPS |
+
+Compounded speedup (Fig. 4,vs. VGGT$^{\ast}$,NRGBD):300-frame 序列下 "Ours+Fast" 達 $3.4\times$,FastVGGT 單獨僅 $2.2\times$;700-frame 序列下 "Ours+Fast" 進一步擴大至 $5.8\times$,證實 frame-level 與 token-level 加速可疊加。
+
+### 6.5 Ablation Studies
+
+論文 §III-E 的 Analysis 段落以敘述方式進行 ablation,缺少對應的量化表格:
+
+- **Remove $L_{\text{bal}}$ (balance) 與 $L_{\text{sharp}}$ (sharpness)**:作者宣稱會導致 unbalanced、degenerate 的 partition,使並行加速喪失。屬於診斷性 ablation,確實對應到「為何需要 balance / sharp 兩個正則項」這個正確問題;然而論文未給出移除後的 FPS 或 Acc 數值,結論僅為定性敘述,可信度受限。
+- **Remove Anchor Frame Sharing**:作者宣稱會出現 catastrophic geometric misalignment,或必須引入 post-hoc 對齊優化而抵消加速。此 ablation 對應論文主張「shared anchor 是 single-pass 對齊的關鍵」,問題設定正確,但同樣只有敘述、沒有量化退化幅度。
+- **$L_{\text{coh}}$ (coherence / consistency) 的角色**:文中只說明它「ensures accuracy」,未實際移除做對照,屬於 sanity-style 描述而非診斷實驗。
+- **缺失的關鍵 ablation**:對 $K_{\max}$(8 / 4 / 2 等)、grouping iteration 數(10 vs. 其他)、similarity threshold、descriptor 取法(平均 patch tokens vs. 專用 retrieval feature)等核心超參數均無消融;這些恰是判斷方法穩健性的關鍵變因。
+- **Time breakdown (Fig. 5)** 比較 VGGT$^{\ast}$ 與 S-VGGT 的耗時組成,顯示 similarity graph 與 soft assignment 模組開銷可忽略。屬於支援性的 sanity check,並非對新元件的診斷性 ablation。
+
+整體而言,本文的 ablation 偏向「論述式」而非「量化式」,僅 balance / sharpness 與 anchor sharing 兩項勉強算診斷性實驗,其餘多為 sanity check。
+
+### 6.6 Phyra Experiment Assessment
+
+- [covered] Has at least one strong baseline (a current SoTA on the chosen task) — 直接與 SoTA 全域注意力模型 VGGT$^{\ast}$ [8] 與 token-level 加速 SoTA FastVGGT [13] 比較,並包含 Fast3R / CUT3R / Spann3R 等 DUSt3R 系列代表方法。
+- [covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 在 ScanNet (pose) 與 NRGBD、7-Scenes (dense reconstruction) 三個資料集上同時涵蓋位姿與重建兩個任務 (Tables I, II)。
+- [partial] Has ablations that diagnose the new components (not just sanity checks) — §III-E 對 $L_{\text{bal}}$/$L_{\text{sharp}}$ 與 Anchor Frame Sharing 的移除有定性論述,但缺少量化表格,且未對 $K_{\max}$、iteration 數、threshold 等核心超參數做消融。
+- [covered] Has a scaling study (size, length, or compute) — Fig. 4 在 NRGBD 上掃描 300 / 500 / 700 等不同 sequence length 的加速比,屬於對輸入長度的 scaling study;ScanNet 也以 1000-frame 設定壓力測試。
+- [covered] Has an efficiency / wall-clock comparison — Tables I, II 報告 FPS,Fig. 5 給出 time breakdown,Fig. 1 直接比較 wall-clock 秒數 (185.9s vs. 46.7s)。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — 全篇未提供任何 std、seed 重複實驗或信賴區間,所有指標皆為單次數值。
+- [partial] Releases code / weights / data sufficient for reproducibility — 摘要寫 "Code is available at Github" 但僅給出佔位字串而無實際 URL,且未承諾權重(本方法 zero-shot,沿用 VGGT 預訓練權重),資料集為公開 benchmark,故僅部分滿足。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Claim 1: 在 frame 層級處理結構冗餘可降低 global attention 成本** — **Supported**：Table I/II（p.4）顯示 NRGBD 上 3.6×、ScanNet 上 3.9× 加速，相對 VGGT* 一致勝出。
+- **Claim 2: Frame-level 與 token-level 加速正交，可疊加** — **Supported**：Fig. 4（p.5）顯示 "Ours+Fast" 在 300-700 frame 區間皆優於單獨 FastVGGT，700-frame 達 5.8×。
+- **Claim 3: 加速不犧牲重建品質** — **Partially supported**：ScanNet ATE 反勝（0.145 vs 0.190），但 NRGBD 上 NC 從 0.642 退化到 0.622、Acc 從 0.027 (FastVGGT) 退到 0.031；論文以「comparable」概括，量化退化未被正面處理（Table I, p.4）。
+- **Claim 4: 理論加速因子為 $K$** — **Overclaimed**：$K_{\max}=8$ 預期 8× 但實測僅 3.6-3.9×，論文未拆解差距來源；同時複雜度 $O((NT)^2/K)$ 忽略 anchor frame 重複貢獻的 $O(K \cdot T^2)$ 項（§II.E, p.4）。
+- **Claim 5: Anchor Frame Sharing 免除顯式幾何對齊** — **Supported but narrowly**：§III.E 以「移除即崩潰」論證其必要性，但無對照「兩 anchor、三 anchor 或學習式 anchor」等替代方案，因此「最簡形式即最佳」未被驗證（§II.D, p.4；§III.E, p.5-6）。
+
+### 7.2 Fundamental Limitations of the Method
+
+**單一 anchor 的脆弱性是結構性而非可調的。** 整個框架的幾何一致性繫於 Frame 0 一幀；只要該幀模糊、視角極端或紋理貧乏，所有 $K$ 個平行 subscene 都會以同一個劣質基準計算座標。論文選擇 prepend 全域首幀的最小修改，使這個風險無法在現行公式內補救：若改用多 anchor 或 learned anchor，就要重新處理跨 subscene 的座標融合，等於回到他們刻意避開的 submap 顯式對齊問題。
+
+**Frame-level 切分天生切斷跨 subscene 的長距 correspondence。** 兩個位於不同 subscene 的幀，無論視角是否重疊，都只能透過共享 anchor 間接互動。這在密集 capture（鄰幀大量重疊）下確實是「過濾噪聲」的好事，並能解釋 ScanNet 上 ATE 反勝；但在稀疏長基線、迴圈閉合、街景巡迴等情境下，這些長距訊號是真有用的，本方法會把它們一併丟掉。論文僅在室內 RGB-D 上測試，因此沒有撞到這個邊界。
+
+**$K_{\max}$ 是手動設定的硬上限，自適應性只在下端生效。** §II.B 的 density 機制能在輸入冗餘小時自動產生較多 subscene，但只要場景夠密，最終都被 $\min(\text{density}, K_{\max})$ 拉到同一個天花板。實務上 $K_{\max}=8$ 在 1000-frame 序列上即代表每個 subscene 仍承擔 ~125 幀；要進一步擴展到 5000-10000 frame 必須重新調 $K_{\max}$，自適應機制無法承擔。
+
+**複雜度分析在 anchor 重複處有 silent gap。** 真實 token 數為 $(N+K)T$，正確上界是 $O((N+K)^2 T^2 / K)$，當 $K$ 增大時 anchor 重複貢獻的 $O(K \cdot T^2)$ 項並非忽略項，而是隨 $K$ 線性成長。論文寫成 $O((NT)^2/K)$ 的乾淨形式掩蓋了這個 trade-off，亦解釋部分實測 vs 理論的落差。
+
+### 7.3 Citations Worth Tracking
+
+- **VGGT [8]**：基底模型；理解 alternating frame/global attention 與「以首幀為座標原點」的設計，是看懂 anchor sharing 為何成立的前置條件。
+- **FastVGGT [13]**：token-level 加速 baseline；若要評估正交性宣稱與決定何時該疊加，必讀其 token merging 細節與相似度搜尋成本。
+- **DUSt3R [1]**：feed-forward 3D foundation model 的起點；定義 pointmap 輸出與 ATE/Acc/Comp/NC 的標準評測協定，是進入此題目的入口。
+- **Schönberger & Frahm, "Structure-from-motion revisited" [19]**：S-VGGT 在概念上把傳統 SfM 的 submap/view-graph 思想搬到 feed-forward 架構，理解傳統做法的對齊與 BA 步驟才能體會 anchor sharing 取代了什麼。
+- **Bolya et al., "Token Merging" (ToMe) [11]**：S-VGGT 反覆對比的 token-level 路線原型；理解 ToMe 的相似度搜尋與 feature distribution shift，才能判斷論文對 token merging 局限的批評是否站得住。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 為什麼 $K_{\max}=8$ 下實測加速僅 3.6-3.9× 而非理論 8×？非 attention 占比、anchor frame 重複計算、similarity/soft-assignment overhead 各自的貢獻比例為何？
+- [ ] Frame 0 為運動模糊、低紋理或視角極端時，整體 ATE/Acc/NC 的退化程度為何？是否存在更穩健的 anchor 選擇策略（例如 similarity matrix $S$ 的 row-sum 最大幀）？
+- [ ] $K_{\max}$ 從 4 掃到 32 的精度-速度曲線是什麼形狀？目前 $K_{\max}=8$ 是否在不同資料集上都最佳，或屬於 cherry-picked default？
+- [ ] Soft assignment 三項 loss 權重 $\lambda_{coh}, \lambda_{bal}, \lambda_{sharp}$ 與 10 個梯度步的敏感度如何？換成 hard k-means 或時序均切 + overlap 是否能達到接近結果，使這些可微分機制變得可選？
+- [ ] §II.B 的 density 閾值具體數值是多少？跨資料集是否需要重新校準，還是有一個普適值？
+- [ ] 在無高度視角重疊的稀疏長基線（室外、街景、迴圈閉合）情境下，frame-level 切分是否會切斷對精度關鍵的長距 correspondence？
+- [ ] $N=1000, K=8$ 下的 GPU 峰值記憶體相對 VGGT* 降低多少？論文僅以 Spann3R OOM 暗示優勢，未給絕對數字。
+
+### 8.2 Improvement Directions
+
+依照可行性由高到低排序：
+
+1. **公開所有超參數與消融**：直接補上 $\lambda$ 權重、density threshold、$K_{\max}$ sweep、anchor 替代方案（以最大 row-sum 幀為 anchor、隨機幀為 anchor）的對照表。零方法改動，立即提升再現性與本文宣稱的可信度。
+2. **以 similarity centrality 選 anchor 取代固定 Frame 0**：用 $S$ 的 row-sum 最大者作為共享 anchor，理論基礎是該幀對其餘所有 frame 平均覆蓋最佳，可緩解單一 anchor 脆弱性而不破壞「無顯式對齊」的核心優勢。
+3. **Multi-anchor sharing**：把 prepend 從 1 幀擴成 2-3 幀（例如 row-sum 前 3 名），降低單點失敗風險；計算成本仍只是 $O(K)$ 線性常數放大，與 token-level overhead 仍不同量級。
+4. **動態 $K$ 以記憶體預算為準**：以 density 直接決定 $K$，移除 $K_{\max}$ 硬上限，改用 GPU memory budget 動態夾住；解決超大序列（5000+ frame）下自適應機制失效的問題。
+5. **稀疏跨 subscene attention 補回 loop closure**：在每個 transformer layer 對 $K$ 個 subscene 的 frame mean 做一次極稀疏 cross-attention，overhead 為 $O(K^2 T^2)$，遠小於 $O((NT)^2/K)$，但能補回 frame-level 切分丟掉的長距訊號，預期在室外與迴圈閉合情境下顯著改善 ATE。

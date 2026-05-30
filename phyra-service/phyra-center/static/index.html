@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phyra Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css?v=2">
+<script>
+  /* no-flash theme init — mirrors archbase/dualtrans, key is per-app */
+  (function () {
+    const mode = localStorage.getItem("phyra-center-theme") || "system";
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+    document.documentElement.setAttribute("data-theme", actual);
+  })();
+</script>
+</head>
+<body>
+<header>
+  <div class="hdr-left">
+    <h1>🜂 Phyra Center</h1>
+    <div class="stats">Phyra 研究工作台 · 論文翻譯、典藏與閱讀</div>
+  </div>
+  <div class="theme-toggle" role="group" aria-label="Appearance">
+    <button type="button" data-mode="system" title="System" aria-label="System">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </button>
+    <button type="button" data-mode="light" title="Light" aria-label="Light">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+      <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="cat" id="cat-library">
+    <h2 class="cat-head">Phyra Library</h2>
+    <div class="tile-grid" id="tiles-library"></div>
+  </section>
+
+  <section class="cat" id="cat-tools">
+    <h2 class="cat-head">Phyra Tools</h2>
+    <div class="tile-grid" id="tiles-tools">
+      <div class="tile tile-placeholder">
+        <div class="tile-thumb"></div>
+        <div class="tile-name">即將推出</div>
+        <div class="tile-sub">研究工具區尚未上線</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---- theme toggle (same shape as archbase/dualtrans) ---- */
+const themeToggle = document.querySelector(".theme-toggle");
+const themeButtons = themeToggle.querySelectorAll("button[data-mode]");
+const prefersDarkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+let themeMode = localStorage.getItem("phyra-center-theme") || "system";
+
+function resolveActual(mode) {
+  if (mode === "system") return prefersDarkMQ.matches ? "dark" : "light";
+  return mode;
+}
+function applyTheme(mode) {
+  themeMode = mode;
+  document.documentElement.setAttribute("data-theme", resolveActual(mode));
+  themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  localStorage.setItem("phyra-center-theme", mode);
+}
+themeButtons.forEach(b => b.addEventListener("click", () => applyTheme(b.dataset.mode)));
+prefersDarkMQ.addEventListener?.("change", () => { if (themeMode === "system") applyTheme("system"); });
+applyTheme(themeMode);
+
+/* ---- services tiles ---- */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+// Per-service brand wordmark (Space Grotesk). ArchBase: the "A" is a
+// triangle-with-crossbar mark; DualTrans: a mirrored ▽▲ pair plays on
+// "dual". Keyed by svc.key; unknown keys fall back to the label emoji so
+// future siblings still render something before they get a wordmark.
+function logoHtml(svc) {
+  if (svc.key === "phyra-archbase") {
+    return `<span class="svc-logo">` +
+      `<svg class="svc-mark tri-A" width="22" height="22" viewBox="0 0 100 100" aria-hidden="true">` +
+      `<path d="M50 12 L88 88 L12 88 Z M30 64 L70 64"/></svg>rchBase</span>`;
+  }
+  if (svc.key === "phyra-dualtrans") {
+    return `<span class="svc-logo">` +
+      `<svg class="svc-mark duo" width="25" height="21" viewBox="0 0 120 100" aria-hidden="true">` +
+      `<path class="up" d="M40 10 L72 64 L8 64 Z"/>` +
+      `<path class="down" d="M80 90 L48 36 L112 36 Z"/></svg>DualTrans</span>`;
+  }
+  return `<span class="tile-emoji">${svc.label.match(/^\S+/)?.[0] || "🜂"}</span>`;
+}
+
+function tileHtml(svc) {
+  // Cross-link uses THIS browser's hostname so LAN access works without
+  // baking the server's address into the page.
+  const href = `${location.protocol}//${location.hostname}:${svc.port}/`;
+  const dot = svc.reachable ? "ok" : "down";
+  const dotTitle = svc.reachable
+    ? `已就緒 · ${svc.latency_ms} ms`
+    : `離線（連不上 :${svc.port}）`;
+  const stateText = svc.reachable ? "就緒" : "離線";
+  return `<a class="tile" href="${href}" data-state="${dot}">
+    <div class="tile-thumb">
+      ${logoHtml(svc)}
+    </div>
+    <div class="tile-row">
+      <div class="tile-name">${escapeHtml(svc.name)}</div>
+      <span class="tile-dot" title="${escapeHtml(dotTitle)}">${stateText}</span>
+    </div>
+    <div class="tile-sub">${escapeHtml(svc.tagline)}</div>
+    <div class="tile-meta">localhost:${svc.port}</div>
+  </a>`;
+}
+
+function placeholderTile(label) {
+  return `<div class="tile tile-placeholder">
+    <div class="tile-thumb"></div>
+    <div class="tile-name">${escapeHtml(label)}</div>
+    <div class="tile-sub">預留位（未實作）</div>
+  </div>`;
+}
+
+async function loadServices() {
+  const root = document.getElementById("tiles-library");
+  if (!root) return;
+  let services = [];
+  try { services = await (await fetch("/api/services")).json(); }
+  catch (_) { services = []; }
+  // Render Library section: known services + 1 "phyra-xxx" placeholder
+  // so future siblings have a visible slot — mirrors reference/image.png.
+  const tiles = services.filter(s => s.kind === "library").map(tileHtml);
+  tiles.push(placeholderTile("phyra-xxx"));
+  root.innerHTML = tiles.join("");
+}
+
+loadServices();
+// Light refresh so tiles update if a sibling comes online after Center.
+setInterval(loadServices, 15000);
+</script>
+</body>
+</html>

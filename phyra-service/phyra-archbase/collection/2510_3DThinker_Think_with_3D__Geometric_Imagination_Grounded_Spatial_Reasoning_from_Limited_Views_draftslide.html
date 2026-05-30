@@ -1,0 +1,473 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Think with 3D: Geometric Imagination Grounded Spatial Reasoning from Limited Views</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">Think with 3D: Geometric Imagination Grounded Spatial Reasoning from Limited Views</h1>
+          <p class="cover-meta">Zhangquan Chen, Manyuan Zhang, Xinlei Yu, Xufang Luo, Mingze Sun, Zihao Pan, Xiang An, Yan Feng, Peng Pei, Xunliang Cai, Ruqi Huang</p>
+          <p class="cover-meta">2510.18632 · CVPR 2026 · 2026-03-13</p>
+          <div class="cover-tagline"><p>本論文聚焦於從有限視角(limited views)推理 3D 空間關係的多模態理解問題。儘管現有 vision-language models (VLMs) 在許多多模態任務上表現出色,但在涉及空間想像與幾何推理的場景下,例如 embodied AI、自動駕駛等需從少量 ego-centric 影像推斷整個 3D 場景的任務,仍顯著不足。先前方法多採用純文字描述、2D 視覺線索 (如 bounding box、cognitive map),或仰賴額外輸入 (如點雲、深度圖、相機參數) 與外部工具 (如 GroundingDINO、DepthAnythingv2),既受限於表徵能力,又依賴密集人工標註與外部模型推論成本。作者目標是讓 VLM 能從 2D 影像中內生地形成 3D 心智表徵 (3D mentaling),在不依賴 3D 先驗、不依賴密集標註、且不需要外部編碼器的條件下完成空間推理,屬於多模態推理與 3D 表徵學習交叉的研究主題。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本論文聚焦於從有限視角(limited views)推理 3D 空間關係的多模態理解問題。儘管現有 vision-language models (VLMs) 在許多多模態任務上表現出色,但在涉及空間想像與幾何推理的場景下,例如 embodied AI、自動駕駛等需從少量 ego-centric 影像推斷整個 3D 場景的任務,仍顯著不足。先前方法多採用純文字描述、2D 視覺線索 (如 bounding box、cognitive map),或仰賴額外輸入 (如點雲、深度圖、相機參數) 與外部工具 (如 GroundingDINO、DepthAnythingv2),既受限於表徵能力,又依賴密集人工標註與外部模型推論成本。作者目標是讓 VLM 能從 2D 影像中內生地形成 3D 心智表徵 (3D mentaling),在不依賴 3D 先驗、不依賴密集標註、且不需要外部編碼器的條件下完成空間推理,屬於多模態推理與 3D 表徵學習交叉的研究主題。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者識別的根本瓶頸在於:現有 VLM 的推理鏈本質上仍是純文字或 2D 視覺,無法承載「人類在腦中重建 3D 場景」的心智想像能力,而所有試圖補強空間能力的方法都繞道而行——要嘛把 3D 資訊外包給工具或編碼器(VLM-3R、Ego3D、3DRS),要嘛把空間布局壓縮成文字 cognitive map (MindCube),前者增加推論開銷且能力非內生,後者則受限於 BEV 標註成本與表徵粒度。因此,他們主張必須讓 VLM 在自身的 reasoning trajectory 中直接產生 3D latent,並以一個現成的 3D foundation model (VGGT) 作為「無需 3D 標註」的監督源,把 latent 的特徵空間蒸餾到 VGGT 的幾何特徵上;這在邏輯上同時解決了三個目標 (G1) 從 2D 影像直接學 3D 幾何、(G2) 不需密集標註、(G3) 推論時無外部模型。為使此 latent 真正參與決策,訓練必分兩階段:先以 supervised learning 配合 3D alignment loss 與 cross-entropy loss 教模型「在文本中插入 3D 特殊 token 並讓其 hidden state 對齊 VGGT」;再以 outcome-driven GRPO 對整條 trajectory 強化,並透過 r3D (cosine similarity)、rformat、rans 三項獎勵保持 3D latent 不退化、同時優化最終答案。藉由 projector 還能反向重建點雲,提升 latent reasoning 的可解釋性。這條因果鏈使「think with 3D mentaling」成為一個必要且自洽的設計,而非僅僅是另一個工程選項。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>首次提出 &quot;think with 3D mentaling&quot; 範式,讓 VLM 在 reasoning trajectory 內生產生 3D latent,推論時不需任何 3D 先驗或外部 3D encoder (Sec 1, 三大目標 G1/G2/G3)。</li><li>訓練流程清晰:Stage 1 以 VGGT feature 蒸餾 + 3D alignment loss + cross-entropy 雙損失,Stage 2 以 outcome-driven GRPO 配合 $r_{\text{3D}}$、$r_{\text{format}}$、$r_{\text{ans}}$ 三項獎勵微調整條 trajectory (Fig 2)。</li><li>3DThinker-S1+S2 在 Qwen2.5-VL-72B 上於 MindCube-Tiny 達 78.9,超越 o3-2025-04-16 的 56.6;在 Ego3D-Bench 上達 73.3 略勝 o3 的 73.0 (Tab 1)。</li><li>對既有 spatial baseline 大幅領先:Qwen2.5-VL-3B 上比 SpatialLadder-3B 高 21.8 個百分比 (62.7 vs 49.6);Qwen2.5-VL-7B 上比 VILASR-7B 高 33.7 個百分比 (64.7 vs 48.4) (Tab 2)。</li><li>在不使用 GroundingDINO + DepthAnythingv2 等外部工具的條件下,於 Ego3D-Bench 仍勝 Ego3D-VLM,例如 Qwen2.5-VL-3B 從 44.4 提升到 50.8 (+14.4 個百分比) (Tab 3)。</li><li>跨架構廣泛驗證:在 Qwen2.5-VL、InternVL3、Qwen3-VL (含 30B-A3B MoE)、LLaVA-OneVision-1.5 上均產生一致提升 (Tab 1, 7, 8)。</li><li>跨資料集泛化:僅以 MindCube 訓練即能在 Ego3D-Bench 取得顯著提升,顯示 framework 並非過擬合 benchmark (Sec 4.1)。</li><li>提供 latent reasoning 的可解釋路徑:projector + VGGT 的 DPT [48] 可將 3D latent 還原為 point cloud,用紅色 bounding box 內的密度 196494.67 vs 全域 1332.54 points/unit$^3$ 量化 prompt-relevant 聚焦 (Fig 4, Fig 5)。</li><li>通用視覺理解未退化:POPE 由 85.9 上升到 88.4 (+2.91 個百分比),MME 與 SEED-I 持平甚至略升 (Tab 10)。</li><li>訓練成本可控:Qwen2.5-VL-3B 在單張 H200 上 SFT 約 21.84 小時、RL 約 12.85 小時即收斂,Stage 2 reward 在約 500 步即穩定 (Sec 12, Fig 7)。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(220 words)</p>
+<p>標題「Think with 3D: Geometric Imagination Grounded Spatial Reasoning from Limited Views」明確點出三個關鍵詞:think with 3D(以 3D 思考的主張)、geometric imagination(借用人類心象想像的隱喻)、以及 limited views(輸入是少量視角而非完整 3D scan)。這三點預告了論文的研究界線:不是給足 3D 資料、不是補強 2D 推理,而是要讓 VLM 在輸入只有有限張影像的條件下,於推理過程中自行構造 3D 表徵。</p>
+<p>Abstract 的論述承接標題並逐步收束。先點出問題:VLM 雖在多模態任務上進展顯著,但「從有限視角理解 3D 空間關係」仍是 open challenge。接著批評既有路徑:純文字(如 topological cognitive maps)或 2D visual cues 受限於 representational capacity,不足以支撐需要 3D 空間想像的任務。在此鋪墊下提出 3DThinker,並用兩個關鍵宣告界定其新穎性:(1) 第一個能在 reasoning 過程中進行 3D mentaling 而不依賴任何 3D 先驗輸入;(2) 訓練不需明確標註的 3D 資料。隨後提出兩階段訓練 schema:stage 1 用監督訓練將 VLM 推理時產生的 3D latent 對齊至 3D foundation model(VGGT)的特徵空間;stage 2 僅以 outcome signal 優化整條 reasoning trajectory,以精煉內隱的 3D mentaling。最後以 multi-benchmark 上 consistently 優於 strong baselines 收尾,並把貢獻拉高到「為多模態推理統一 3D 表徵的新視角」。整段 abstract 的功能是:把「為何 3D」「為何 limited views」「為何免標註」三個門檻一次設定好,讓後續章節都可以回扣這條主軸。</p>
+<h3>3.2 Introduction</h3>
+<p>(880 words)</p>
+<p>Introduction 的論述按「動機 → 問題定義 → 既有方法分類與弱點 → 三項設計目標 → 我們的方法草圖 → 貢獻清單」的順序展開,目的是把 abstract 提到的論點延伸成可以驅動方法設計的前提。</p>
+<p>第一步建立動機:Spatial understanding 對 embodied AI 與 autonomous driving 等真實 3D 互動系統至關重要,而這些系統典型的輸入正是 ego-centric 的多相機 limited views,這些視角不可互換、帶有相對於機器自身座標的空間語義,因此「從少數視角想像整個場景」是 spatial intelligence 的核心問題。隨後直接點出 VLM 的短板:在這類任務上表現有限,瓶頸在於無法從影像萃取 3D geometry,以及空間想像能力不足。</p>
+<p>第二步把現有改進方法分為兩類並各自指出缺陷。第一類只用 pure text 或 2D visual cues(例如 cognitive maps、bounding boxes),其代表 MindCube 仰賴 BEV 標註,Ego3D 仰賴 GroundingDINO 與 DepthAnythingv2 等外部工具,在低解析度或 uncurated 影像上易失敗;第二類引入 auxiliary modalities(point cloud、camera parameters)或 external encoders/tool-usage(例如 encoded 3D tokens、depth maps),既限制了僅有單目影像的真實情境,也帶來 inference overhead 並不屬於模型「內在」能力。</p>
+<p>第三步把上述弱點轉換成三個明確設計目標:(G1) 3D-imaginable,直接從 2D 影像學 3D geometry;(G2) Annotation-free,不依賴密集標註;(G3) Intrinsic,inference 時不需外部先驗或輔助模型。這三個 G 是後續方法決策的判準。</p>
+<p>第四步以 Mirage 作為最近的相關工作來定錨自身定位:Mirage 借助 ground-truth image embeddings 進行監督,但仍停留在「thinking with image」典範,因此不滿足 G1 與 G2;3DThinker 則從中受啟發,把對應對象從 2D 影像 latent 換成 3D mental latent,將 3D 表徵內生地整合進 VLM。對應到三個 G:G1 透過在推理過程中產生 geometric representations、G2 透過將 3D latent 對齊到 3D foundation model 而免去 3D 標註資料、G3 透過完全 in-model 的生成而不依賴 prior 或 auxiliary geometry encoder。同時強調此設計帶來的副效應 — 透過 projector 可由 3D latent 反推出 point cloud,提升 large reasoning model 的 interpretability。</p>
+<p>第五步勾勒方法骨架:先建立含 3D special tokens 的 CoT 訓練資料;stage 1 用 supervised learning,把 VGGT 特徵 distill 到 VLM 推理過程中的 3D 特殊 token,並輔以 3D latent alignment loss 與 cross-entropy 維持文字 coherence;stage 2 用 reinforcement learning,以 outcome-driven signal 優化整條 sampling trajectory,同時保持 3D latent 對齊。</p>
+<p>最後列出四項貢獻:(i) 首個 &quot;think with 3D mentaling&quot; 框架,免除 cognitive map 之類的密集標註;(ii) 兩階段訓練 — 從 feature alignment 到 outcome-based 的內隱幾何學習;(iii) 透過 projector 提供 latent reasoning 的可恢復性,克服 latent 推理的不可解釋性;(iv) 跨 benchmark 與多種 base VLM 的廣泛適用性。這份清單同時也是後續章節的承諾:每一條對應 §3 方法、§4 實驗中可被驗證的 claim,為讀者把握全文邏輯提供了 contract。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(650 words)</p>
+<p>Related Work 沒有單獨的 Preliminaries,而是分為兩個子節:Multimodal Reasoning 與 Spatial Understanding,負責把 3DThinker 的「定位空間」釐清,並在每一段最後做出 contrast claim。</p>
+<p>Sec 2.1 Multimodal Reasoning 把 reasoning 方法整理成三類。Pure-text reasoning 從 chain-of-thought 出發,以 textual rationale 增強 LLM,但在無法被自然語言充分描述的視覺證據上能力受限。Visual reasoning 進一步分兩類:intrinsic multi-hop(模型自身產生 bounding boxes、coordinates、masks 等視覺線索後再 reasoning)、extrinsic tool-usage(動態調用外部影像工具)、以及 continuous methods(GRIT、SIFThinker 在單步 reasoning 中迭代修正視覺內容)。Latent reasoning 則繞過 explicit token,直接在隱空間做推理:Coconut 用 continuous latent embedding 取代 CoT token;Mirage、LVR 在普通文字旁加入 special visual token,以隱式監督 image latent 來達到 2D visual latent reasoning。這個分類圖譜的關鍵收尾是:既有工作不論是文字、2D 視覺或 latent 路線,都仍停留在 textual 或 2D 空間;3DThinker 則把 latent token 視為「以 3D 進行 mental-level 思考」的橋樑,更貼近人類認知。這句話正是論文要主張的 paradigm shift。</p>
+<p>Sec 2.2 Spatial Understanding 先描述評測層面的努力(VSI-Bench、SPBench 等都是後續實驗使用的 benchmarks),再分類提升空間理解的技術手段:(1) input enhancement,給 LLM 多視角、深度或 point cloud 輸入;(2) explicit 3D supervision,例如 3DRS 引入 teacher model 對齊 3D 表徵,但需要每個像素對應的 3D 座標;(3) implicit 3D token,例如 VLM-3R 用預訓練 CUT3R 取得 3D token,但 inference 時必須一併執行龐大的 3D foundation model;(4) textual cognitive maps,例如 MindCube 與 Ego3D-VLM 透過建構文字版的 cognitive map 來補強空間理解。</p>
+<p>收尾再次設定 contrast:這些方法或仰賴 input enhancement、或需建構 cognitive map,都伴隨複雜的資料蒐集與標註;3DThinker 則直接從 multi-view images 蒸餾 3D foundation model 的 3D latent,從而在無需密集標註下達到 spatial reasoning。整節因此完成兩件事:把後續實驗將要對齊的 baselines(MindCube、Ego3D-VLM、3DRS、VLM-3R 等)逐一定位,並把方法章節要解決的具體技術差異(免標註 + 內生 + 可恢復)寫成可驗證的對比點,以便 §3 的方法設計可以逐一回應。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(950 words)</p>
+<p>Methodology 章節的開場援引人類心象想像(mental imagery)作為設計隱喻:既然人類在空間推理時會主動「想像」3D 場景,3DThinker 就讓 VLM 在 multimodal trajectory 中插入扮演 3D scene 角色的 compact latent embeddings(3D tokens)。整節以 Fig. 2 為導覽圖,沿三個面向展開:資料生成、stage 1 監督對齊、stage 2 強化精煉。</p>
+<p>第一面向是 data generation(Sec. 3.1)。VLM 自然只會輸出文字 token,要學會生成 interleaved 推理(文字 + 3D 表徵)就需要對應形式的訓練語料。論文以 GPT-4.1 作為 high-level model M,輸入問題 Q、影像集 $\mathcal{I}$ 與 ground-truth 答案 R,讓 M 產生內含 3D 特殊 placeholder 的 step-by-step 推理 $o$。每一個 placeholder 對應一段「在心中想像的 3D 場景」,其 last-layer hidden state 會在 stage 1 被要求與 3D foundation model 抽出的特徵一致。最後得到 dataset $D$,其中每筆 $o^{(i)}$ 都是 text 與 3D placeholder 交織的 trajectory。重要的設計選擇是:不需要任何 3D 答案標註,僅借助 GPT-4.1 把 placeholder 排進 reasoning 之中。</p>
+<p>第二面向是 stage 1 supervised training(Sec. 3.2)。論文不直接逼模型生 point cloud(資料昂貴、生成困難),而是把 3D foundation model VGGT 的特徵當成蒸餾來源。對於每個樣本,trajectory 拆成 $o = o_{\text{pre}} \oplus t_{\text{3D}} \oplus o_{\text{post}}$,其中 $t_{\text{3D}}$ 即 3D 特殊 token 序列;對應的 hidden states $F_{\text{latent}}$ 透過 projector(Fig. 3)結合 image patch features 投影到 VGGT 特徵空間,得到 $F_{\text{proj}}$。訓練目標是兩個 loss 的加權:Frobenius 形式的 3D alignment loss 把 $F_{\text{proj}}$ 拉近 VGGT 特徵 $F_{\text{3D}}$,以及對 $o_{\text{pre}}$ 與 $o_{\text{post}}$ 文字 token 的 cross-entropy,使文字 coherence 不被 3D token 破壞。權重 $\lambda_{3D}$、$\lambda_{\text{text}}$ 是調節係數。這個設計正面回應了 §2 的批評:不需要 explicit 3D 標註,也不需要模型具備 explicit 3D 生成能力。</p>
+<p>第三面向是 stage 2 reinforced spatial mentaling(Sec. 3.3)。Stage 1 結束後,模型已能產出格式正確的 3D token,但 trajectory 整體未經 outcome 驅動的優化。Stage 2 採 GRPO,projector 凍結,僅優化 VLM 自身。獎勵設計成三項合成的 task reward:(1) $r_{\text{3D}}$:把該步的 $F_{\text{proj}}^{RL}$ 與 VGGT 特徵 $F_{\text{3D}}$ 計算 cosine 相似度,並 rescale 至 $[0,1]$,作為對 3D latent 的持續 constraint;(2) $r_{\text{format}}$:要求輸出嚴格符合 <code>&lt;|latent_start|&gt;&lt;|latent_pad|&gt;...&lt;|latent_end|&gt;...&lt;think&gt;...&lt;/think&gt;&lt;answer&gt;...&lt;/answer&gt;</code> 的順序,符合者得 1.0;(3) $r_{\text{ans}}$:對選擇題比對 ground-truth 給 0/1 二元獎勵,並均勻地散佈到 trajectory 中每個 token(包含 3D 視覺 token)。Group-normalized advantage $\hat{A}_{i,t}$ 用標準的均值-標準差歸一化計算。</p>
+<p>整體設計的內部邏輯是雙重穩定:stage 1 用顯式的特徵對齊把 3D latent 拉到「合理的幾何流形」,stage 2 改用較弱、僅 cosine 形式的對齊維持先前學到的幾何空間,同時讓 outcome signal 改變 latent 的具體用法,使 3D mentaling 從「仿造特徵」進化為「能服務最終答案」的內部表徵。這也為 §5 中將要詳述的模組(projector 結構、token 位置、reward 組合)留下實驗上的伏筆 — 各個元件的作用都已在概念層面上點明,具體 ablation 留待後續驗證。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1650 words)</p>
+<p>Experiments 章節的目標是把第 3 章的 claim 全面落地驗證,並把驗證範圍盡可能拉廣 — 跨 8 個 benchmark、跨多個 base VLM family、跨多種 baseline 類型、跨多個 ablation 軸線。整體結構由「廣度比較 → 對標 SOTA → 訓練策略對照 → 視覺化解釋 → 元件 ablation」五個子節組成,呼應 introduction 中四項貢獻。</p>
+<p>開頭先設定共用協議:多選題用 Accuracy(完全匹配),數值題用 VSI-Bench 提出的 Mean Relative Accuracy (MRA),並以 Avg. 表示子任務平均;標註 * 的模型在 Large-Scale Curated Dataset 訓練,未標註者僅在 MindCube 訓練。Hyperparameters 部分列出 stage 1 用 MLP depth = 6、latent size = 12、epoch = 10、$\lambda_{3D}=0.1$、$\lambda_{\text{text}}=1$,stage 2 三項 reward 等權、rollout = 8。這些參數明確以 reproducibility 為前提,也預告 §6 中 latent size 等 ablation 將回頭挑戰這些設定。</p>
+<p>Sec. 4.1 Benchmarking generalist VLMs 是廣度宣告。在 MindCube-Tiny 與 Ego3D-Bench 上,3DThinker 在 Qwen2.5-VL(3B/7B/32B/72B)與 InternVL3(8B/14B/38B/78B)兩家族、共八個 backbone 上一致超越原始 VLM。MindCube-Tiny 上整體增益範圍 51.8%–108.8%,Ego3D-Bench 上 18.1%–36.9%。子節以 Qwen2.5-VL-3B 為示例:stage 1 把 MindCube-Tiny 從 33.2 拉到 62.7(+88.9%),stage 2 再拉到 75.2(+19.9%);Ego3D-Bench 也從 39.1 → 46.7 → 50.8。文中特別點出 Travel Time 子任務增益較弱,並把成因歸於 normalized 3D 表徵需與真實世界對齊時的 context 不足 — 這是少見地把限制寫進主文,後續再以 cross-dataset 泛化(模型未見過 Ego3D 資料卻能贏)強化主張。最關鍵的 punchline 是:最強配置 3DThinker-S1+S2(Qwen2.5-72B)在 MindCube-Tiny 上 78.9 &gt; o3 的 56.6,Ego3D-Bench 73.3 ≥ o3 的 73.0,把這支「免外部 prior」的方法放到與最新 closed-source 推理模型同台比較。</p>
+<p>Sec. 4.2 與多 baseline 對標。Tab. 2 把方法依 base VLM(Qwen2.5-VL-3B / 7B)分組,在 VSI-Bench、SPBench、CV-Bench、SPAR-Bench、ViewSpatial-Bench、MMSI-Bench 六個 benchmark 上比 Spatial-MLLM、SpatialLadder、SpaceR、VILASR、Video-R1 等近期方法。對 3B,3DThinker 在 stage 1 已勝 SpatialLadder-3B 11.5%(55.3 vs. 49.6),stage 2 拉到 21.8%;對 7B,stage 2 對 VILASR-7B 領先達 33.7%(64.7 vs. 48.4)。文中強調兩件事:(1) 不像 SpatialLadder 在 SPBench 上明顯 task-specific overfit,3DThinker 全面提升;(2) 不像 Video-R1 在 single-view 任務(CV-Bench)反而退步,3DThinker 在 single-image 與 multi-view 都強。Tab. 3 接著把比較聚焦於「免外部 prior」的問題,直接對標 Ego3D-VLM(其依賴 Grounding-DINO + Depth-Anything-V2-Metric-Large 來建構 cognitive map)。在不同 backbone(Qwen2.5-VL 3B/7B/32B/72B、InternVL3 8B/14B/38B/78B)上,3DThinker 全部不輸,Qwen2.5-VL-3B 上甚至有 14.4% 提升。這個比較精準對應 G3「Intrinsic」的設計目標。</p>
+<p>Sec. 4.3 用 Tab. 4 在 Qwen2.5-VL-3B + MindCube-Tiny 上比較不同訓練策略:raw-QA SFT、CoT SFT、Aug-CGMap-FFR-Out-SFT(MindCube 提出的 SOTA、含相機視角資訊)、Plain-CGMap-FFR-Out-SFT,加上 SFT-then-RL 對應版本。3DThinker stage 1 比最強 cognitive-map SFT(Plain-CGMap-FFR-Out-SFT)高 3.1%(62.7 vs. 60.8),Rotation 子分類較弱被解釋為 SFT 階段聚焦 static 空間,而 Rotation 涉及 dynamic spatial imagination,需待 stage 2 的 outcome-based RL 補上。Stage 2 把整體拉到 75.2,比 cognitive-map-based SFT-then-RL 高 6.4%(75.2 vs. 70.7),把「不需 cognitive map 仍能學會 dynamic 空間」這個核心 claim 釘住。</p>
+<p>Sec. 4.4 Visualization 把 latent reasoning 的可解釋性展示出來:推理時抽出 3D special token 的 last-layer hidden state,經 projector 投到 VGGT 空間,再用 VGGT 內建的 DPT 解碼成 point cloud。Fig. 4 顯示 reconstructed cloud 大致勾勒場景,且 prompt 相關物件對應的區域更清晰,意即 3D latent 確實依 prompt 意圖編碼 mental scene。兩個示例都得到正確答案,正面對應 introduction 中第三項貢獻(latent reasoning 的可恢復性)。</p>
+<p>Sec. 4.5 Ablation Study 從兩條軸線檢驗設計合理性。Tab. 5 在 Qwen2.5-VL-3B-S1 上掃描 3D latent size = {4, 8, 12, 16, 32, 64},最佳為 12,過小限制表現力、過大則引發 <code>&lt;|latent_start|&gt;</code> 重複輸出而無法產出最終答案,解釋為何模型參數的「自然語言能力」會被過大 latent 干擾。Tab. 6 則綜合測試 3D special token 位置(beginning vs. middle vs. end)、projector 方向(VLM→VGGT vs. VGGT→VLM)、以及 reward 組合。把 token 放在 <code>&lt;think&gt;</code> 與 <code>&lt;/think&gt;</code> 之間會造成 garbled text 與過早終止,從 75.2 掉到 42.0;projector 方向反過來會喪失可解釋性且性能略弱(75.2 vs. 74.1);移除 $r_{\text{format}}$ 影響很小,但移除 $r_{\text{3D}}$ 掉到 68.3、移除 $r_{\text{ans}}$ 掉到 64.2,顯示 3D 對齊與最終答案監督是 stage 2 的兩個必要支柱。整節為 §6 的逐表分析鋪好骨架,把每張表的 claim 與 method 章節的設計選擇逐一對應起來。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(170 words)</p>
+<p>Conclusion 段落很短,作用是收束主軸並重申賣點。第一句把 3DThinker 重新定位為「讓 VLM 以 3D spatial mentaling 進行思考」的框架,並對應 introduction 的核心對比 — 不像近期方法只用 pure text 或 2D visual cues,3DThinker 在 reasoning 過程中首次直接利用影像中內含的 geometric information。第二句強調訓練端的優勢:不依賴 dense annotation,也不依賴外部 prior。第三、四句重述兩階段訓練 schema:stage 1 從預訓練 3D model 蒸餾 geometric features 作為 warm-up,stage 2 在維持 3D 視覺對齊的同時以 outcome signal 優化整條 reasoning trajectory。最後以「在多個 benchmark 上一致超越既有方法,為未來探索奠定基礎」作結。</p>
+<p>論文正文的 Conclusion 並未明確寫 Limitations 或 Future Work — the paper does not specify a dedicated limitations or future-work paragraph;唯一接近的限制陳述出現在 §4.1 中對 Travel Time 子任務的說明,提到 normalized 3D 表徵與真實世界對齊時 context 不足,可視為作者隱性指出的尚待改進方向。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(880 words)</p>
+<div class="card"><p>Introduction 的論述按「動機 → 問題定義 → 既有方法分類與弱點 → 三項設計目標 → 我們的方法草圖 → 貢獻清單」的順序展開,目的是把 abstract 提到的論點延伸成可以驅動方法設計的前提。</p></div>
+<div class="card"><p>第一步建立動機:Spatial understanding 對 embodied AI 與 autonomous driving 等真實 3D 互動系統至關重要,而這些系統典型的輸入正是 ego-centric 的多相機 limited views,這些視角不可互換、帶有相對於機器自身座標的空間語義,因此「從少數視角想像整個場景」是 spatial intelligence 的核心問題。隨後直接點出 VLM 的短板:在這類任務上表現有限,瓶頸在於無法從影像萃取 3D geometry,以及空間想像能力不足。</p></div>
+<div class="card"><p>第二步把現有改進方法分為兩類並各自指出缺陷。第一類只用 pure text 或 2D visual cues(例如 cognitive maps、bounding boxes),其代表 MindCube 仰賴 BEV 標註,Ego3D 仰賴 GroundingDINO 與 DepthAnythingv2 等外部工具,在低解析度或 uncurated 影像上易失敗;第二類引入 auxiliary modalities(point cloud、camera parameters)或 external encoders/tool-usage(例如 encoded 3D tokens、depth maps),既限制了僅有單目影像的真實情境,也帶來 inference overhead 並不屬於模型「內在」能力。</p></div>
+<div class="card"><p>第三步把上述弱點轉換成三個明確設計目標:(G1) 3D-imaginable,直接從 2D 影像學 3D geometry;(G2) Annotation-free,不依賴密集標註;(G3) Intrinsic,inference 時不需外部先驗或輔助模型。這三個 G 是後續方法決策的判準。</p></div>
+<div class="card"><p>第四步以 Mirage 作為最近的相關工作來定錨自身定位:Mirage 借助 ground-truth image embeddings 進行監督,但仍停留在「thinking with image」典範,因此不滿足 G1 與 G2;3DThinker 則從中受啟發,把對應對象從 2D 影像 latent 換成 3D mental latent,將 3D 表徵內生地整合進 VLM。對應到三個 G:G1 透過在推理過程中產生 geometric representations、G2 透過將 3D latent 對齊到 3D foundation model 而免去 3D 標註資料、G3 透過完全 in-model 的生成而不依賴 prior 或 auxiliary geometry encoder。同時強調此設計帶來的副效應 — 透過 projector 可由 3D latent 反推出 point cloud,提升 large reasoning model 的 interpretability。</p></div>
+<div class="card"><p>第五步勾勒方法骨架:先建立含 3D special tokens 的 CoT 訓練資料;stage 1 用 supervised learning,把 VGGT 特徵 distill 到 VLM 推理過程中的 3D 特殊 token,並輔以 3D latent alignment loss 與 cross-entropy 維持文字 coherence;stage 2 用 reinforcement learning,以 outcome-driven signal 優化整條 sampling trajectory,同時保持 3D latent 對齊。</p></div>
+<div class="card"><p>最後列出四項貢獻:(i) 首個 &quot;think with 3D mentaling&quot; 框架,免除 cognitive map 之類的密集標註;(ii) 兩階段訓練 — 從 feature alignment 到 outcome-based 的內隱幾何學習;(iii) 透過 projector 提供 latent reasoning 的可恢復性,克服 latent 推理的不可解釋性;(iv) 跨 benchmark 與多種 base VLM 的廣泛適用性。這份清單同時也是後續章節的承諾:每一條對應 §3 方法、§4 實驗中可被驗證的 claim,為讀者把握全文邏輯提供了 contract。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(650 words)</p>
+<div class="card"><p>Related Work 沒有單獨的 Preliminaries,而是分為兩個子節:Multimodal Reasoning 與 Spatial Understanding,負責把 3DThinker 的「定位空間」釐清,並在每一段最後做出 contrast claim。</p></div>
+<div class="card"><p>Sec 2.1 Multimodal Reasoning 把 reasoning 方法整理成三類。Pure-text reasoning 從 chain-of-thought 出發,以 textual rationale 增強 LLM,但在無法被自然語言充分描述的視覺證據上能力受限。Visual reasoning 進一步分兩類:intrinsic multi-hop(模型自身產生 bounding boxes、coordinates、masks 等視覺線索後再 reasoning)、extrinsic tool-usage(動態調用外部影像工具)、以及 continuous methods(GRIT、SIFThinker 在單步 reasoning 中迭代修正視覺內容)。Latent reasoning 則繞過 explicit token,直接在隱空間做推理:Coconut 用 continuous latent embedding 取代 CoT token;Mirage、LVR 在普通文字旁加入 special visual token,以隱式監督 image latent 來達到 2D visual latent reasoning。這個分類圖譜的關鍵收尾是:既有工作不論是文字、2D 視覺或 latent 路線,都仍停留在 textual 或 2D 空間;3DThinker 則把 latent token 視為「以 3D 進行 mental-level 思考」的橋樑,更貼近人類認知。這句話正是論文要主張的 paradigm shift。</p></div>
+<div class="card"><p>Sec 2.2 Spatial Understanding 先描述評測層面的努力(VSI-Bench、SPBench 等都是後續實驗使用的 benchmarks),再分類提升空間理解的技術手段:(1) input enhancement,給 LLM 多視角、深度或 point cloud 輸入;(2) explicit 3D supervision,例如 3DRS 引入 teacher model 對齊 3D 表徵,但需要每個像素對應的 3D 座標;(3) implicit 3D token,例如 VLM-3R 用預訓練 CUT3R 取得 3D token,但 inference 時必須一併執行龐大的 3D foundation model;(4) textual cognitive maps,例如 MindCube 與 Ego3D-VLM 透過建構文字版的 cognitive map 來補強空間理解。</p></div>
+<div class="card"><p>收尾再次設定 contrast:這些方法或仰賴 input enhancement、或需建構 cognitive map,都伴隨複雜的資料蒐集與標註;3DThinker 則直接從 multi-view images 蒸餾 3D foundation model 的 3D latent,從而在無需密集標註下達到 spatial reasoning。整節因此完成兩件事:把後續實驗將要對齊的 baselines(MindCube、Ego3D-VLM、3DRS、VLM-3R 等)逐一定位,並把方法章節要解決的具體技術差異(免標註 + 內生 + 可恢復)寫成可驗證的對比點,以便 §3 的方法設計可以逐一回應。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>3DThinker 的核心設計是讓 VLM 在自身的 reasoning trajectory 中<strong>內生地產生 3D latent representation</strong>，並透過 distillation 將其對齊到預訓練 3D foundation model（VGGT [60]）的幾何特徵空間，使模型不再需要外部 3D encoder 即可在推理時「以 3D 心智想像」。整體 pipeline 由四個關鍵組件構成：(1) 帶有 3D 特殊 token 的 VLM backbone（如 Qwen2.5-VL 或 InternVL3），(2) 凍結的 VGGT 作為無需 3D 標註的 supervision source，(3) MLP-based projector 將 VLM 的 last-layer hidden states 映射到 VGGT 特徵空間，(4) outcome-based GRPO 框架以三項 reward 對整條 trajectory 進行強化。</p>
+<p>訓練分為兩個階段。<strong>Stage 1（supervised learning）</strong>：給定多視角影像 $\mathcal{I}=\{I_1,\ldots,I_n\}$、問題 $Q$、ground-truth 答案 $R$，先用 GPT-4.1 合成包含 3D 特殊 token 的 CoT 訓練資料 $\mathcal{D}=\{(Q^{(i)}, \mathcal{I}^{(i)}, R^{(i)}, o^{(i)})\}$。reasoning trajectory 分解為 $o = o_{\text{pre}} \oplus t_{\text{3D}} \oplus o_{\text{post}}$（eq. 2），其中 $t_{\text{3D}}=\{t_1,\ldots,t_k\}$ 為 $k=12$ 個 3D 特殊 token。模型用 3D alignment loss（Frobenius norm，eq. 5）與 cross-entropy loss（eq. 8）聯合訓練，使 $t_{\text{3D}}$ 的 hidden states $F_{\text{latent}}$ 經 projector 後與 VGGT 幾何特徵 $F_{\text{3D}}$ 對齊。<strong>Stage 2（reinforced training）</strong>：凍結 projector，以 GRPO（eq. 10）優化整條 sampling trajectory，由三項 reward 構成：$r_{\text{3D}}$（cosine similarity，eq. 12，防止 3D latent 退化）、$r_{\text{format}}$（格式正確性 0/1 reward）、$r_{\text{ans}}$（最終答案正確性 0/1 reward）。</p>
+<p>關於設計選擇，特殊 token 序列採用 <code>&lt;|latent_start|&gt;...&lt;|latent_pad|&gt;...&lt;|latent_end|&gt;</code> 結構，且<strong>必須放在 <code>&lt;think&gt;</code> 區塊之前</strong>：ablation（Tab. 6）顯示置於 middle 會破壞語言連貫性導致性能從 75.2 暴跌到 42.0。Latent size $k=12$ 為最佳（Tab. 5），過小限制表達能力，過大會誘導模型重複輸出 <code>&lt;|latent_start|&gt;</code> 而無法產生最終答案。Projector 方向選擇 VLM→VGGT 而非 VGGT→VLM，因前者保留可解釋性（可透過 DPT head [48] 反向重建 point cloud）且性能略勝（75.2 vs 74.1）。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input:
+  Q (text question)
+  I = {I_1, ..., I_n}              [B, n, 3, H, W]   (n = number of limited views)
+   │
+   ├──→ VGGT (frozen, f_vggt)
+   │      │
+   │      └──→ last-layer aggregator
+   │           F_3D                 [B, n*P, D_vggt]   (P = patches/view, D_vggt = ?)
+   │
+   ├──→ VLM Image Encoder (f_enc)
+   │      │
+   │      └──→ patch-level features
+   │           F_images             [B, n*P, D_img]    (D_img = ?)
+   │
+   └──→ VLM f_θ (autoregressive, hidden dim D_vlm)
+          │
+          │   o = o_pre ⊕ t_3D ⊕ o_post                (eq. 2)
+          │   t_3D = &lt;|latent_start|&gt; &lt;|latent_pad|&gt;×k &lt;|latent_end|&gt;
+          │   k = 12
+          │
+          └──→ last-layer hidden states of t_3D
+                F_latent            [B, k, D_vlm]      (k = 12, eq. 3)
+                     │
+                     ▼
+              Projector (MLP, depth = 6)
+                inputs: (F_latent, F_images)            (eq. 4)
+                     │
+                     ▼
+                F_proj              [B, n*P, D_vggt]   (matches F_3D shape)
+                     │
+       ┌─────────────┼─────────────────────────────────┐
+       │             │                                  │
+   Stage 1:      Stage 2 (projector frozen):       Inference:
+   L_3D = ||F_proj − F_3D||_F²       r_3D = ½(1 + cos(F_proj, F_3D))    F_proj
+       (eq. 5)                            (eq. 12)                          │
+   L_text = L_pre + L_post           r_format ∈ {0,1}                       ▼
+       (eq. 6, 7, 8)                 r_ans   ∈ {0,1}                  VGGT DPT [48]
+   L_total = λ_3D·L_3D                                                      │
+            + λ_text·L_text          GRPO objective J(θ)  (eq. 10)          ▼
+       (λ_3D=0.1, λ_text=1, eq. 9)   Â_{i,t} normalized over rollouts   point cloud
+                                          (eq. 11)</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 CoT Data Construction"><h2 class="slide-title">Method — 5.3.1 CoT Data Construction</h2><div class="card"><p><strong>Function:</strong> 用高階 reasoning VLM（GPT-4.1）合成 interleaved 文字與 3D placeholder 的 CoT 訓練資料。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(Q, \mathcal{I}, R)$</li><li>Shape: $(\text{text}, [B, n, 3, H, W], \text{text})$</li><li>Source: 原始 QA 資料（如 MindCube-Tiny [83]）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $o$ (reasoning trajectory)</li><li>Shape: text sequence with 3D special token placeholders</li><li>Consumer: VLM Stage 1 訓練</li></ul>
+<p><strong>Processing:</strong></p>
+<p>呼叫高階模型 $M$（GPT-4.1）生成 step-by-step reasoning，並在適當位置插入 3D 特殊 token 作為「腦中想像 3D 場景」的 placeholder。輸出形式為 $o = M(Q, \mathcal{I}, R)$（eq. 1）。最終資料集為 $\mathcal{D}=\{(Q^{(i)}, \mathcal{I}^{(i)}, R^{(i)}, o^{(i)})\}$，每個 $o^{(i)}$ 都含有 interleaved text 與 3D placeholder。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$o = M(Q, \mathcal{I}, R)$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>論文未公開 prompt 模板與 GPT-4.1 呼叫總量；3D 特殊 token 採用 <code>&lt;|latent_start|&gt;</code>、<code>&lt;|latent_pad|&gt;</code>、<code>&lt;|latent_end|&gt;</code> 三類，pad 重複 $k=12$ 次。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 VLM Backbone with 3D Special Tokens"><h2 class="slide-title">Method — 5.3.2 VLM Backbone with 3D Special Tokens</h2><div class="card"><p><strong>Function:</strong> 在 autoregressive decoding 過程中產生 interleaved 文字與 3D latent，extract $t_{\text{3D}}$ 處的 last-layer hidden states 作為 3D 心智表徵。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(Q, \mathcal{I}, o_{\text{pre}}, t_{1:i-1})$</li><li>Shape: token sequence with image embeddings $[B, n, 3, H, W]$</li><li>Source: §5.3.1 CoT 資料 + 影像</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_{\text{latent}} = \{h_1, \ldots, h_k\}$</li><li>Shape: $[B, k, D_{\text{vlm}}]$, $k=12$</li><li>Consumer: §5.3.4 Projector</li></ul>
+<p><strong>Processing:</strong></p>
+<p>trajectory 拆解為 $o = o_{\text{pre}} \oplus t_{\text{3D}} \oplus o_{\text{post}}$（eq. 2）。在生成 $t_{\text{3D}}$ 時，取每個 token 的 last-layer hidden state（layer $L$），其遞迴定義為：第一個 token 條件於 $(Q, \mathcal{I}, o_{\text{pre}})$，後續 token 額外條件於前面已生成的 $t_{1:i-1}$。同時用 image encoder $f_{\text{enc}}$ 抽取 patch-level features $F_{\text{images}}=f_{\text{enc}}(\mathcal{I})$ 作為 projector 的輔助輸入。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ h_i = \begin{cases} f^{\text{hidden},L}_\theta(Q, \mathcal{I}, o_{\text{pre}}), &amp; i = 1 \\ f^{\text{hidden},L}_\theta(Q, \mathcal{I}, o_{\text{pre}}, t_{1:i-1}), &amp; i \geq 2 \end{cases} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>支援多種 backbone：Qwen2.5-VL-3B/7B/32B/72B 與 InternVL3-8B/14B/38B/78B（Tab. 1）。3D 特殊 token 必須放在 <code>&lt;think&gt;</code> 之前；置於 middle 會與普通字元 embedding 過於相似，導致 garbled text 與 premature termination（性能 75.2→42.0，Tab. 6）。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 VGGT Feature Extraction (Frozen Teacher)"><h2 class="slide-title">Method — 5.3.3 VGGT Feature Extraction (Frozen Teacher)</h2><div class="card"><p><strong>Function:</strong> 提供無需 3D 標註的幾何 supervision signal，作為 VLM 3D latent 對齊的目標特徵空間。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\mathcal{I}$</li><li>Shape: $[B, n, 3, H, W]$</li><li>Source: 原始多視角影像</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_{\text{3D}}$</li><li>Shape: $[B, n \cdot P, D_{\text{vggt}}]$（$P$, $D_{\text{vggt}}$ 論文未明確說明）</li><li>Consumer: §5.3.5 alignment loss、§5.3.6 GRPO reward</li></ul>
+<p><strong>Processing:</strong></p>
+<p>整條 VGGT 網絡保持凍結，影像通過後取 <strong>last layer of VGGT aggregator</strong> 的輸出作為 $F_{\text{3D}}=f_{\text{vggt}}(\mathcal{I})$。VGGT 為 visual geometry grounded transformer [60]，可從多視角影像直接提供場景幾何特徵；其 DPT head [48] 在 inference 時用於反向重建 point cloud。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$F_{\text{3D}} = f_{\text{vggt}}(\mathcal{I})$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>VGGT 在 Stage 1、Stage 2 全程凍結。論文未公開 VGGT 內部 patch grid $P$ 與 feature dim $D_{\text{vggt}}$，故 §5.2 中以 <code>?</code> 標記。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Projector (VLM → VGGT space)"><h2 class="slide-title">Method — 5.3.4 Projector (VLM → VGGT space)</h2><div class="card"><p><strong>Function:</strong> 將 VLM 的 latent hidden states 投影到 VGGT 特徵空間，並可反向支援 point cloud 重建以提供可解釋性。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(F_{\text{latent}}, F_{\text{images}})$</li><li>Shape: $([B, k, D_{\text{vlm}}], [B, n \cdot P, D_{\text{img}}])$</li><li>Source: §5.3.2 VLM hidden states + image encoder patches</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_{\text{proj}}$</li><li>Shape: 與 $F_{\text{3D}}$ 對齊，$[B, n \cdot P, D_{\text{vggt}}]$</li><li>Consumer: §5.3.5 Frobenius loss、§5.3.6 cosine reward</li></ul>
+<p><strong>Processing:</strong></p>
+<p>採用 6 層 MLP 結構（depth = 6），融合 $k=12$ 個 latent 向量與 patch-level visual features，產生與 VGGT 維度匹配的特徵 $F_{\text{proj}}$。方向選擇 VLM→VGGT（而非 VGGT→VLM 的 adaptive average pooling），保留 invertibility 以利可視化（Tab. 6: 75.2 vs 74.1）。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$F_{\text{proj}} = \text{Projector}(F_{\text{latent}}, F_{\text{images}})$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>MLP depth = 6；Stage 1 學習率 $1\text{e-}4$，latent size $k=12$，epoch = 10；Stage 2 凍結 projector 不更新。論文未公開 projector 內部 hidden dim 與 fusion 細節（concat 或 cross-attention 等）。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Stage 1 Supervised Training Objective"><h2 class="slide-title">Method — 5.3.5 Stage 1 Supervised Training Objective</h2><div class="card"><p><strong>Function:</strong> 同時優化 3D 對齊與文字連貫性，讓 VLM 學會在 reasoning 中插入有意義的 3D latent。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(F_{\text{proj}}, F_{\text{3D}}, \text{text logits})$</li><li>Shape: 對齊維度 + token-level cross-entropy targets</li><li>Source: §5.3.4 Projector + §5.3.3 VGGT + §5.3.2 VLM</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\mathcal{L}_{\text{total}}$（scalar）</li><li>Shape: scalar</li><li>Consumer: backward pass，更新 VLM 與 Projector 參數</li></ul>
+<p><strong>Processing:</strong></p>
+<p>3D alignment loss 使用 Frobenius norm（eq. 5），確保 projected feature 與 VGGT feature 在元素層級對齊。Text loss 由 pre-token CE（eq. 6）與 post-token CE（eq. 7）相加，後者額外條件於 $t_{\text{3D}}$。最終 total loss 加權合成。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$\mathcal{L}_{\text{3D}} = \| F_{\text{proj}} - F_{\text{3D}} \|_F^2$</p>
+<p>$$ \mathcal{L}_{\text{text}} = \mathcal{L}_{\text{text}}^{\text{pre}} + \mathcal{L}_{\text{text}}^{\text{post}} $$</p>
+<p>$$ \mathcal{L}_{\text{total}} = \lambda_{\text{3D}} \mathcal{L}_{\text{3D}} + \lambda_{\text{text}} \mathcal{L}_{\text{text}} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>$\lambda_{\text{3D}} = 0.1$，$\lambda_{\text{text}} = 1$，learning rate $1\text{e-}4$，epoch = 10（MindCube-only setting）。論文未公開 batch size、optimizer 細節與 GPU 資源。</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Stage 2 GRPO Reinforcement Training"><h2 class="slide-title">Method — 5.3.6 Stage 2 GRPO Reinforcement Training</h2><div class="card"><p><strong>Function:</strong> 用 outcome-based reward 強化整條 trajectory，refine 3D mentaling 同時優化最終答案，且維持 3D latent 的對齊。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $(Q, \mathcal{I})$ + $N$ rollouts $\{o_1, \ldots, o_N\}$</li><li>Shape: text + $[B, n, 3, H, W]$，$N=8$</li><li>Source: 當前 policy $\pi_{\theta_{\text{old}}}$ 採樣</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 更新後的 $\pi_\theta$（VLM 參數）</li><li>Shape: same as VLM</li><li>Consumer: 下一輪 rollout</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個 question-image pair，policy 產生 $N=8$ 個候選 trajectory；每條 trajectory 計算 task reward $r_{i,t} = r_{\text{3D}} + r_{\text{format}} + r_{\text{ans}}$（三項 weight 均設為 1）。其中 $r_{\text{3D}}$ 從凍結的 projector 取得 $F_{\text{proj}}^{\text{RL}}$ 並與 $F_{\text{3D}}$ 計算 cosine similarity（eq. 12 重縮放至 $[0,1]$）。GRPO 用 group-normalized advantage $\hat{A}_{i,t}$（eq. 11）替代 critic，帶 PPO-style clipping 與 KL penalty。</p>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ r_{\text{3D}} = \frac{1}{2}\left(1 + \frac{F_{\text{proj}}^{\text{RL}} \cdot F_{\text{3D}}}{\|F_{\text{proj}}^{\text{RL}}\|\,\|F_{\text{3D}}\|}\right) $$</p>
+<p>$$ \hat{A}_{i,t} = \frac{r_{i,t} - \text{mean}\{r_{1,t}, \ldots, r_{N,t}\}}{\text{std}\{r_{1,t}, \ldots, r_{N,t}\} + \delta} $$</p>
+<p>$$ \mathcal{J}(\theta) = \frac{1}{N}\sum_{i=1}^{N} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \Big\{\min\big[\text{clip}(r_{i,t}, 1-\epsilon, 1+\epsilon)\hat{A}_{i,t},\; r_{i,t}\hat{A}_{i,t}\big] - \beta\,\mathbb{D}_{\text{KL}}[\pi_\theta\,\|\,\pi_{\text{ref}}]\Big\} $$</p>
+<p><strong>Implementation Details:</strong></p>
+<p>learning rate $1\text{e-}5$，rollout number $N=8$，三項 reward weight 均為 1。Projector 在此階段凍結。Ablation（Tab. 6）：移除 $r_{\text{3D}}$ 性能掉到 68.3，移除 $r_{\text{ans}}$ 掉到 64.2，移除 $r_{\text{format}}$ 影響極小。論文未公開 $\epsilon$、$\beta$、$\delta$ 具體數值與 reference policy 選擇細節。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>MindCube (subset) [83]</td><td>限定視角下空間心智建模 QA</td><td>10,000 question–image–answer pairs</td><td>Train（Stage 1 用於建構 CoT；Stage 2 僅使用 Q–I–A pair）</td></tr><tr><td>Large-Scale Curated Dataset（彙整自 MM-Spatial [17]、SPAR [91]、MindCube [83]、SpatialLadder [35]，由 Gemini 2.5 Pro 篩選與單／多圖比例平衡）</td><td>多種空間理解 QA</td><td>237K samples（Stage 2 取 57K 子集）</td><td>Train（Stage 1 一個 epoch 全量；Stage 2 使用 57K 子集）</td></tr><tr><td>MindCube-Tiny [83]</td><td>限定視角空間理解（Rotation / Among / Around）</td><td>1,050 samples</td><td>Test</td></tr><tr><td>Ego3D-Bench [24]</td><td>Ego-centric multi-view 戶外空間推理（Dist. / Rel. / Loc. / Mot. / Time，分 Ego/Obj.）</td><td>8,600+ QA pairs</td><td>Test</td></tr><tr><td>VSI-Bench [76]</td><td>Real-world video 空間推理</td><td>5,000+ QA pairs / 288 videos</td><td>Test</td></tr><tr><td>SPBench [35]</td><td>Single-image 與 multi-view 空間任務</td><td>1,009 (SI) + 319 (MV) samples</td><td>Test</td></tr><tr><td>CV-Bench [58]</td><td>2D/3D 基本理解（深度排序、相對距離等）</td><td>2,638 examples</td><td>Test</td></tr><tr><td>SPAR-Bench [91]</td><td>20 種空間任務（深度、距離、關係等）</td><td>7,207 QA pairs</td><td>Test</td></tr><tr><td>ViewSpatial-Bench [34]</td><td>Egocentric / allocentric 視角空間定位</td><td>5,700+ QA pairs / 1,000+ 3D scenes</td><td>Test</td></tr><tr><td>MMSI-Bench [79]</td><td>Multi-image 空間智慧（位置／屬性／運動）</td><td>1,000 multiple-choice questions</td><td>Test</td></tr><tr><td>3DSRBench</td><td>3D 空間推理（補充表 9）</td><td>the paper does not specify</td><td>Test（補充材料中與 SpatialReasoner 等基線比較）</td></tr><tr><td>POPE / MME / SEED-I</td><td>一般圖像理解（Hallucination、綜合、SEED-Image）</td><td>the paper does not specify</td><td>Test（補充材料 §8.3 用於檢驗一般能力是否退化）</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Accuracy</td><td>多選題以 prediction 與 ground-truth option 完全匹配計分；論文主要結果（MindCube-Tiny、Ego3D-Bench、SPBench、CV-Bench、SPAR-Bench、ViewSpatial-Bench、MMSI-Bench）多以此為基準</td><td>yes</td></tr><tr><td>Mean Relative Accuracy (MRA) [76]</td><td>數值型答案的相對接近度量度，主要用於 VSI-Bench</td><td>yes</td></tr><tr><td>Avg.</td><td>各子任務指標的平均值，用於跨子任務之總體比較（例如 Ego3D-Bench Avg.、MindCube-Tiny Overall）</td><td>yes</td></tr><tr><td>子任務指標 (Rotation / Among / Around / Ego Dist. / Obj. Dist. / Loc. / Ego Mot. / Obj. Mot. / Travel Time / Ego Rel. / Obj. Rel.)</td><td>MindCube-Tiny 與 Ego3D-Bench 的細分準確率</td><td>no</td></tr><tr><td>Point cloud density (points/unit$^3$)</td><td>在 prompt-relevant 3D bounding box 內外的點雲密度比，用以驗證「prompt-relevant region」主張（補充材料 §8.4）</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><ul><li>Hardware：以 Qwen2.5-VL-3B 為例，於單張 H200 GPU、batch size = 1 下，Stage 1 收斂時間約 21.84 h，Stage 2 約 12.85 h（補充材料 §12）。其他模型規模的硬體配置 the paper does not specify。</li><li>Stage 1（supervised training, MindCube-only 設定）：MLP projector depth = 6、learning rate = $1\mathrm{e}{-4}$、latent size = 12、epochs = 10；損失加權 $\lambda_{3D} = 0.1$、$\lambda_{\text{text}} = 1$（§4 主文）。</li><li>Stage 2（reinforcement training, MindCube-only 設定）：三項 reward（$r_{3D}$、$r_{\text{format}}$、$r_{\text{ans}}$）權重皆為 1，learning rate = $1\mathrm{e}{-5}$，rollout 數 = 8（§4 主文）。</li><li>Large-Scale Curated Dataset 訓練：Stage 1 在 237K 全量資料上訓練 1 個 epoch，Stage 2 抽樣 57K 進行訓練（補充材料 §7.1）。其他超參數細節 the paper does not specify（指向 Supp. Mat.）。</li><li>Optimizer 種類、warm-up / scheduler、weight decay、總訓練步數（精確值）the paper does not specify；訓練曲線顯示 Stage 1 約於 20k steps 收斂、Stage 2 約於 500 steps 收斂（補充材料 §9）。</li><li>RL framework：採 outcome-based GRPO [53]；對 MoE 架構（Qwen3-VL-30B-A3B 等）改用 sequence-level GSPO [94] 以維持訓練穩定（補充材料 §8.1）。</li><li>資料生成：以 GPT-4.1 為高階模型 $M$ 補完含 3D placeholder 的 CoT；若連續 $N = 10$ 次生成皆不符格式則丟棄（補充材料 §10）。</li><li>Inference：不需任何外部 prior 或輔助 3D 模型（G3，§3）；推論流程為 VLM 端到端產生帶有 <code>&lt;|latent_start|&gt; ... &lt;|latent_end|&gt;</code> 的 trajectory，並以 VLLM 加速 rollout（補充材料 §12）。其他推論超參數（temperature、top-p、max length 等）the paper does not specify。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p>MindCube-Tiny（Overall Accuracy）與 Ego3D-Bench（Avg. Accuracy）整體比較（表 1，僅列每個 base model 的最佳變體與代表性閉源模型）：</p>
+<table><thead><tr><th>Method</th><th>MindCube-Tiny Overall ↑</th><th>Ego3D-Bench Avg. ↑</th><th>Notes</th></tr></thead><tbody><tr><td>gpt-4o-2024-11-20</td><td>46.1</td><td>48.1</td><td>Closed-source</td></tr><tr><td>gpt-4.1</td><td>45.1</td><td>56.9</td><td>Closed-source</td></tr><tr><td>gemini-2.5-pro</td><td>52.2</td><td>66.7</td><td>Closed-source</td></tr><tr><td>claude-sonnet-4</td><td>36.6</td><td>53.9</td><td>Closed-source</td></tr><tr><td>doubao-seed-1.6</td><td>46.1</td><td>66.3</td><td>Closed-source</td></tr><tr><td>o3-2025-04-16</td><td>56.6</td><td>73.0</td><td>此前最強閉源 baseline</td></tr><tr><td>Qwen2.5-VL-3B (base)</td><td>33.2</td><td>39.1</td><td>Open base</td></tr><tr><td>Qwen2.5-VL-7B (base)</td><td>34.7</td><td>41.1</td><td>Open base</td></tr><tr><td>Qwen2.5-VL-72B (base)</td><td>42.5</td><td>58.0</td><td>Open base</td></tr><tr><td>InternVL3-78B (base)</td><td>49.9</td><td>59.9</td><td>Open base</td></tr><tr><td><strong>3DThinker-S1+S2$_{\text{Qwen2.5-3B}}$</strong></td><td><strong>75.2</strong></td><td><strong>50.8</strong></td><td>對應 base 提升 +88.9% / +29.9%</td></tr><tr><td><strong>3DThinker-S1+S2$_{\text{Qwen2.5-7B}}$</strong></td><td><strong>76.0</strong></td><td><strong>54.9</strong></td><td></td></tr><tr><td><strong>3DThinker-S1+S2$_{\text{Qwen2.5-72B}}$</strong></td><td><strong>77.1</strong></td><td><strong>70.0</strong></td><td></td></tr><tr><td><strong>3DThinker-S1+S2$_{\text{InternVL3-78B}}$</strong></td><td><strong>78.9</strong></td><td><strong>73.3</strong></td><td>全表最佳，超越 o3（MindCube-Tiny 78.9 vs. 56.6；Ego3D-Bench 73.3 vs. 73.0）</td></tr></tbody></table>
+<p>跨基準（VSI-Bench、SPBench、CV-Bench、SPAR-Bench、ViewSpatial-Bench、MMSI-Bench）對比（表 2，僅列每個 base 的最強對手與本方法）：</p>
+<table><thead><tr><th>Method</th><th>VSI</th><th>SPBench</th><th>CV-Bench</th><th>SPAR</th><th>ViewSpatial</th><th>MMSI</th><th>Avg. ↑</th></tr></thead><tbody><tr><td>Qwen2.5-VL-3B</td><td>29.4</td><td>38.5</td><td>70.6</td><td>24.6</td><td>35.6</td><td>26.5</td><td>37.5</td></tr><tr><td>SpatialLadder-3B [35]（3B 組 SOTA）</td><td>45.7</td><td>70.6</td><td>73.7</td><td>34.4</td><td>44.2</td><td>29.2</td><td>49.6</td></tr><tr><td>**3DThinker-S1+S2$_{\text{Qwen2.5-3B}}^{*}$**</td><td><strong>59.1</strong></td><td>60.2</td><td><strong>78.4</strong></td><td><strong>58.2</strong></td><td><strong>64.7</strong></td><td><strong>41.9</strong></td><td><strong>60.4</strong></td></tr><tr><td>Qwen2.5-VL-7B</td><td>35.8</td><td>42.9</td><td>73.0</td><td>30.2</td><td>37.9</td><td>26.9</td><td>41.1</td></tr><tr><td>VILASR-7B [67]（7B 組 SOTA）</td><td>45.4</td><td>53.9</td><td>77.1</td><td>37.8</td><td>46.1</td><td>30.2</td><td>48.4</td></tr><tr><td>**3DThinker-S1+S2$_{\text{Qwen2.5-7B}}^{*}$**</td><td><strong>63.7</strong></td><td><strong>68.3</strong></td><td><strong>81.1</strong></td><td><strong>63.3</strong></td><td><strong>68.6</strong></td><td><strong>43.3</strong></td><td><strong>64.7</strong></td></tr></tbody></table>
+<p>Ego3D-Bench 與 Ego3D-VLM [24] 的對應規模對比（表 3）：3DThinker 在 Qwen2.5-VL-3B 上由 44.4 提升至 50.8（+14.4%），在所有 8 個尺寸（Qwen2.5-VL-3B/7B/32B/72B、InternVL3-8B/14B/38B/78B）皆持平或更佳，且推論時不需外部 RE-comprehension 與深度估計工具。</p>
+<p>額外結果（補充材料）：</p>
+<ul><li>Qwen3-VL（2B/4B/8B/32B、30B-A3B MoE）上，3DThinker 相對 base 在 MindCube-Tiny Overall 最大提升 191.5%（75.8 vs. 25.0），Ego3D-Bench Avg. 最大提升 29.9%（56.1 vs. 43.2）（表 7）。</li><li>LLaVA-OneVision-1.5-4B/8B 上，MindCube-Tiny 提升至多 +68.07%（63.7 vs. 37.9），Ego3D-Bench 提升 +7.5%（48.7 vs. 45.3）（表 8）。</li><li>3DSRBench：3DThinker$^{*}$ 65.6，超越 SpatialReasoner / SpatialReasoner-R1 / SpatialThinker（60.3 / 55.7 / 56.4），相對 SOTA +8.79%（表 9）。</li><li>一般圖像理解（Qwen2.5-VL-7B base）：POPE 由 85.9 提升至 88.4（+2.91%），MME$_P$ 1670→1677、SEED-I 77.0→78.9，MME$_C$ 由 623 微降至 610（表 10），顯示空間訓練未顯著破壞通用視覺能力。</li></ul></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><ul><li>訓練策略對比（表 4，Qwen2.5-VL-3B / MindCube-Tiny）：純 SFT 系列中 3DThinker-S1 達 62.7，優於 Plain-CGMap-FFR-Out-SFT（60.8，+3.1%）、Aug-CGMap-FFR-Out-SFT（55.2）、CoT SFT（53.4）、raw-QA SFT（52.3）；加入 RL 後，3DThinker-S1+S2 達 75.2，較 Aug-/Plain-CGMap-FFR-Out-SFT+RL（皆 70.7）提升 6.4%，亦遠勝直接 GRPO（50.6）與 CoT SFT+GRPO（54.1）。此 ablation 同時涵蓋「移除 cognitive map 監督」、「移除 RL」、「以純 SFT 取代 3D 對齊」三條診斷軸線，屬診斷性實驗。</li><li>3D latent size（表 5）：在 {4, 8, 12, 16, 32, 64} 中，accuracy 為 60.2 / 60.6 / <strong>62.7</strong> / 59.9 / 25.1 / 15.5。論文解釋過大 latent 會導致 <code>&lt;|latent_start|&gt;</code> 重複輸出而無法產生答案——此 ablation 屬診斷性，揭示了 latent capacity 與語言生成穩定性的明顯權衡點。</li><li>3D special token 位置（表 6）：放在開頭（Full）75.2、放在 <code>&lt;/answer&gt;</code> 之後 74.3、放在 <code>&lt;think&gt;...&lt;/think&gt;</code> 中間 42.0。中間放置會破壞自然語言連貫並產生亂碼，此 ablation 直接定位到設計決策的失敗模式，屬診斷性。</li><li>Projector 方向（表 6 與補充材料圖 6）：VLM→VGGT（可重建點雲）75.2 vs. VGGT→VLM（pooling，不可重建）74.1，效能接近但前者具可解釋性，因此被採用——此 ablation 屬於設計理由佐證，效能差距小，較偏向 sanity check。</li><li>Reward 拆解（表 6）：移除 $r_{\text{format}}$ 為 74.8（影響微小）；移除 $r_{\text{ans}}$ 降至 64.2（−11.0）；移除 $r_{3D}$ 降至 68.3（−6.9）。$r_{\text{format}}$ 一項較像 sanity check，但 $r_{\text{ans}}$ 與 $r_{3D}$ 的拆解明確診斷出 outcome 監督與 3D 對齊各自的貢獻。</li><li>移除 $\mathcal{L}_{3D}$（表 11，補充材料 §8.6）：Qwen2.5-VL-3B / MindCube-Tiny 由 62.7 降至 54.1，仍略優於 CoT SFT 的 53.4，顯示 (i) VGGT 對齊確實貢獻幾何資訊，(ii) 即使去除 3D foundation model，僅引入 special token 仍有些微表徵彈性增益——屬診斷性實驗。</li><li>VGGT 依賴度（補充材料 §11）：在 RL 階段移除 $r_{3D}$（即不靠 VGGT 監督）相對 Stage 1 起點仍提升 8.93%（68.3 vs. 62.7），用以支持「reward-only 訓練亦可運作」的論點，屬診斷性而非 sanity check。</li><li>Prompt-relevant region 驗證（補充材料 §8.4）：紅色 3D bounding box 內外點雲密度為 196,494.67 vs. 1,332.54 points/unit$^3$，量化支持 3D latent 確實聚焦於 prompt 相關物件——此屬解釋性檢驗而非模型元件 ablation。</li></ul>
+<p>整體而言，主文 Tab. 4–6 與補充 Tab. 11 的 ablation 多屬診斷性，能分別測試 cognitive-map vs. 3D latent、latent size、token 位置、projector 方向、各 reward、$\mathcal{L}_{3D}$ 的貢獻；唯 $r_{\text{format}}$ 的拆解與 projector 方向偏 sanity check 性質。</p></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — 主文同時與閉源 SOTA（o3-2025-04-16、gemini-2.5-pro）以及任務專用 SOTA（SpatialLadder-3B、VILASR-7B、Ego3D-VLM）比較，表 1–3 中 3DThinker-S1+S2$_{\text{InternVL3-78B}}$ 在 MindCube-Tiny 與 Ego3D-Bench 皆超越 o3。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 主文涵蓋 MindCube-Tiny、Ego3D-Bench、VSI-Bench、SPBench、CV-Bench、SPAR-Bench、ViewSpatial-Bench、MMSI-Bench 共 8 個空間基準，並在補充材料追加 3DSRBench 與一般 VLM 基準（POPE/MME/SEED-I）。</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — 表 4（訓練策略）、表 5（latent size）、表 6（token 位置／projector／三項 reward）、表 11（$\mathcal{L}_{3D}$）皆對應到方法的具體新元件並產生明顯效能差距，屬診斷性 ablation。</li><li>[partial] Has a scaling study (size, length, or compute) — 表 1、表 3 與補充表 7 展示 Qwen2.5-VL（3B/7B/32B/72B）、InternVL3（8B/14B/38B/78B）、Qwen3-VL（2B/4B/8B/32B 與 30B-A3B MoE）、LLaVA-OneVision-1.5（4B/8B）的模型規模 scaling；但缺少 latent size 之外的訓練資料量／序列長度／compute 對應的縮放分析。</li><li>[partial] Has an efficiency / wall-clock comparison — 補充材料 §12 給出 H200 上 Qwen2.5-VL-3B 的 Stage 1 / Stage 2 wall-clock（21.84 h / 12.85 h）與「500 steps 內收斂」之說明，但未對比基線方法（如 SpatialLadder、Ego3D-VLM）的訓練／推論時間或 token 消耗，缺乏跨方法效率比較。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 全文所有表格僅報告單一數字，未提供標準差、多種子或信賴區間；the paper does not specify 是否做過多次 seed 實驗。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — Abstract 提供程式碼倉庫連結 https://github.com/zhangquanchen/3DThinker，但訓練權重、Large-Scale Curated Dataset（237K / 57K）的釋出與資料許可條款 the paper does not specify。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>Travel Time 子任務增益最小,作者歸因於需要更豐富的 context 才能將 normalized 3D 表徵對齊到真實尺度 (Sec 4.1, page 6)。</li><li>Latent size 高度敏感:過小限制表徵容量,過大 (32, 64) 直接掉到 25.1 / 15.5,模型會反覆輸出 <code>&lt;|latent_start|&gt;</code> 而無法給出最終答案 (Sec 4.5, Tab 5, page 8)。</li><li>3D special token 位置敏感:置於 <code>&lt;think&gt;...&lt;/think&gt;</code> 中間會破壞語言連貫性、產生亂碼與提前終止,從 75.2 掉到 42.0 (Sec 4.5, Tab 6, page 8)。</li><li>Failure case (Fig 17):極稀疏視角下,VGGT 重建會出現左右鏡像錯位 (有兩張照片的牆被擺到正面窗戶的右側而非左側),導致空間推理錯誤;作者列為未來方向 (Sec 13.2)。</li><li>Rotation 子類別在純 SFT 下進步較少,因其需動態空間想像;Stage 2 RL 才補上此能力 (Sec 4.3, page 7)。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>&quot;Annotation-free&quot; 主張是經 VGGT 過水的:VGGT 本身在 dense 3D 標註上訓練,監督訊號只是被搬到 foundation model,而非真正消失;Sec 11 雖坦承 &quot;VGGT dependence&quot; 卻未連帶修正 annotation-free 的措辭。</li><li>L3D 在 SFT 中權重僅 0.1 而 Ltext 為 1.0 (Sec 4 hyperparameters);Tab 11 顯示拿掉 L3D 從 62.7 掉到 54.1,僅略高於 CoT SFT 的 53.4,暗示主要增益來自插入 special token 帶來的格式 scaffold 與 GPT-4.1 CoT,而非 3D 語意本身。</li><li>$r_{\text{3D}}$ 為 global cosine similarity,理論上可被 degenerate 解 (永遠輸出資料集平均的 VGGT feature) 取得高分;論文沒有提供 per-sample 相似度分布或 trajectory 多樣性檢驗,無法排除 reward hacking。</li><li>&quot;Interpretability&quot; 僅止於定性:Sec 4.4 自述 reconstructed point cloud &quot;roughly depict the underlying scene&quot;,未報告 Chamfer / F-score 等定量重建指標;Fig 17 的鏡像錯位顯示 projector 可在訓練 reward 飽和情況下仍生成錯誤幾何,削弱可解釋性主張。</li><li>CoT 資料中 <code>&lt;|latent_*|&gt;</code> placeholder 的位置由 GPT-4.1 啟發式插入 (Sec 3.1, Sec 10, Fig 8/9),沒有原則性準則或學習式插入;Tab 6 只比較 start / middle / end 三種固定位置。</li><li>CV-Bench [58] 屬單張影像任務,但 VGGT 為 multi-view aggregator;論文在單視角設定下仍以 VGGT 作 teacher,卻沒有分析 single-image 模式下 VGGT feature 的退化以及對 latent 品質的影響。</li><li>缺少對比 upper bound:若推論時直接餵 VGGT feature 給 VLM (即 tool-using 模式),效果與 cost 為何?未量化此 baseline 使 &quot;intrinsic&quot; 優於外部工具的論述只有定性對比,沒有 trade-off 曲線。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: 首個 &quot;think with 3D mentaling&quot; 框架,且不依賴 densely labeled training data。</strong> Partially supported。推論端確實不需 3D label,但訓練端仍仰賴在 dense 3D 標註上學成的 VGGT,這是經 foundation model 過水的 annotation-free,Sec 11 自我辯護但未修正措辭。</li></ul>
+<ul><li><strong>C2: 兩階段訓練 (feature alignment + outcome-based RL) 確實帶來進步。</strong> Supported。Tab 4 顯示 Qwen2.5-VL-3B 從 33.2 (raw) → 62.7 (S1) → 75.2 (S1+S2),Stage 2 在多個 base VLM 上一致再給 5 至 10 個百分比 (Tab 1)。</li></ul>
+<ul><li><strong>C3: 可從 latent 還原 3D 表徵,提升 latent reasoning 可解釋性。</strong> Partially supported。Fig 4 與 supplementary 提供視覺化,但無定量重建指標 (Chamfer / F-score),Fig 17 的鏡像錯誤顯示重建失敗仍能通過 reward,可解釋性訴求停在 anecdotal 層級。</li></ul>
+<ul><li><strong>C4: 一致超越 strong baseline,並跨多種 base VLM 廣泛適用。</strong> Strongly supported。Qwen2.5-VL (3B/7B/32B/72B)、InternVL3 (8B/14B/38B/78B)、Qwen3-VL (2B/4B/8B/32B/30B-A3B)、LLaVA-OneVision-1.5 (4B/8B) 全部一致受惠 (Tab 1, 7, 8),最佳 72B 模型於 MindCube-Tiny 勝過 o3 22.3 個百分比 (Tab 1)。</li></ul>
+<ul><li><strong>C5 (隱含): 推論端 intrinsic 比外部工具更優。</strong> Partially supported。Tab 3 顯示對 Ego3D-VLM 在 accuracy 上一致勝出,但未量化推論延遲 / FLOPs / VRAM 等 cost,因此「intrinsic 優於 tool-using」只展示了 accuracy 一邊,未呈現完整 trade-off。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>VGGT 上限即方法上限。</strong> 整個 Stage 1 監督訊號是 $\mathcal{L}_{\text{3D}} = \|F_{\text{proj}} - F_{\text{3D}}\|_F^2$,Stage 2 的 $r_{\text{3D}}$ 又退化成與同一 $F_{\text{3D}}$ 的 cosine similarity。任何 VGGT 重建不出來的場景 (極稀疏視角、強反光、動態物體、跨域戶外),latent 也學不到對應幾何,Fig 17 的 failure case 已是直接證據。framework 內沒有任何機制可糾正錯誤的 teacher 訊號。</p>
+<p><strong>Latent 是一次性條件而非 reasoning 步驟。</strong> 3D special token 必須擺在 <code>&lt;think&gt;</code> 之前或 <code>&lt;/answer&gt;</code> 之後 (Tab 6),意味著文字推理只能讀取 latent 一次,無法回頭重新查詢、refocus 到特定區域、或在獲得新文字證據後修訂 latent。論文宣稱對應「human mental imagery」,但人類的心智想像可被反覆操作;此架構結構上做不到,因此「think with 3D」實為「condition on 3D once, then think with text」。</p>
+<p><strong>Reward 缺乏 per-sample 幾何保真檢驗。</strong> $r_{\text{3D}}$ 為單一 cosine similarity,population-mean degenerate latent 即可獲得高 reward;format / answer reward 又獨立提供強訊號。缺少對比 negative (例如同 batch 不同場景的 VGGT feature 作負例) 或變異度約束時,policy 可在 3D 端取巧、把工作交給文字端,而 ablation 也支持此假設 (拿掉 L3D 仍能保住相當部分增益)。</p>
+<p><strong>單視角設定缺乏理論基礎。</strong> VGGT 為 multi-view aggregator,單張影像下其 feature 屬於非設計用途的 OOD 模式。CV-Bench 與部分 SPBench-SI / ViewSpatial-Bench 樣本是單張影像,論文照常使用 VGGT 作 teacher,卻沒有分析該情形下 $F_{\text{3D}}$ 的品質,也沒有比較「單圖時跳過 L3D」的對照組,因此單視角任務上的提升究竟來自 3D latent 還是來自 CoT 與 RL,無法分離。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>Mirage [80] (Yang et al., 2025)</strong> — 直接前身,把 ground-truth image embedding 作 latent supervision;讀此文最能看出 3DThinker 把 paradigm 從 2D 推到 3D 的具體 delta。</li><li><strong>VGGT [60] (Wang et al., CVPR 2025)</strong> — 整個方法的 teacher,理解其 multi-view aggregator 設計與失敗模式 (尤其稀疏視角) 是判斷 3DThinker 上限的關鍵。</li><li><strong>MindCube [83] (Yin et al., 2025)</strong> — 提供主要 benchmark、訓練資料與 cognitive-map SFT baseline (Aug-CGMap-FFR-Out),Tab 4 的對照組來源。</li><li><strong>Ego3D-VLM [24] (Gholami et al., 2025)</strong> — 外部工具流派的代表,Tab 3 的頭對頭基準;閱讀有助於理解 &quot;intrinsic&quot; 訴求所避開的是哪些 inference-time cost。</li><li><strong>GRPO / DeepSeekMath [53] (Shao et al., 2024)</strong> — Stage 2 RL 的演算法骨幹,理解其 advantage normalization 與 KL 正則機制有助於判斷 $r_{\text{3D}}$ 設計的可塑性與 reward hacking 風險。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] $r_{\text{3D}}$ 是否真能懲罰 degenerate / population-mean latent?提供 per-sample cosine similarity 直方圖與 trajectory 之間的兩兩相似度分布即可驗證。</li><li>[ ] 在 Fig 17 那種 VGGT 自身重建錯誤的樣本上,latent 是否「跟著錯」,以及這種跟隨錯誤是否與最終答案錯誤呈高度相關?</li><li>[ ] CV-Bench / SPBench-SI 等單視角任務的增益,在把 3D latent 在 inference 時清零或替換成隨機向量後是否仍然存在?用以分離 3D latent 與 CoT / RL 的貢獻。</li><li>[ ] $\lambda_{3D} = 0.1$ 與 $\lambda_{\text{text}} = 1.0$ 這組權重的合理性如何?把兩者調至同量級或對 $\lambda_{3D}$ 採 annealing 是否會改變 stage 1 收斂與最終 accuracy?</li><li>[ ] Latent size 12 的最佳值是否是 indoor / MindCube 場景特定?在 outdoor (Ego3D) 或更複雜場景下,最佳 latent size 是否隨場景複雜度向上飄?</li><li>[ ] 此方法在 tokenizer 與架構顯著不同的 base VLM (如非 Qwen / 非 InternVL 家族,或 encoder-decoder MLLM) 上是否仍可移植?目前驗證集中於三大同源家族。</li><li>[ ] 推論時與 Ego3D-VLM (使用 GroundingDINO + DepthAnythingv2) 的 latency / FLOPs / VRAM 對比為何?&quot;intrinsic&quot; 訴求需要這份 cost-accuracy 曲線才完整。</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>加入 contrastive 或 variance 形式的 $r_{\text{3D}}$ (高可行性)。</strong> 取同 batch 不同場景的 $F_{\text{3D}}$ 作 negative,改 reward 為 InfoNCE 形式;直接消滅 population-mean 取巧路徑,只需改 reward 計算,不動架構。</li><li><strong>報告定量 3D 重建指標 (高可行性)。</strong> 在 ScanNet 子集或 VGGT 公開測試集上,把 projector 還原的 point cloud 與 ground-truth 比對 Chamfer / F-score;把 §4.4 的可解釋性訴求從 anecdotal 升級成可驗證量化指標,不影響訓練流程。</li><li><strong>支援 latent 的迭代修訂 (中可行性)。</strong> 允許 trajectory 中先發 latent、跑數步文字推理、再回頭發第二顆 latent;對應「human mental imagery 可反覆操作」的 framing,結構上把單次條件變成多步 reasoning。需改 CoT 模板與 GRPO trajectory 定義,但無需新模型。</li><li><strong>在 failure case 上替換 / 集成更強 3D foundation model (中可行性)。</strong> 對稀疏視角樣本改用 CUT3R [61] / MASt3R 等專長串流或 sparse-view 的 model 作 teacher,或以 ensemble 方式結合 VGGT;測試「teacher 升級就能突破上限」是否成立,等同檢驗 limitation 1 的可塑性。</li><li><strong>Stage 2 加入小幅 point-cloud reconstruction 輔助損失 (較難)。</strong> 把 frozen projector + DPT 出來的 point cloud 與 VGGT 自身重建作 L1/Chamfer 對齊,作為 cosine similarity 之外的非退化約束;需小心 RL 與 reconstruction loss 的 gradient 干擾,但可同時抑制 reward hacking 與 mirror-flip 類重建錯誤。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(170 words)</p>
+<div class="card"><p>Conclusion 段落很短,作用是收束主軸並重申賣點。第一句把 3DThinker 重新定位為「讓 VLM 以 3D spatial mentaling 進行思考」的框架,並對應 introduction 的核心對比 — 不像近期方法只用 pure text 或 2D visual cues,3DThinker 在 reasoning 過程中首次直接利用影像中內含的 geometric information。第二句強調訓練端的優勢:不依賴 dense annotation,也不依賴外部 prior。第三、四句重述兩階段訓練 schema:stage 1 從預訓練 3D model 蒸餾 geometric features 作為 warm-up,stage 2 在維持 3D 視覺對齊的同時以 outcome signal 優化整條 reasoning trajectory。最後以「在多個 benchmark 上一致超越既有方法,為未來探索奠定基礎」作結。</p></div>
+<div class="card"><p>論文正文的 Conclusion 並未明確寫 Limitations 或 Future Work — the paper does not specify a dedicated limitations or future-work paragraph;唯一接近的限制陳述出現在 §4.1 中對 Travel Time 子任務的說明,提到 normalized 3D 表徵與真實世界對齊時 context 不足,可視為作者隱性指出的尚待改進方向。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

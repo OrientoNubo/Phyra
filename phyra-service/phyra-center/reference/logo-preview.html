@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phyra · Logo wordmark 比較</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@300;400;600;700;800&family=Syne:wght@400;600;700;800&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p-light:#f8f8f6; --p-accent:#c96c49; --p-dark:#373734; --p-text:#0b0b0b;
+  --p-muted:#898781; --p-card-bg:#ebebe6; --p-border:#d7d7d5; --p-card-alt:#f4f4f1;
+  --p-shadow:rgba(31,30,29,0.08);
+}
+[data-theme="dark"] {
+  --p-light:#1f1f1e; --p-accent:#c96c49; --p-dark:#c2c2c2; --p-text:#fff;
+  --p-muted:#c2c2b7; --p-card-bg:#171717; --p-border:#292929; --p-card-alt:#171717;
+  --p-shadow:rgba(0,0,0,0.4);
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--p-light); color:var(--p-text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans CJK TC",sans-serif;
+  padding:34px 40px 80px;
+}
+h1 { font-size:20px; color:var(--p-dark); margin:0 0 4px; }
+.sub { color:var(--p-muted); font-size:13px; margin-bottom:24px; }
+.toggle { position:fixed; top:18px; right:24px; display:flex; gap:6px; }
+.toggle button {
+  border:1px solid var(--p-border); background:var(--p-card-alt); color:var(--p-text);
+  border-radius:8px; padding:6px 12px; cursor:pointer; font-size:12px;
+}
+h2 { font-size:14px; color:var(--p-dark); letter-spacing:.3px; margin:34px 0 4px;
+     border-bottom:1px solid var(--p-border); padding-bottom:8px; }
+.note { color:var(--p-muted); font-size:12px; margin:0 0 16px; }
+
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px 22px; }
+.card { }
+.plate {
+  height:92px; border-radius:14px; background:var(--p-card-bg);
+  border:1px solid var(--p-border); display:flex; align-items:center; justify-content:center;
+  overflow:hidden; transition:.15s;
+}
+.card:hover .plate { border-color:var(--p-accent); box-shadow:0 6px 16px var(--p-shadow); background:var(--p-card-alt); }
+.cap { margin-top:9px; font-size:11.5px; color:var(--p-muted); text-align:center; }
+.cap b { color:var(--p-dark); font-weight:600; }
+
+/* ---- wordmark base ---- */
+.wm { color:var(--p-dark); line-height:1; display:flex; align-items:center; gap:.04em; }
+.acc { color:var(--p-accent); }
+
+/* fonts */
+.f-grotesk { font-family:"Space Grotesk",sans-serif; }
+.f-sora    { font-family:"Sora",sans-serif; }
+.f-syne    { font-family:"Syne",sans-serif; }
+.f-poppins { font-family:"Poppins",sans-serif; }
+
+/* A. weight-split */
+.wm-split { font-size:26px; font-weight:700; letter-spacing:-.01em; }
+.wm-split .light { font-weight:400; }
+
+/* B. triangle-A mark */
+.tri-A { width:.82em; height:.82em; display:inline-block; vertical-align:-.06em; }
+.tri-A path { fill:none; stroke:var(--p-accent); stroke-width:7; stroke-linejoin:round; }
+.wm-triA { font-size:26px; font-weight:600; letter-spacing:.01em; }
+
+/* C. outline-triangle monogram */
+.mono { position:relative; width:60px; height:54px; display:flex; align-items:center; justify-content:center; }
+.mono svg { position:absolute; inset:0; width:100%; height:100%; }
+.mono svg path { fill:none; stroke:var(--p-accent); stroke-width:5; stroke-linejoin:round; }
+.mono span { position:relative; font-weight:700; font-size:17px; color:var(--p-dark); letter-spacing:.04em; margin-top:8px; }
+
+/* D. all-caps tracking */
+.wm-caps { font-size:17px; font-weight:600; letter-spacing:.42em; text-transform:uppercase; padding-left:.42em; }
+
+/* dual triangles for DualTrans */
+.duo { width:.95em; height:.82em; display:inline-block; vertical-align:-.04em; margin-right:.12em; }
+.duo path.up { fill:var(--p-accent); stroke:none; }
+.duo path.down { fill:none; stroke:var(--p-dark); stroke-width:7; stroke-linejoin:round; }
+</style>
+</head>
+<body data-theme="light">
+
+<div class="toggle">
+  <button onclick="document.body.dataset.theme='light'">Light</button>
+  <button onclick="document.body.dataset.theme='dark'">Dark</button>
+</div>
+
+<h1>Phyra · Logo wordmark 比較</h1>
+<div class="sub">在真實 tile plate（92px、含 hover）裡渲染。每格標題＝字體 + 手法。挑你喜歡的組合告訴我。</div>
+
+<h2>ArchBase</h2>
+<p class="note">A=三角，最自然。手法 A 字重分色 / B 三角-A 記號 / C 三角外框 monogram / D 全大寫寬字距。</p>
+<div class="grid">
+
+  <!-- A weight-split, across fonts -->
+  <div class="card"><div class="plate"><div class="wm wm-split f-grotesk">Arch<span class="light acc">Base</span></div></div><div class="cap"><b>A 字重分色</b> · Space Grotesk</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-split f-sora">Arch<span class="light acc">Base</span></div></div><div class="cap"><b>A 字重分色</b> · Sora</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-split f-syne">Arch<span class="light acc">Base</span></div></div><div class="cap"><b>A 字重分色</b> · Syne</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-split f-poppins">Arch<span class="light acc">Base</span></div></div><div class="cap"><b>A 字重分色</b> · Poppins</div></div>
+
+  <!-- B triangle-A -->
+  <div class="card"><div class="plate"><div class="wm wm-triA f-grotesk">
+    <svg class="tri-A" viewBox="0 0 100 100"><path d="M50 12 L88 88 L12 88 Z M30 64 L70 64"/></svg>rchBase</div></div>
+    <div class="cap"><b>B 三角-A 記號</b> · Space Grotesk</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-triA f-sora">
+    <svg class="tri-A" viewBox="0 0 100 100"><path d="M50 12 L88 88 L12 88 Z M30 64 L70 64"/></svg>rchBase</div></div>
+    <div class="cap"><b>B 三角-A 記號</b> · Sora</div></div>
+
+  <!-- C monogram -->
+  <div class="card"><div class="plate"><div class="mono f-grotesk">
+    <svg viewBox="0 0 100 90"><path d="M50 8 L92 82 L8 82 Z"/></svg><span>AB</span></div></div>
+    <div class="cap"><b>C 三角外框 monogram</b> · Space Grotesk</div></div>
+
+  <!-- D all-caps -->
+  <div class="card"><div class="plate"><div class="wm wm-caps f-grotesk acc" style="color:var(--p-dark)">ArchBase</div></div><div class="cap"><b>D 全大寫寬字距</b> · Space Grotesk</div></div>
+
+</div>
+
+<h2>DualTrans</h2>
+<p class="note">Dual=兩個 → 一對鏡像三角 <b>▽▲</b> 當記號，與名字互相呼應。其餘手法同上。</p>
+<div class="grid">
+
+  <div class="card"><div class="plate"><div class="wm wm-split f-grotesk">Dual<span class="light acc">Trans</span></div></div><div class="cap"><b>A 字重分色</b> · Space Grotesk</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-split f-sora">Dual<span class="light acc">Trans</span></div></div><div class="cap"><b>A 字重分色</b> · Sora</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-split f-syne">Dual<span class="light acc">Trans</span></div></div><div class="cap"><b>A 字重分色</b> · Syne</div></div>
+
+  <!-- dual-triangle mark -->
+  <div class="card"><div class="plate"><div class="wm wm-triA f-grotesk">
+    <svg class="duo" viewBox="0 0 120 100"><path class="up" d="M40 10 L72 64 L8 64 Z"/><path class="down" d="M80 90 L48 36 L112 36 Z"/></svg>DualTrans</div></div>
+    <div class="cap"><b>雙三角記號</b> · Space Grotesk</div></div>
+  <div class="card"><div class="plate"><div class="wm wm-triA f-sora">
+    <svg class="duo" viewBox="0 0 120 100"><path class="up" d="M40 10 L72 64 L8 64 Z"/><path class="down" d="M80 90 L48 36 L112 36 Z"/></svg>DualTrans</div></div>
+    <div class="cap"><b>雙三角記號</b> · Sora</div></div>
+
+  <div class="card"><div class="plate"><div class="mono f-grotesk">
+    <svg viewBox="0 0 100 90"><path d="M50 8 L92 82 L8 82 Z"/></svg><span>DT</span></div></div>
+    <div class="cap"><b>C 三角外框 monogram</b> · Space Grotesk</div></div>
+
+  <div class="card"><div class="plate"><div class="wm wm-caps f-grotesk" style="color:var(--p-dark)">DualTrans</div></div><div class="cap"><b>D 全大寫寬字距</b> · Space Grotesk</div></div>
+
+</div>
+
+</body>
+</html>

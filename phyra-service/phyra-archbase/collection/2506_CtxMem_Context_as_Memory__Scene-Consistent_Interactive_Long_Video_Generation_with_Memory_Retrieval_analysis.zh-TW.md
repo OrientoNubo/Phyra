@@ -1,0 +1,582 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# Context-as-Memory — Context as Memory: Scene-Consistent Interactive Long Video Generation with Memory Retrieval
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | Context-as-Memory |
+| Paper full title | Context as Memory: Scene-Consistent Interactive Long Video Generation with Memory Retrieval |
+| arXiv ID | 2506.03141 |
+| Release date | 2025-08-12 |
+| Conference/Journal | arXiv preprint |
+| Paper link (abs) | https://arxiv.org/abs/2506.03141 |
+| PDF link | https://arxiv.org/pdf/2506.03141 |
+| Code link | — |
+| Project page | https://context-as-memory.github.io/ |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|-------------|-------------|----------|------|
+| Jiwen Yu | The University of Hong Kong (HKU-MMLab); intern at Kling Team, Kuaishou Technology | https://yujiwen.github.io/ | co-first author |
+| Jianhong Bai | Zhejiang University; intern at Kling Team, Kuaishou Technology | https://jianhongbai.github.io/ | co-first author |
+| Yiran Qin | The University of Hong Kong | — | author |
+| Quande Liu | Kling Team, Kuaishou Technology | https://liuquande.github.io/ | corresponding author |
+| Xintao Wang | Kling Team, Kuaishou Technology | — | author |
+| Pengfei Wan | Kling Team, Kuaishou Technology | — | author |
+| Di Zhang | Kling Team, Kuaishou Technology | — | author |
+| Xihui Liu | The University of Hong Kong (Department of EEE & IDS) | https://xh-liu.github.io/ | corresponding author |
+
+### 1.2 Keywords
+
+interactive long video generation, scene consistency, memory retrieval, context-as-memory, camera control, diffusion transformer, FOV overlap, world model
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|-----|----------|-------|
+| ReCamMaster (Bai et al. 2025) | predecessor | 提供 camera-controlled video 生成基底與 frame-dim concatenation 的條件注入機制，本文直接沿用其相機編碼方式。 |
+| WorldMem (Xiao et al. 2025) | baseline | 最相近的記憶式長影片生成方法，以 cross-attention 注入歷史幀；本文以直接拼接取代並比較。 |
+| FramePack (Zhang & Agrawala 2025) | baseline | 代表性 hierarchical context 壓縮方法；本文指出其指數衰減會丟失遠時資訊並作為比較對象。 |
+| Diffusion Forcing (Chen et al. 2024; Song et al. 2025) | baseline | 固定窗口的 streaming diffusion 長影片生成代表，本文以其為缺乏長期一致性的對照。 |
+| FAR (Gu et al. 2025) | concurrent | 並行探索長短期 context window 的長影片生成方法，本文於 context learning 章節對比。 |
+| Oasis (Decart 2024) | influence | Minecraft 互動式長影片代表案例，凸顯既有 SOTA 的場景記憶失效，作為動機示例。 |
+| DiT (Peebles & Xie 2023) | base model | 本文 1B 參數 text-to-video 模型採用的 Diffusion Transformer 基底架構。 |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本論文聚焦於互動式長影片生成（interactive long video generation）中的場景一致性記憶問題。現有 streaming 影片生成模型（如 Diffusion Forcing、Oasis）僅能依賴固定數十幀的近距 context，導致鏡頭一旦離開又回到原地時，場景無法復原。作者主張：所有歷史已生成幀本身就可作為「記憶」，並透過相機軌跡的 FOV 重疊判斷，從上千幀歷史中檢索真正具共視關係的關鍵幀作為條件。整體研究領域橫跨 video diffusion model、camera-controlled generation、long-context learning 與 world model，並以 Unreal Engine 5 自製長軌跡相機標註資料集，於 open-domain 場景驗證可推廣性。
+
+### 2.2 Domain Tags
+
+- Computer Vision
+- Generative AI
+- Video Generation
+- World Models
+
+### 2.3 Core Architectures Used
+
+- **Diffusion Transformer (DiT)**：作為 1B 參數 text-to-video 基底模型的骨幹，每個 block 依序由 spatial 2D-attention、spatial-temporal 3D-attention、cross-attention 與 FFN 組成，負責所有 latent 上的 denoising。
+- **Causal 3D VAE**：以 temporal compression factor $r=4$ 將 RGB frames 壓縮為 latent，context 幀因不具時間連續性會逐張獨立壓縮後再沿 frame 維度與 noisy latent 拼接。
+- **Full-Sequence Latent Video Diffusion**：以 $\mathcal{L}(\phi)=\mathbb{E}[\|\epsilon_\phi(z_t,p,t)-\epsilon\|]$ 訓練，本文延伸為條件式 $p(z_{t-1}\mid z_t, z_c)$ 以納入歷史 context latent。
+- **RoPE (Rotary Position Embedding)**：支援可變長度序列的位置編碼，使新加入的 context latent 能被指派新位置而保留 predicted latent 原本的編碼。
+- **Camera Encoder（沿用 ReCamMaster）**：將相機外參 $\mathrm{cam}=[R,t]\in\mathbb{R}^{f\times(3\times4)}$ 透過一層 MLP $\mathcal{E}_c(\cdot)$ 投影到特徵維度，並以 $F_i = F_o + \mathcal{E}_c(\mathrm{cam})$ 注入 3D-attention 入口。
+- **Frame-Dimension Concatenation Conditioning（本文方法）**：將 clean context latent $z_c$ 與 noisy predicted latent $z_t$ 沿 frame 維度直接拼接送入 DiT，無需 adapter 或 cross-attention，輸出時僅更新 $z_t$。
+- **Memory Retrieval（本文方法）**：基於相機軌跡的 rule-based 檢索器，於 XY 平面以兩相機原點各射出左右兩條射線檢測 FOV 重疊，並以距離過濾偽交點，再以 Non-adj 與 Far-space-time 策略去除冗餘。
+- **Classifier-Free Guidance**：取樣階段對 text prompt 套用 CFG，搭配 50 步 sampling 進行 inference。
+
+### 2.4 Core Argument
+
+作者把長影片場景不一致歸因於一個結構性問題：現行 streaming 影片生成在預測新幀時只能看到固定窗口內的少量近鄰幀，導致模型沒有可參照的舊視點，必然會在鏡頭折返時「重新幻想」場景。表面解法是把所有歷史幀都餵進去，但這不可行，因為（1）算力爆炸，（2）絕大多數歷史幀與當前預測無關而浪費，（3）無關幀還會引入干擾噪聲。因此問題的真正關鍵不是「要不要用歷史」，而是「如何精準挑出與當前預測共視的歷史幀」。基於此邏輯，作者主張 Context-as-Memory：直接以原始幀格式儲存歷史（不做 3D 重建或 feature embedding，避免重建誤差累積），並沿 frame 維度與待預測的 noisy latent 做 concatenation 進入 DiT，無需額外 adapter 或 cross-attention，使 RoPE 即可支援可變長度條件。為解決檢索問題，作者進一步提出 Memory Retrieval：因為模型本身就是 camera-conditioned，每張歷史幀的相機位姿已知，便可在 XY 平面以四條邊界射線快速檢測兩相機 FOV 是否重疊，並以距離過濾過遠或過近的偽交點，再從相鄰冗餘幀中各取一張作精簡。如此一來，「記憶能力」就被化約為一個可解析、可計算、低成本的 rule-based 幾何檢索問題，而非依賴隱式 attention 或脆弱的 3D 重建，這正是其方案在邏輯上必然優於 cross-attention 注入式（WorldMem）與壓縮式（FramePack）方法的原因。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(175 words)
+
+標題 "Context as Memory: Scene-Consistent Interactive Long Video Generation with Memory Retrieval" 同時點出三個關鍵字: 將「context 當作 memory」的核心立場、所追求的「scene-consistent」品質目標,以及為了讓此立場可行所必需的 "Memory Retrieval" 機制。Abstract 採取「現況不足 → 我方主張 → 設計 → 為何可行 → 結果」的標準五段式: 首先指出當前 interactive video generation 在 long video 設定下普遍欠缺 scene-consistent memory,並把原因鎖定在「對歷史 context 利用太有限」這個診斷,而不是模型容量或資料量問題。接著提出 Context-as-Memory 的兩個極簡設計: (1) 直接以 frame 形式儲存 context,不做 feature embedding 或 3D reconstruction 等 post-processing; (2) 把 context 與待預測 frames 沿 frame 維度 concat 進入網路,不引入額外 control module。然後預先承認「全歷史 context 太貴」這個對自家方案最直接的反駁,並用 Memory Retrieval 透過 camera pose 之間的 FOV overlap 來篩出真正相關的 context frames。最後以「在 SOTAs 之上更好,且可外推到 open-domain」收束。Abstract 的功能是把後文鋪陳的 motivation、design 與評估骨架壓縮成一段宣告,供讀者快速判斷此論文是否與自己研究主題相關,並為 §1 introduction 預先植入「intuitive but impractical」這條張力線。
+
+### 3.2 Introduction
+
+(950 words)
+
+Introduction 採取「能力突破 → 仍有痛點 → 為何痛 → 一個直覺但不可行的提案 → 我們如何讓它可行」的論證鏈。第一段把背景定位在「video generation models 已被視為潛在的 world models」這個高度,並把 interactive long video generation 列為其中最關鍵的子題,因為 gaming、simulation 等下游應用都要求 streaming 與 user-control。第二段隨即點出本文要攻擊的具體痛點: memory capability — 也就是模型在連續生成時保持 content/scene 一致的能力。作者用 Oasis 這類 SOTA 做反例,指出即使能生成很長的 Minecraft 遊玩影片,只要往左轉再向右轉,場景就完全變了。第三段把這個痛點從現象上升到原因: 既有方法在生成新 frame 時,只能依賴一個固定窗口內的 previous frames,例如 Diffusion Forcing 只看數十 frames 的 context window,因此自然無法在更長時間尺度上保持一致。作者接著拋出一個看似直覺的反命題: 如果生成每個新 frame 時都能 reference 全部已生成的歷史 frames,那麼模型就能主動挑選並複製相關 historical content,scene consistency 就可實現。第四段立刻自我反駁這個直覺: 全歷史 context 在計算上不可行 (resource-intensive)、計算上浪費 (大多數 frames 對當下不相關)、且會引入雜訊 (irrelevant frames 反而干擾)。這個三點反駁非常重要,因為它合理化了後文 Memory Retrieval 的存在 — Retrieval 不是錦上添花,而是讓「context as memory」這條路徑唯一可行的設計。第五段進入 method preview: 兩個 simple yet effective 設計 — 直接以 frame 為 storage format、用 frame-dim concatenation 做 conditioning,不需 feature embedding、3D reconstruction、adapter 或 cross-attention 等中介。Memory Retrieval 則被定位為一個 rule-based 機制,利用 camera-controlled video generation 自然帶有的 camera pose annotation,以 FOV overlap 為標準快速篩出 co-visible frames。為了訓練與驗證,作者還收集了一份用 Unreal Engine 5 渲染、跨 12 種 scene styles、每段 7,601 frames 並帶精準 camera 標註的 long video dataset。最後以四點 contributions 收尾: (1) Context-as-Memory 框架本身; (2) 基於 FOV overlap 的 Memory Retrieval; (3) 新的 long, scene-consistent 視訊資料集; (4) 在 SOTAs 之上勝出且可遷移到 unseen open-domain。Introduction 的關鍵作用是替後文的 design choice 預先建立必要性: 為何要直接存 frame 而不存 3D 重建、為何要做 retrieval 而不是直接吃全歷史、為何要自蒐 dataset — 三個 design decision 都已在 motivation 階段被合理化,後續章節只需提供具體實現。
+
+### 3.3 Related Work / Preliminaries
+
+(900 words)
+
+§2 Related Work 把相關研究切成四個 axis,逐一界定本文站位。Video Generation Model 段落把主流架構釘在 diffusion model 上,簡述 next-token prediction 與 hybrid 路線作為對照,鎖定後文 base model 為 latent diffusion + DiT 的合理性。Controllable Video Generation 段落把焦點縮窄到兩種典型 control signal: camera motion 與 agent action,為後文以 camera pose 作為「免費取得的 context annotation」鋪路 — 這是 Memory Retrieval 能 rule-based 運作的前提。Streaming Video Generation 段落用 $p(x_0,\dots,x_n)=\prod_i p(x_i\mid x_0,\dots,x_{i-1})$ 給出形式化定義,把 diffusion-based 與 GPT-like next-token 兩條路線並列,並表態「diffusion 在視覺品質與取樣速度上更佳,故本文選 diffusion」。Memory Capability for Video Generation 段落是站位最關鍵的一段: 作者承認 3D reconstruction 路線 (WonderJourney、ViewCrafter、Gen3C 等) 有先例,但用「3D reconstruction 在持續擴張的大場景中誤差會累積到不可接受」與「這些工作主要在做 3D generation,只是借 video prior」兩個論點切割研究範疇。WorldMem 被特別點名為最接近的同期工作 — 它用 cross attention 注入歷史 frame,但只在 Minecraft 約 10 秒尺度上驗證 — 這同時是承認與區隔。§2.2 Context Learning for Video Generation 進一步把同期作 LCT、FAR、FramePack 列出,並對 FramePack 的 hierarchical compression 提出具體批評: 對 temporally distant frame 損失過多資訊。這段批評不是中立綜述,而是預先為 §4 將 FramePack 列為主要 baseline 並擊敗它做動機鋪陳。
+
+§3.1 Preliminaries 接著補齊技術背景,讓 method section 不需要再回頭定義符號。Full-sequence text-to-video base model 章節說明使用 causal 3D VAE + DiT,DiT block 依序為 2D attention、3D attention、cross-attention、FFN; 並給出 latent encoding 的 temporal compression rate $r$,使得 $1+nr$ 個 RGB frames 被壓成 $1+n$ 個 latents,以及訓練 loss $\mathcal{L}(\phi)=\mathbb{E}[\lVert\epsilon_\phi(z_t,p,t)-\epsilon\rVert]$。Camera-conditioned video generation 章節則沿用 ReCamMaster 的注入機制,把 $\mathrm{cam}=[R,t]\in\mathbb{R}^{f\times(3\times4)}$ 經 camera encoder $\mathcal{E}_c$ 投影後加到 spatial attention 的輸出,給出 $F_i=F_o+\mathcal{E}_c(\mathrm{cam})$ 的注入公式以及對應的 camera-aware loss $\mathcal{L}_\mathrm{cam}$。這兩段的功能是把後續所有方法描述都鎖在「DiT、frame-dim concatenation、camera pose 已可用」這三個前提上。整個 §2 + §3.1 的合成效果是: 同時把競爭方法 (DFoT、FramePack、WorldMem) 的弱點點到、把自家會使用的 building blocks (DiT、ReCamMaster-style camera injection、RoPE) 全部備齊,讓 §3.2 之後可以直接進入差異化設計而無需再做技術鋪陳。
+
+### 3.4 Method (overview narrative)
+
+(1400 words)
+
+§3 Method 的主體 (§3.2–§3.4) 以「如何注入 context → 如何挑選 context → 用什麼資料訓練」三段論推進。§3.2 Context Frames Learning Mechanism for Memory 處理 conditioning 的形式問題: 由於 context 在生成過程中持續成長 (variable-length),Adapter 與 channel-wise concatenation 等為單張或固定長度設計的方法都不適用。作者沿用 ReCamMaster 沿 frame dimension concat 的策略,把 clean context latents $z_c$ 與 noisy predicted latents $z_t$ 一同送進 DiT block 共享 attention 計算,但只更新 $z_t$ 而保留 $z_c$ 不變,讓變長 context 能在不改架構下被吸收。位置編碼方面,作者保留 pre-training 階段對 $z_t$ 的原始 RoPE,只對新增的 $z_c$ 分配新的位置編碼,此設計利用了 RoPE 對變長序列友善的性質,並避免破壞 base model 的生成先驗。
+
+§3.3 Memory Retrieval 是論文最具差異化的章節,以「先列替代方案、再提出自家方法」的修辭結構強化說服力。三個 alternative 各被配上具體缺陷: random selection 在早期 context 很小時可行,但 hundreds of frames 後找不到有用 frame; window-based 的 neighbor frames 因相鄰 frame 的高度冗餘導致實質訊息少,且完全忽略 temporally distant 的歷史; FramePack 的 hierarchical compression 雖能維持固定 token 數,卻以指數方式衰減久遠 frame 的資訊。作者的 camera-trajectory-based search 從兩個子問題切入: 一是 context 的 camera trajectory 從哪來 — 答案是因為 base model 已被改為 camera-conditioned,user-provided camera pose 即可作為 context 的免費 annotation,免去 camera estimator 的成本; 二是兩 frame 是否 co-visible 如何判定 — 作者把問題簡化到 XY 平面,只看每個 camera 左右兩條 ray 的交點,並輔以「相機距離不能太遠」的距離過濾排除 FOV 雖相交但實際 overlap 極小的情況 (Fig. 4 列出 (a)(b) 為合格、(c)(d) 因距離過遠或過近被剔除、(e)(f) 為承認的 corner cases)。作者明確承認此 FOV 規則無法處理 occlusion,但主張「偶有漏選或誤選不會顯著影響整體表現」,把這個 imperfect heuristic 的位置放在「實用過濾器」而非「精確判定器」。在 FOV 過濾仍超出 context 上限時,作者再疊加兩條策略: (1) 對連續 frame 群組只隨機抽一張以去 redundancy; (2) 額外抽幾張時間或空間最遠的 frame 補長期資訊,但作者也直言此第二條多數情況非必要。Algorithm 1 與 Algorithm 2 把訓練/推論流程顯式化: 訓練時從 ground-truth 長視訊隨機選一段作 prediction sequence,從剩餘 frame 中以 Memory Retrieval 取 $k-1$ 張、外加 prediction 段的第一張作 continuity anchor,並有 10% 機率退化為僅用 most recent context (模擬長視訊起點 context 不足的情境); 推論時則對每段待生成,以 user 給的下個 target camera pose 與已生成 frame 的 cam 做 FOV overlap 過濾,得 $z_c$ 後 condition 出 $z_t$,再 decode 並回追到 history。
+
+§3.4 Data Collection 處理「為何要自己蒐資料」: 現有 camera-pose-annotated dataset 多為短 clip,不足以驗證 long-term memory; 因此作者用 Unreal Engine 5 跑出 100 段、每段 7,601 frames、12 種 scene style 的長視訊,每 77 frames 由 multimodal LLM (MiniCPM-V) 自動標 caption。為了控制問題複雜度,作者把 camera 位置變化限制在 2D 平面、旋轉只繞 z 軸,既簡化幾何 (讓 FOV ray-intersection 規則可行) 又保留足夠的 trajectory 變化。整個 method 段的內在邏輯是一條閉環: §3.1 給出 camera-conditioned base model → §3.2 把 context 用最低成本接入 → §3.3 確保接入的 context 是相關且非冗餘的 → §3.4 提供能同時提供 long-range supervision 與精準 camera pose 的訓練源。三個 design decision (frame as storage、frame-dim concat、FOV-based retrieval) 構成的並非孤立 trick,而是彼此相互支撐的最小可行系統。
+
+### 3.5 Experiments (overview narrative)
+
+(1100 words)
+
+§4 Experiments 以「設定 → 與 baselines/SOTAs 比較 → ablation → open-domain 推廣」四段推進,目標是驗證三個獨立主張: Context-as-Memory 在 memory metric 上勝過現有 streaming 方法、context size 與 retrieval strategy 的設計選擇有實證支撐、整套機制可遷移到訓練時未見的場景。§4.1 Experiment Settings 把 base model、解析度、context size、訓練資源等變因鎖死: 內部 1B-parameter pre-trained text-to-video DiT,640×352 解析度,77-frame video,causal 3D VAE 時間壓縮率 4 → 20-frame latent,context size 設為 20 (即 20 個 RGB frames 各被獨立壓進 VAE 後得 20 frame latents,因為它們不具時間連續性),在 8 張 A100、batch 64、超過 10,000 iterations 下訓練,推論用 50-step CFG。Evaluation 部分作者承認 memory 評估缺乏既有方法,自行提出兩種設定: (1) Ground Truth Comparison,把 context 從 GT frame 中選,看 prediction 是否回到 GT; (2) History Context Comparison,在持續生成的長視訊裡比較新生成 frame 與先前生成 frame — 後者更能驗證 memory,因為它考驗的是「自家生成內容彼此一致」而非「能否抄回 GT」。具體設計是 "rotate $n$ degrees and rotate back" 這類軌跡,讓兩段時序上相隔但視角應一致的 frame 對齊後算 PSNR/LPIPS。
+
+§4.2 Comparison Results 比 1st-frame-only、1st-frame + random、DFoT、FramePack 與 Context-as-Memory 五者。作者要傳達兩個核心訊息: 一是 Context-as-Memory 在 PSNR、LPIPS、FID、FVD 全面領先,二是 random context 反而勝過 DFoT 與 FramePack。第二點才是論文真正的論證引擎 — 它表明問題不在「能取多少 context」而在「取到的 context 是否真的有資訊」: random 雖然命中率不保證,但平均而言比 window-based 看到的最近 frame 含更多新資訊; FramePack 的指數衰減則進一步削弱 memory。FID/FVD 的提升另外被解釋為 sufficient context 同時降低了 long video 的 error accumulation: 早期生成 frame 累積誤差較少,作為 condition 反而更乾淨,生成不確定性也被降低。History Context Comparison 也被刻意框定為比 GT 比較更難的測試,因為它考驗的是模型自洽,而不是模型對齊外部 reference。
+
+§4.3 Ablation Study 拆兩條軸線。Context size 從 1 → 30,memory metric 隨 context 增大而改善,但 30 與 20 的差距已縮小、速度卻明顯下滑 (1.60 → 0.79 fps),作者把 20 定為效益/速度交點,並把進一步壓縮 context size 列為未來課題。Memory Retrieval strategy 的消融把 random、FOV+random、FOV+non-adj、FOV+non-adj+far-space-time 四個變體並列,結果顯示 "FOV"(過濾無關)與 "non-adj"(去相鄰冗餘) 為主要貢獻者,而 "far-space-time" 提升輕微 — 此結果與 §3.3 中作者自承「第二條補長期資訊策略多數情況非必要」彼此對證。
+
+§4.4 Open-Domain Results 把模型套到從網路收集的不同風格圖 (Japanese landscape、Black Myth Wukong、Zelda 等) 作為 first frame,在 "rotate away and rotate back" 軌跡下展示 memory 仍保持。作者點明這個能力來自兩個源頭: 訓練資料涵蓋 12 種 scene style 培養出可遷移的 context-utilization 能力,以及 base model pre-training 階段累積的 generative prior。同時也誠實說明限制: 1B base model 在複雜軌跡下生成品質撐不住,error accumulation 仍會破壞長視訊。整段 §4 的修辭重點不是堆砌指標,而是用 "random > DFoT" 這個反直覺結果反向強化「context relevance > context recency」的核心立場,並用 ablation 把這個立場拆解到具體 design choice 的因果鏈上。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(200 words)
+
+§5 Conclusion 以三句話收束全文: Context-as-Memory 把「歷史生成 frame 直接作為 memory」立為 scene-consistent long video generation 的關鍵; 設計上維持 simple 但 effective — 直接存 frame、與 prediction 一同作為輸入; Memory Retrieval 則化解了長 context 的計算瓶頸,並動態挑出真正有價值的條件 frame。Limitations 段以三點誠實列出未解問題,且每點都對應到 §3 設計中可預見的弱點: (1) 方法只支援 static scene,dynamic scene 的 retrieval 在語意上更困難,因為 FOV 共視性無法保證內容仍可被複用; (2) FOV overlap 在多重 occlusion 場景 (例如多間互通的室內房間) 下會高估 co-visibility,挑出實際被牆遮擋的 frame; (3) long video 固有的 error accumulation 仍未被解 — 作者把它歸為「只能靠更大 dataset、更多 training、更強 base model」攻克的系統性問題,而非單一演算法層次能修補。Future Work 把方向收束到三個維度: 用更大規模 base model 驗證、支援更複雜 trajectory、覆蓋更廣 scene 與更長 sequence,並把 open-domain free navigation 設為長期願景。整段 conclusion 的策略是在強調貢獻同時主動讓出疆界,把後續可能的攻擊面 (尤其 dynamic scene 與 occlusion) 預先標示為已知課題,降低 reviewer 與讀者把這些當成未察覺缺陷的可能。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 提出 frame-dimension concatenation 將 history context 與 noisy latent 一同送入 DiT，無需 adapter 或 cross-attention，並利用 RoPE 自然支援 variable-length context（page 4, Fig. 2）。
+- 直接以原始 RGB frame 作為 memory storage，避開 3D reconstruction 在大場景下累積誤差不可控的問題（page 3, §2.1）。
+- Memory Retrieval 將「找出共視幀」化約為 XY 平面四條 ray 的交點檢測，輔以距離過濾，成為 $O(N)$ 的 rule-based 解析計算（page 5, Fig. 4）。
+- 在 ground-truth comparison 上 PSNR 由 DFoT 的 17.63 提升至 20.22、LPIPS 由 0.4528 降至 0.3003，FVD 同步由 897.87 降到 821.37（Table 1, page 6）。
+- History-context comparison 在「rotate forward + rotate backward」軌跡上仍領先 DFoT 約 2.4 PSNR（18.11 vs 15.70），證明新生成內容也具一致性而非只是對齊 ground truth（Table 1, page 6）。
+- Retrieval ablation 顯示 `FOV+Non-adj` 比純 random selection PSNR 高出約 2.4（17.70 → 20.11），驗證 FOV 過濾與「冗餘相鄰幀只取一張」的雙重必要性（Table 3, page 7）。
+- Context size 從 1 增至 20 帶來持續單調提升（PSNR 15.72 → 20.22），且 20 → 30 已飽和（20.22 → 20.31），給出工程上明確的 trade-off 點（Table 2, page 7）。
+- 自建 Unreal Engine 5 dataset，包含 100 段 7,601-frame 長影片、12 種場景風格，並具精確 camera extrinsic/intrinsic 標註，補足現有短片相機資料集的缺口（page 5, Appendix B）。
+- Open-domain 推廣於從網路取得的 Mount Fuji、Black Myth Wukong、Zelda 風格首幀仍能在「rotate away and back」軌跡下保持場景一致性（Fig. 6、Fig. 8、Fig. 9）。
+- Ranking 上 random context selection（PSNR 17.70）反而勝過 DFoT（17.63）與 FramePack（17.20），間接證明「fixed window of recent frames」是長期一致性的根本瓶頸而非次要問題（Table 1, page 6）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- 方法僅適用於 static scene；dynamic scene 的 memory retrieval 更具挑戰，目前未支援（§5 Limitations, page 7）。
+- 在多重遮擋的複雜場景（例如互通的室內房間）中，FOV overlap 無法可靠識別真正相關的 context frame（§5, page 7）。
+- 長影片生成固有的 error accumulation 問題仍存在，目前只能透過更大資料集、更長訓練、更強 base model 來緩解（§5, page 7）。
+- 1B base model 的能力不足，僅在簡單軌跡上表現良好；複雜軌跡時連 initial frame 後的內容生成都已顯著退化（Appendix C, page 9）。
+- 目前無法支援開放領域中複雜、多樣、動態的長期場景探索（Appendix C, page 9）。
+- FOV overlap 的 ray-intersection rule 本身不完美，作者明確列出 corner cases（Fig. 4 (e)(f)）會被誤判，僅以「occasional missed or incorrect candidates 影響不大」帶過（page 5, Fig. 4 caption）。
+
+#### 4.2.2 Phyra-inferred
+
+- 與 Related Work 中被點名為「最相近 baseline」的 WorldMem 在 Table 1 完全沒有量化比較，使「優於 SOTA」這個主訴求只剩下對 DFoT、FramePack 的對照，論證鏈不完整（§2.1 vs Table 1）。
+- 全部量化評估都建立在「rotate n degrees and return」這一條極簡軌跡上（§4.1 Evaluation Methods），複雜路徑（折返、繞圈、跨區）的 memory 表現完全沒有 PSNR/LPIPS 數據支撐。
+- Camera trajectory 被硬性限制在 XY 平面 + 僅繞 z 軸旋轉，每 77 frames 平移 3–6 m、旋轉 ≤ 60°（Appendix B），這幾乎排除了真實互動式應用所需的 6DoF 場景，但在 abstract / introduction 中並未明示此限制。
+- Open-domain generalization 僅有 qualitative figures（Fig. 6, 8, 9），沒有任何 quantitative metric 或 human eval，無法判斷其視覺一致性是否真能跨領域維持。
+- Memory Retrieval 完全依賴 user-provided / model-conditioned camera pose 的精準性，但論文未量測 camera control 自身的誤差，亦未做「pose 有 noise 時 retrieval 還能用嗎」的 robustness 實驗。
+- Context size 20 時 inference 速度已下降到 0.97 fps（Table 2），但論文同時宣稱可從「thousands of frames」歷史中檢索，二者在實時互動場景下的可行性張力沒有被討論。
+- 訓練資料只有 100 段 UE5 影片（共約 76 萬 frame），相對於聲稱的 open-domain 推廣與「多樣場景」說法，資料規模偏小且風格集中在 12 種 asset，跨 domain 偏移風險被低估。
+- $f \times f$ 對 overlap 的預先計算成本（Algorithm 1 line 3 註解「pre-computed」）在 inference 階段不存在 ground-truth 軌跡時無法套用，但 Algorithm 2 假設逐幀 incremental 計算的成本未被分析。
+- 訓練時 10% 機率「只用最近一幀」作 context（page 5）是一個明顯影響長期 memory 行為的超參數，沒有任何 ablation。
+
+### 4.3 Phyra's Judgment (summary)
+
+論文真正新的部分是「把 memory retrieval 從 implicit attention / 3D reconstruction 改寫成可解析的 FOV overlap rule」這個概念簡化，這一點在 logic 上確實乾淨。其餘的 frame-dim concatenation、camera encoder、UE5 資料蒐集都是基於 ReCamMaster 與既有 DiT 架構的 engineering integration，創新成分有限。最關鍵未解的問題是：**FOV overlap 是一個純幾何 proxy，無法處理遮擋、語意相關性、以及 dynamic 內容**，這個 proxy 在 2D 平面 + simple 軌跡的實驗設定下被掩蓋，但未通過任何 stress test。整體上是一篇 idea 清晰、實驗範圍偏窄、claim 略大於證據的 preprint。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+Context-as-Memory 採用兩階段設計：第一階段透過 Memory Retrieval 從上千幀歷史中以 rule-based 幾何判斷選出 $k-1$ 幀與待預測片段共視的關鍵 context frames，再加上預測序列的第一幀作為錨幀以保證視訊連續性，總共 $k$ 幀（§3.3、Algorithm 2，page 5）；第二階段把這 $k$ 幀 context 與待預測的 noisy latents 沿 frame 維度做 concatenation，再送入 camera-conditioned DiT，由 DiT 內的 2D attention、3D attention、cross-attention、FFN 做聯合去噪（Figure 2，page 3）。Memory Retrieval 的核心是把兩個相機在 XY 平面上的 FOV 簡化為從 origin 各自射出的左、右兩條邊界射線，當兩相機的左、右射線對都相交且交點與當前相機距離不過遠也不過近時，視為共視（Figure 4，page 5）。
+
+由於模型本身就是 camera-controlled，每張歷史幀的 camera pose 在生成時即可被記錄，因此 Memory Retrieval 不需要任何 3D 重建或 feature embedding，而是直接把 RGB 幀以原格式儲存為 memory，避免重建誤差累積（§1、§2.2，pages 2–3）。Context frames 在輸入端沿 frame 維度與 noisy predicted latents 拼接，clean context latents $z_c$ 在 attention 中與 noisy latents $z_t$ 平等參與計算，但在輸出時只更新 $z_t$ 而保持 $z_c$ 不變（§3.2，page 4）。為支援可變長度 context，模型沿用 base model 的 RoPE positional encoding：predicted latents 維持預訓練階段的位置編碼，新加入的 context latents 則被指派新的位置編碼，避免與預訓練分布錯位（§3.2，page 4）。
+
+訓練時隨機從一段含數千幀的長 GT video 中取一段作為預測序列，再用 Memory Retrieval 從其餘幀中選 $k-1$ 幀，加上預測序列第一幀作為 context，共 $k=20$ 幀；有 10% 機率只用最近一幀，模擬長影片開頭尚無 context 的情境（§3.3，page 5；§4.1，pages 5–6）。Base model 為 1B 參數的內部 text-to-video DiT，video 解析度 $640\times 352$，每段 77 幀，causal 3D VAE 的 temporal compression ratio $r=4$，因此 77 幀被壓成 20 幀 latents；context 的 20 幀因彼此無時序連續性而被個別過 VAE，同樣得到 20 幀 latents（§4.1，page 5）。訓練於 8 張 NVIDIA A100 上以 batch size 64 跑了超過 10,000 次 iterations，採樣時用 50 步 sampling 並對 text prompt 啟用 Classifier-Free Guidance（§4.1，pages 5–6）。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input: Long history     X        shape: [B, T_hist, 3, 352, 640]   (T_hist 可達數千)
+       Target cameras   cam_t    shape: [B, 77, 3, 4]
+       History cameras  cam_hist shape: [B, T_hist, 3, 4]
+       Text prompt      p
+
+   ├→ Memory Retrieval  (rule-based, FOV overlap on XY-plane)
+   │     in : cam_hist [B, T_hist, 3, 4],  cam_t [B, 77, 3, 4]
+   │     op : 對每對 frame 做四條射線交點測試 + 距離過濾 + Non-adj 抽樣
+   │     out: 19 個 co-visible frame indices + 1 個最近幀 + 1 個錨幀  → k=20
+   │          x_c    [B, 20, 3, 352, 640]
+   │          cam_c  [B, 20, 3, 4]
+   │
+   ├→ Causal 3D VAE Encoder  (predicted branch, temporal compression r=4)
+   │     x_0 [B, 1+nr=77, 3, 352, 640]  → z_0 [B, 1+n=20, C_z, h, w]
+   │     加噪：z_t = α_t z_0 + σ_t ε,  ε ~ N(0, I)
+   │           z_t [B, 20, C_z, h, w]
+   │
+   ├→ Causal 3D VAE Encoder  (context branch, frame-by-frame)
+   │     x_c [B, 20, 3, 352, 640]  → z_c [B, 20, C_z, h, w]
+   │     （context frame 之間無時序連續性，故每幀獨立壓縮）
+   │
+   ├→ Frame-dim Concatenation
+   │     concat(z_t, z_c) along frame dim  →  [B, 40, C_z, h, w]
+   │     RoPE 位置編碼：z_t 區段沿用預訓練位置；z_c 區段使用新指派的位置
+   │
+   ├→ Patchify
+   │     [B, 40, C_z, h, w]  →  [B, 40, N_patch, d]
+   │     （N_patch 與 d 論文未明示）
+   │
+   ├→ Camera Encoder E_c  (single-layer MLP, ReCamMaster mechanism)
+   │     cam = [R, t]  [B, 40, 3, 4]  flatten→ [B, 40, 12]  →  E_c(cam) [B, 40, d]
+   │
+   ├→ Basic Transformer Block × N  (N 論文未明示)
+   │     for each block:
+   │        F_o = SpatialAttn2D(F_in)              [B, 40, N_patch, d]
+   │        F_i = F_o + E_c(cam)                   [B, 40, N_patch, d]   (Eq. 2)
+   │        F   = SpatioTemporalAttn3D(F_i)        [B, 40, N_patch, d]   (RoPE on frame dim)
+   │        F   = CrossAttn(F, text_emb(p))        [B, 40, N_patch, d]
+   │        F_in = FFN(F) + 殘差                   [B, 40, N_patch, d]
+   │     輸出 ε_φ：只取前 20 frames（predicted 區段），丟棄 context 區段
+   │     ε_φ_pred [B, 20, N_patch, d]
+   │
+   ├→ Unpatchify
+   │     [B, 20, N_patch, d]  →  ε_φ [B, 20, C_z, h, w]
+   │
+   ├→ Diffusion Sampling  (50 steps, CFG on text prompt)
+   │     反覆呼叫上述 forward，從 z_T 去噪到 z_0  [B, 20, C_z, h, w]
+   │
+   └→ Causal 3D VAE Decoder
+         z_0 [B, 20, C_z, h, w]  →  x_0 [B, 77, 3, 352, 640]
+         x_0 與 cam_t 一同 append 回 X、cam_hist，供下一段預測使用
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 Memory Retrieval (rule-based FOV overlap)
+
+**Function:** 從上千幀歷史 context 中，根據 camera trajectory 在 XY 平面上的 FOV 重疊關係，挑出 $k-1$ 幀與當前要預測片段共視的關鍵幀。
+
+**Input:**
+- Name: history camera poses cam_hist 與 target camera pose cam_t
+- Shape: cam_hist $\in \mathbb{R}^{B\times T_{hist}\times 3\times 4}$，cam_t $\in \mathbb{R}^{B\times 77\times 3\times 4}$
+- Source: 由 base model 在生成歷史幀時記錄下來的 user-provided camera poses（§3.3，page 4），不需另外的 camera estimator
+
+**Output:**
+- Name: 檢索結果 $x_c$ 與對應 $\text{cam}_c$
+- Shape: $x_c \in [B, k=20, 3, 352, 640]$、$\text{cam}_c \in [B, 20, 3, 4]$（19 幀為 FOV 檢索結果，1 幀為最近幀，1 幀為預測序列第一幀作為錨幀）
+- Consumer: $x_c$ 送入 3D VAE Encoder（context branch）；$\text{cam}_c$ 與 $\text{cam}_t$ 拼接後送入 Camera Encoder $E_c$
+
+**Processing:**
+
+1. 對每對 (cam_t 的某幀, cam_hist 的某幀)，把 6-DoF pose 投影到 XY 平面，從 camera origin 各自射出左、右兩條 FOV 邊界射線（FOV 設為 base model 設定，rendering 時為 $52.67^\circ$；§B，page 9）。
+2. 檢查兩相機的左射線對與右射線對是否同時相交（Figure 4 (a), (b)，page 5）；只有兩對都相交才視為候選共視幀。
+3. 計算交點到當前 cam_t 的距離，過濾交點過近或過遠的 case（Figure 4 (c), (d)，page 5），以排除 FOV 雖在數學上相交但實際不可見的情境。
+4. 候選幀依時間相鄰分組，每組隨機取一幀（"Non-adj" 策略，§3.3 與 Table 3，pages 5、7），消除時間相鄰造成的冗餘。
+5. （可選）再額外加入若干在時間或空間上最遠的幀（"Far-space-time" 策略），論文指出 marginal gain 有限。
+6. 加入預測序列的第一幀作為錨幀，補足到 $k=20$ 幀（Algorithm 2，page 5）。
+
+**Key Formulas:**
+
+論文未給出該流程的解析運算式；判斷準則為「兩相機的左、右 FOV 射線對皆相交，且交點與相機距離落在合理區間內」，屬幾何 rule-based 程序，無可微分目標函數。
+
+**Implementation Details:**
+
+訓練時，所有 frame 兩兩之間的 FOV-overlap 關係預先計算並快取，避免每個 iteration 重複幾何運算（§3.3，page 5）。論文指出該規則對 occlusion 情境會失效（Figure 4 (e), (f)，page 5），但統計上偶有漏選或誤選對整體效能影響有限（§3.3、§5 Limitations，pages 5、7）。
+
+#### 5.3.2 Causal 3D VAE Encoder
+
+**Function:** 將 RGB 幀（含 predicted 與 context 兩個 branch）壓縮到 latent space，predicted branch 同時做時序壓縮以節省 DiT 計算。
+
+**Input:**
+- Name: predicted video $x_0$、context frames $x_c$
+- Shape: $x_0 \in [B, 1+nr=77, 3, 352, 640]$、$x_c \in [B, 20, 3, 352, 640]$
+- Source: $x_0$ 來自 GT video 隨機片段（訓練）或上一段的預測輸出（推論）；$x_c$ 來自 Memory Retrieval
+
+**Output:**
+- Name: predicted latent $z_0$、context latent $z_c$
+- Shape: $z_0 \in [B, 1+n=20, C_z, h, w]$、$z_c \in [B, 20, C_z, h, w]$
+- Consumer: $z_0$ 加噪得到 $z_t$ 後，與 $z_c$ 一起在 frame 維度做 concatenation
+
+**Processing:**
+
+對 predicted branch，VAE encoder 同時做空間下採樣與時序下採樣，時序壓縮比 $r=4$，故 77 幀 RGB 被壓成 20 幀 latents（§3.1、§4.1，pages 3、5）。對 context branch，由於 19 幀檢索結果彼此無時間連續性，VAE 對每幀獨立編碼，輸出仍為 20 幀 latents（§4.1，page 5）。論文未明示 latent 的 channel 數 $C_z$ 與空間 stride / 解析度 $h$、$w$。
+
+**Key Formulas:**
+
+$$
+z = \mathrm{Encoder}(x), \qquad x = \mathrm{Decoder}(z)
+$$
+
+訓練時對 $z_0$ 加 Gaussian noise：
+
+$$
+z_t = \alpha_t z_0 + \sigma_t \boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0,\mathbf{I})
+$$
+
+對應的 base diffusion loss 為 Eq. 1（§3.1，page 3）：
+
+$$
+\mathcal{L}(\phi) = \mathbb{E}\big[\,\Vert \boldsymbol{\epsilon}_\phi(z_t,\,p,\,t) - \boldsymbol{\epsilon} \Vert\,\big]
+$$
+
+**Implementation Details:**
+
+VAE 採用 causal 設計（§3.1，page 3）。論文未公開 VAE 的具體網路架構、$C_z$、空間 stride、訓練資料、是否有 reconstruction perceptual loss，亦未說明是否在新收集的 UE5 dataset 上 fine-tune VAE。
+
+#### 5.3.3 Camera Encoder $E_c$
+
+**Function:** 把每幀 6-DoF camera pose 投影到 DiT feature 通道，使 DiT 能以 camera trajectory 作條件控制生成。
+
+**Input:**
+- Name: camera poses cam（concat 後 predicted 20 幀 + context 20 幀，共 40 幀）
+- Shape: $\text{cam} = [R, t] \in \mathbb{R}^{B\times 40\times (3\times 4)}$
+- Source: predicted 區段為 user input；context 區段由 Memory Retrieval 連同 frames 一同回傳
+
+**Output:**
+- Name: camera embedding $E_c(\text{cam})$
+- Shape: $[B, 40, d]$，其中 $d$ 為 DiT feature 通道數，論文未明示
+- Consumer: 加到每個 DiT block 內 spatial attention 之後、3D attention 之前的 token feature 上
+
+**Processing:**
+
+把每幀 $3\times 4$ 的相機外參矩陣攤平為 12 維向量，再經一層 MLP 投影到模型 feature dim（§3.1，page 4，沿用 ReCamMaster 設計）。在每個 DiT block 中，將其加到 spatial attention 之後的特徵 $F_o$ 上，得到 3D attention 的輸入 $F_i$。
+
+**Key Formulas:**
+
+Eq. 2（§3.1，page 4）：
+
+$$
+F_i = F_o + E_c(\text{cam})
+$$
+
+Camera control 訓練階段使用 Eq. 3：
+
+$$
+\mathcal{L}_{\text{cam}}(\phi,\phi_{\text{MLP}}) = \mathbb{E}\big[\,\Vert \boldsymbol{\epsilon}_{\phi,\phi_{\text{MLP}}}(z_t, p, \text{cam}, t) - \boldsymbol{\epsilon} \Vert\,\big]
+$$
+
+**Implementation Details:**
+
+$E_c$ 為 "one layer of MLP"，可學參數記為 $\phi_{\text{MLP}}$（§3.1，page 4）。論文未說明 MLP 的 hidden 維度、是否有 LayerNorm、以及加到 token 上時如何 broadcast 到 $N_{\text{patch}}$ 維度，僅說明輸出 channel 與 DiT feature dim 對齊。
+
+#### 5.3.4 Context Frame Concatenation 與 RoPE Positional Encoding
+
+**Function:** 用最簡單的 frame-dim concatenation 把 clean context latents 注入 DiT，並透過 RoPE 處理可變長度的 frame-axis 位置編碼。
+
+**Input:**
+- Name: 加噪後的 predicted latent $z_t$、clean context latent $z_c$
+- Shape: $z_t \in [B, 20, C_z, h, w]$、$z_c \in [B, 20, C_z, h, w]$
+- Source: 來自 3D VAE Encoder 兩個 branch
+
+**Output:**
+- Name: 拼接後的 latent 序列
+- Shape: $[B, 40, C_z, h, w]$，patchify 後變為 $[B, 40, N_{\text{patch}}, d]$
+- Consumer: 進入 DiT block stack
+
+**Processing:**
+
+直接沿 frame 維度做 $[\,z_t;\, z_c\,]$ 拼接（§3.2，page 4）。在 DiT 內部，clean context latents 與 noisy latents 一起參與 attention 計算，但輸出端只更新 noisy latents 區段；clean context 永遠保持原值，亦不接收 noise（§3.2，page 4）。Predicted 區段沿用 base model 預訓練時的 RoPE 位置編碼，新加入的 context 區段則被指派新的位置編碼，避免與預訓練分布錯位（§3.2，page 4）。
+
+**Key Formulas:**
+
+DiT 預測 noise 時的 conditioning 形式為（§3.2，page 4）：
+
+$$
+\boldsymbol{\epsilon}_\phi\big(\{z_t, z_c\},\, p,\, t\big)
+$$
+
+論文未對 RoPE 給出具體位置編碼公式，僅說明採用標準 RoPE（Su et al. 2024）並利用其支援可變長度序列的特性。
+
+**Implementation Details:**
+
+不需要任何 adapter、ControlNet、cross-attention adapter 或 channel-wise concat（§3.2，page 4）。論文未明示 context 區段的新位置編碼是否與 predicted 區段共享 RoPE 基礎頻率、是否額外引入 segment embedding，只說明 "assigning new positional encodings to the newly conditioned context latents"。
+
+#### 5.3.5 DiT Block (Spatial 2D → 3D → Cross-Attn → FFN)
+
+**Function:** 在拼接後的 40 幀 token 上做空間、時空、文字條件的聯合去噪，並注入 camera embedding。
+
+**Input:**
+- Name: patchified token 序列
+- Shape: $[B, 40, N_{\text{patch}}, d]$（$N_{\text{patch}}$、$d$ 論文未明示）
+- Source: Patchify 模組
+
+**Output:**
+- Name: 同 shape 的 token 序列；最終取前 20 幀作為 $\boldsymbol{\epsilon}_\phi$ 在 predicted 區段的輸出
+- Shape: $[B, 40, N_{\text{patch}}, d]$；切片後 $\boldsymbol{\epsilon}_\phi^{\text{pred}} \in [B, 20, N_{\text{patch}}, d]$
+- Consumer: Unpatchify 後送入 diffusion sampling loop
+
+**Processing:**
+
+每個 block 依序執行（Figure 2，page 3；§3.1，pages 3–4；Appendix A，page 9）：
+- **Spatial 2D Attention**：在每幀內部對 patch 做自注意力，輸出 $F_o$。
+- **Camera Injection**：$F_i = F_o + E_c(\text{cam})$（Eq. 2，page 4）。
+- **Spatial-Temporal 3D Attention**：對所有 $40 \times N_{\text{patch}}$ 個 token 做完整 3D 自注意力，frame 維度套用 RoPE 以自動相容可變長度的 context。
+- **Cross-Attention**：以 text prompt $p$ 的 embedding 作為 key/value 對 token 做 cross-attention。
+- **FFN**：feed-forward 加殘差。
+
+論文（Appendix A，page 9）說明在每個 attention/FFN 之前以 timestep 映射出的 scale 對 spatiotemporal token 做 RMSNorm，等同於把 timestep 條件化注入。
+
+**Key Formulas:**
+
+$$
+F_i = F_o + E_c(\text{cam})
+$$
+
+$$
+F_{\text{out}} = \mathrm{FFN}\!\Big(\mathrm{CrossAttn}\big(\mathrm{Attn3D}(F_i),\, \mathrm{emb}(p)\big)\Big)
+$$
+
+**Implementation Details:**
+
+DiT block 數 $N$、hidden dim $d$、attention head 數均未公開，僅說明整體模型約 1B 參數（§4.1，page 5）。Timestep 透過 RMSNorm 的 scale 參數注入（Appendix A，page 9）。Clean context latents 在 attention 中與 noisy latents 一起參與計算，但輸出時僅 noisy 區段被當作 $\boldsymbol{\epsilon}_\phi$（§3.2，page 4）。
+
+#### 5.3.6 Causal 3D VAE Decoder
+
+**Function:** 把去噪後的 predicted latents 還原為 RGB video clip。
+
+**Input:**
+- Name: 去噪後 latent $z_0$（取 predicted 區段的前 20 幀）
+- Shape: $[B, 20, C_z, h, w]$
+- Source: 50 步 sampling 後 DiT 輸出
+
+**Output:**
+- Name: 視訊片段 $x_0$
+- Shape: $[B, 77, 3, 352, 640]$
+- Consumer: append 回 history $X$ 與 cam_hist，作為下一段預測的 memory；同時輸出給使用者展示
+
+**Processing:**
+
+對 latent 做時序與空間上採樣，時序倍率 $r=4$，把 20 幀 latents 還原為 77 幀 RGB（§3.1、§4.1，pages 3、5）。Decoder 與 Encoder 共享 causal 設計，使其可被 streaming 調用，但論文未針對 streaming inference 的具體實作細節做描述。
+
+**Key Formulas:**
+
+$$
+x_0 = \mathrm{Decoder}(z_0)
+$$
+
+**Implementation Details:**
+
+採樣時對 text prompt 採用 Classifier-Free Guidance、總共 50 步（§4.1，pages 5–6）。VAE 訓練 loss、是否在主訓練階段凍結、reconstruction quality 等資訊論文未明示。
+
+## 6. Experiments
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+| --- | --- | --- |
+| PSNR | Pixel-wise reconstruction fidelity between predicted frames and reference frames; used to quantify memory capability. | yes |
+| LPIPS | Perceptual distance between predicted and reference frames; lower is better, used jointly with PSNR for memory evaluation. | yes |
+| FID | Frame-level distribution distance for visual quality assessment. | no |
+| FVD | Video-level distribution distance for temporal/visual quality assessment. | no |
+| Speed (fps) | Inference throughput in frames per second; reported in the context-size ablation as efficiency indicator. | no |
+
+兩種比較協定亦由作者自行提出:Ground Truth Comparison(以 GT frames 作為 context 來源,評估 predicted frames 是否還原 GT)與 History Context Comparison(在「rotate forward → rotate backward」軌跡下,比較新生成幀與先前已生成幀,直接量測 memory 一致性)。後者被作者視為更具挑戰性的 memory 評估方式 (§4.1)。
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+| --- | --- | --- | --- |
+| 自建 Unreal Engine 5 long-video 資料集 | Camera-controlled long video generation with FOV-based memory retrieval | 100 段影片,每段 7,601 frames @ 30 fps,640×352 解析度,12 種 3D 場景風格,每 77 frames 由 MiniCPM-V 多模態 LLM 生成 caption;相機限制在 XY 平面、僅繞 z 軸旋轉,每 77-frame 段位移 [3m, 6m]、旋轉 < 60° | train: 95% / test: 5% (held-out, "diverse scenes"); 論文未明確區分 val 切分 |
+
+註:作者僅使用此單一資料集進行訓練與測試;§4.4 與 Appendix C 的 open-domain 結果使用網路收集的單張圖片作為 first frame,屬定性展示而非具有 ground truth 的測試集。
+
+### 6.3 Training and Inference Settings
+
+- **Base model**: 內部研發的 1B-parameter pre-trained text-to-video Diffusion Transformer,causal 3D VAE 的時間壓縮比為 4;77-frame 影片對應 20-frame video latents (§4.1)。
+- **Resolution**: 640×352 (§4.1)。
+- **Context size**: $k=20$ RGB frames(獨立逐幀經 causal 3D VAE 壓縮,因為 retrieved frames 在時間上不連續)(§4.1)。
+- **Hardware**: 8× NVIDIA A100 GPUs (§4.1)。
+- **Batch size**: 64 (§4.1)。
+- **Training iterations**: 超過 10,000 iterations (§4.1)。
+- **Optimizer / learning rate / schedule**: the paper does not specify。
+- **Training-time augmentation**: 10% 機率僅使用最近一幀作為 context,以模擬長影片生成初始階段尚無歷史 context 的情況 (§3.3)。
+- **Inference**: 50 sampling steps,對 text prompt 採用 Classifier-Free Guidance (Ho & Salimans 2022) (§4.1)。CFG scale 數值 the paper does not specify。
+- **Memory Retrieval at inference**: 每段待預測影片從先前生成幀以 FOV-based search 取出 $k-1$ 幀,並追加最近一幀作為連續性錨點 (§3.3, Algorithm 2)。
+- **Base T2V architecture detail (Appendix A)**: 採用 3D self-attention 取代 spatially-temporally separated 的 1D temporal attention;每個 attention/FFN 之前以 timestep 映射出的 scale 對 spatiotemporal tokens 做 RMSNorm。
+- **Camera setup in dataset rendering (Appendix B)**: focal length 24 mm、aperture 10、FOV 52.67°;軌跡為 B-spline 平滑的 polylines。
+
+### 6.4 Main Results
+
+下表為 Table 1 所報告的主要比較結果(test set,5% held-out)。粗體為本文方法。
+
+| Method | GT Comp. PSNR↑ | GT Comp. LPIPS↓ | GT Comp. FID↓ | GT Comp. FVD↓ | HC Comp. PSNR↑ | HC Comp. LPIPS↓ | HC Comp. FID↓ | HC Comp. FVD↓ | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1st Frame as Context | 15.72 | 0.5282 | 127.55 | 937.51 | 14.53 | 0.5456 | 157.44 | 1029.71 | 單幀 context baseline |
+| 1st Frame + Random Context | 17.70 | 0.4847 | 115.94 | 853.13 | 17.07 | 0.3985 | 119.31 | 882.36 | 多幀但隨機抽樣 |
+| DFoT [Song et al. 2025] | 17.63 | 0.4528 | 112.96 | 897.87 | 15.70 | 0.5102 | 121.18 | 919.75 | 固定窗口最近幀 |
+| FramePack [Zhang & Agrawala 2025] | 17.20 | 0.4757 | 121.87 | 901.58 | 15.65 | 0.4947 | 131.59 | 974.52 | 階層式壓縮 context |
+| **Context-as-Memory (Ours)** | **20.22** | **0.3003** | **107.18** | **821.37** | **18.11** | **0.3414** | **113.22** | **859.42** | FOV + Non-adj + Far-space-time |
+
+關鍵觀察 (§4.2):
+
+- 在四個 metric × 兩種比較協定共 8 個欄位上,Context-as-Memory 全面領先。
+- HC Comp. 比 GT Comp. 更難:DFoT 與 FramePack 在 HC 下 PSNR 反而落後 Random,作者歸因於兩者僅能存取最近 context、相鄰幀冗餘高;FramePack 的指數式空間衰減進一步削弱 memory。
+- 充足 context 不僅提升 memory(PSNR/LPIPS),也降低長影片的 error accumulation,連帶改善 FID/FVD。
+
+§4.4 與 Appendix C(Fig. 6, 8, 9)額外提供 open-domain 定性結果,使用網路圖片作為 first frame、以「rotate away and rotate back」軌跡驗證 memory 一致性,但此部分無量化指標。
+
+### 6.5 Ablation Studies
+
+**Ablation 1 — Context Size (Table 2, §4.3).** 變動 $k \in \{1, 5, 10, 20, 30\}$。
+
+- $k=1 \to 20$:GT PSNR 由 15.72 提升至 20.22,LPIPS 由 0.5282 降至 0.3003;HC PSNR 由 14.53 提升至 18.11。
+- $k=20 \to 30$:GT PSNR 微升至 20.31、HC PSNR 微升至 18.19,但 GT LPIPS 反而從 0.3003 上升至 0.3137,顯示報酬遞減甚至局部退化。
+- 速度從 $k=1$ 的 1.60 fps 降至 $k=30$ 的 0.79 fps,作者據此選定 $k=20$ 為性能/效率折衷點。
+- **診斷性**:屬於正當的容量–效能掃描,直接回答「context 多少夠用」這個與 retrieval 設計緊密相關的問題,不只是 sanity check。
+
+**Ablation 2 — Memory Retrieval Strategy (Table 3, §4.3).** 在固定 $k$ 下逐步加入 retrieval 規則。
+
+| Strategy | GT PSNR↑ | GT LPIPS↓ | HC PSNR↑ | HC LPIPS↓ |
+| --- | --- | --- | --- | --- |
+| Random | 17.70 | 0.4847 | 17.07 | 0.3985 |
+| FOV + Random | 19.17 | 0.3825 | 17.47 | 0.3896 |
+| FOV + Non-adj | 20.11 | 0.3075 | 18.19 | 0.3571 |
+| FOV + Non-adj + Far-space-time | 20.22 | 0.3003 | 18.11 | 0.3414 |
+
+- 「FOV」過濾貢獻最大(GT PSNR +1.47),「Non-adj」(同一連續幀段只抽一幀以去冗餘)再 +0.94,兩者正是論文提出的核心 retrieval 規則。
+- 「Far-space-time」貢獻最小(GT PSNR +0.11、HC PSNR 反而 −0.08),作者也明言其影響「relatively minor」,暗示此規則的必要性可商榷。
+- **診斷性**:此 ablation 是逐元件對應到方法各設計(§3.3)的真正診斷實驗,可直接判讀每個規則的邊際貢獻;唯一可挑剔的是各 row 並未報告變異或多 seed,且 HC LPIPS 與 HC PSNR 在最後一行非單調,作者未深入討論此不一致。
+
+**未做的 ablation(值得指出)**:沒有「FOV only(不做 Non-adj)」單獨欄位,因此無法把「FOV」的純貢獻與「Non-adj」分離得更乾淨;也沒有對 first-frame anchor、訓練期 10% drop-context 機制做 ablation,故這兩個設計的必要性未被實證。
+
+### 6.6 Phyra Experiment Assessment
+
+- [partial] Has at least one strong baseline (a current SoTA on the chosen task) — 比較了 DFoT (Song et al. 2025) 與 FramePack (Zhang & Agrawala 2025) 兩個近期 long-video 生成方法,但是在作者的 1B 內部 base model 與自建 UE5 dataset 上「重新實作」(§4.2 "all methods were implemented on our base model and dataset"),並未直接比對原作者公開權重,且未納入 WorldMem 等同期 memory-oriented 方法,故 SoTA 對比僅算 partial。
+- [partial] Has cross-task / cross-dataset evaluation (not just one benchmark) — 主要量化評估僅在自建 UE5 dataset 上 (§4.1);§4.4 與 Appendix C 提供 open-domain 圖片作為 first frame 的 qualitative 結果,但無量化跨 dataset 評估。
+- [covered] Has ablations that diagnose the new components (not just sanity checks) — Table 3 對 FOV / Non-adj / Far-space-time 三個 retrieval 元件做了逐一加入的診斷,Table 2 對 context size 做了容量掃描,均直接對應方法主張。
+- [partial] Has a scaling study (size, length, or compute) — Table 2 的 context size 掃描可視為一種 length/compute scaling,但未做 model size scaling(整篇僅在單一 1B base model 上實驗,作者亦在 Appendix C 自承「Validating our approach with larger-scale base models remains a future research direction」),也未測試大幅延長生成 horizon 的退化曲線。
+- [partial] Has an efficiency / wall-clock comparison — Table 2 報告了不同 context size 下的 inference fps(1.60 → 0.79),但未在 Table 1 的 baseline 比較中報告速度,因此無法直接比對 DFoT/FramePack 與本方法的推理成本。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — 所有 Table 1/2/3 皆為單一數值,無 standard deviation、無多 seed 平均、無顯著性檢定;部分指標差距很小(例如 Table 3 最後兩列 HC LPIPS 0.3571 vs 0.3414 但 HC PSNR 反向),欠缺變異量資訊難以判斷穩健性。
+- [missing] Releases code / weights / data sufficient for reproducibility — 論文僅提供 project page 連結 (https://context-as-memory.github.io/),正文與 appendix 未承諾釋出 code、模型權重或 UE5 dataset;base T2V model 為「internal 1B-parameter ... developed for research purposes」,本身即不可獲取,實質可重現性偏低。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Contribution 1: Context-as-Memory（直接以 frame 形式存 context、frame-dim concatenation 注入）**: **Supported**。Table 1 中所有 metric 都優於 DFoT、FramePack、random context，且 Fig. 5 的 qualitative comparison 同步顯示場景在 rotate-back 後仍可復現。但「優於 SOTA」應限縮為「優於 DFoT 與 FramePack」，因為 WorldMem 並未進入比較。
+- **Contribution 2: Memory Retrieval（FOV overlap-based rule）**: **Supported**。Table 3 的階梯式 ablation（Random → FOV+Random → FOV+Non-adj）顯示 FOV filter 帶來最大幅度提升（PSNR +1.47），「Non-adj」再加 +0.94，邏輯與設計動機吻合。然而 `Far-space-time` 額外成分幾乎無收益（+0.11），作者亦在 §3.3 自承「in most cases, this additional selection may not be necessary」，這部分 claim 偏弱。
+- **Contribution 3: Long, scene-consistent UE5 dataset with precise camera annotation**: **Supported as a dataset artifact**，但**Overclaimed in coverage**。100 段影片、12 scene、XY-plane 限制（Appendix B）只能稱為「a moderate-scale specialized memory benchmark」，與 abstract 暗示的 general long video memory training set 仍有距離。
+- **Contribution 4: Open-domain generalization**: **Partially supported**。Fig. 6, 8, 9 確實在 anime/realistic/game 風格圖像上展現可用結果，但全為 qualitative，且軌跡限定為「rotate away and rotate back」，對於「effective memory in unseen open-domain scenarios」的論述強度不足；複雜軌跡作者在 Appendix C 自承會崩潰。
+- **Implicit claim: 比 cross-attention 注入式（WorldMem）與壓縮式（FramePack）方法在邏輯上更優**（核心論證的延伸）: **Logically argued, empirically partial**。對 FramePack 的指數衰減論證得到 Table 1 數字支持（FramePack 反而輸給 random context），但 WorldMem 的「cross-attention 注入」優劣完全沒有實驗對照。
+
+### 7.2 Fundamental Limitations of the Method
+
+**FOV overlap 是 visibility 的純幾何 proxy，與「context frame 是否提供有用資訊」不等價。** 即使兩相機 frustum 重疊，遮擋、視差、光照變化都會讓「幾何上可見」≠「對 generation 有幫助」。作者在 §5 自承遮擋場景失效，但這不只是 corner case；任何包含前景物件的 scene 都會破壞 FOV ⇒ co-visibility 的假設。要根本解決必須引入 depth、occlusion mask 或 learned similarity，而那會把 rule-based 的解析優勢一併取消。
+
+**XY 平面 + z-rotation 的軌跡限制深植於 retrieval 演算法，不是資料集選擇而已。** Fig. 4 的「四條 ray 的交點」只在 2D 上才能 well-defined；推廣到 6DoF 需要從 ray intersection 改為 frustum-frustum intersection，並且距離過濾、夾角過濾都得重新設計。這意味著現行 Memory Retrieval 模組無法直接應用於真實互動 / 遊戲 / 機器人模擬場景，這些場景普遍包含俯仰、上下平移與滾轉。
+
+**自迴歸式 long-video generation 的 error accumulation 在 Context-as-Memory 框架下會被新的 retrieval 路徑放大。** 一旦早期 generated frame 出錯，這些錯誤幀仍會被當作 ground-truth memory 餵回未來預測；FOV overlap 不會、也無法判別「這張歷史幀本身是否可信」。換言之，本方法把 long-term consistency 的失敗模式從「forget」轉換為「reinforce wrong memory」，當生成走樣時很可能 self-confirm。作者在 §5 將此歸於 base model 大小，但這是結構性而非規模性問題。
+
+**Context size 是 hard cap，且 retrieval 結果不再可壓縮。** 因為作者明確拒絕 hierarchical compression（FramePack 路線）以避免遠程資訊損失，而是改成「精挑 $k=20$ 張完整幀」。當軌跡長度增加、共視幀數遠超 20 時，必須再做一次「retrieval 內的 retrieval」，但目前只有 random selection 與 far-space-time 兩個簡陋策略。這在概念上重新引入了 FramePack 想避開的「丟失歷史」問題，只是把丟失點延後到了 retrieval 出口。
+
+### 7.3 Citations Worth Tracking
+
+- **WorldMem (Xiao et al. 2025, arXiv:2504.12369)**: 本文 Related Work 中被認定為「最相近 memory 路線」，但 Table 1 完全缺席；要驗證本文核心 claim「concatenation 優於 cross-attention 注入」必須親自比對 WorldMem 的設計與結果。
+- **FramePack (Zhang & Agrawala 2025, arXiv:2504.12626)**: 唯一在 Table 1 中代表 hierarchical compression 路線的 baseline；理解其指數壓縮策略的實際失效模式，能反推本文 retrieval-only 路線的優劣邊界。
+- **ReCamMaster (Bai et al. 2025, arXiv:2503.11647)**: 本文 frame-dim concatenation 與 camera encoder ($\mathcal{E}_c$) 機制直接沿用，Algorithm/loss 幾乎是其特化；要評估本文方法新穎度必須先讀此前置工作。
+- **DFoT / History-Guided Video Diffusion (Song et al. 2025, arXiv:2502.06764)**: 「fixed-window streaming diffusion」的代表，是 Table 1 主要 baseline，也是判斷「為什麼 random context 反而贏」這個有趣現象的對照基準。
+- **FAR (Gu et al. 2025, arXiv:2503.19325)**: 並行的 long-/short-term context window 設計；本文 §2.2 點到但未實驗對比，是了解 long-context video generation 設計空間的關鍵 alternative point of view。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] WorldMem 採 cross-attention 注入歷史幀，本文以 frame-dim concatenation 取代並聲稱結構更優，但 Table 1 缺此 baseline；在同 base model、同 dataset 下 WorldMem 的 PSNR/LPIPS 究竟是多少？
+- [ ] 「rotate n degrees and return」之外，當軌跡為「長距離平移後折返」、「環狀繞行」或「多段折返」時，FOV+Non-adj retrieval 的 hit rate 與 generation PSNR 如何隨軌跡複雜度衰減？
+- [ ] 當推廣至 6DoF（含俯仰、滾轉、垂直平移）時，目前 ray-intersection 規則的失敗率有多少？是否需改寫成 frustum-frustum 重疊？
+- [ ] Camera pose 本身帶有控制誤差（base model 並非 pose-perfect），在合成 noise（例如 ±5° 旋轉、±0.5 m 平移）下 retrieval 結果與 generation 質量的退化曲線為何？
+- [ ] Context size 超過 20 後 PSNR 飽和（Table 2），這是 retrieval 已抓到所有真正共視幀，還是 DiT 的 attention 對長 context 的有效利用率本身已封頂？
+- [ ] Algorithm 2 在 inference 時假設 incremental 計算 FOV overlap，但成本未量化；當歷史幀達數千張時，retrieval 步驟相對於 denoise 50 steps 的延遲占比是多少？
+- [ ] Open-domain 結果僅為 qualitative，若以 user study 或 CLIP-based 一致性指標量化，與 in-domain 之間的 gap 多大？
+- [ ] 訓練時 10% 機率「only recent context」這個模擬冷啟動的 trick，移除後對長片中後段的 memory 行為有何影響？
+
+### 8.2 Improvement Directions
+
+1. **加入 depth / occlusion-aware overlap 判定（高可行性）**: 目前 ray intersection 完全忽略 depth；既然 base model 已有 camera control，可附加輕量 depth estimator 或直接從 latent 推 depth，將 FOV overlap 升級為「frustum + visibility test」。邏輯依據：作者已自承遮擋場景失效（§5），且從 4.2.2 觀察，遮擋幾乎是 indoor 場景的常態。
+2. **與 FramePack 式壓縮做混合 retrieval（中高可行性）**: 對於 retrieval 後仍超出 $k$ 上限的歷史幀，把「最遠時間段」用低解析度 token 壓縮保留，而非直接拋棄。邏輯依據：Table 3 的 `Far-space-time` 收益微弱（+0.11 PSNR）暗示「遠程幀」目前其實沒被有效利用；FramePack 雖整體輸給本文，但其 hierarchical 想法在邊界情況下仍有救援價值。
+3. **加入語意相似度 fallback（中可行性）**: 在 FOV 判定為 no-overlap 但 prompt 高度相關時，啟用一個簡單的 CLIP/image embedding similarity score。邏輯依據：4.2.2 提到 FOV 是純幾何 proxy；而 §4.4 open-domain 結果暗示 base model 的 visual prior 本身已具語意能力，可以零成本借用。
+4. **針對 dynamic scene 引入時間衰減 + foreground/background 分離（中可行性）**: 把 memory 拆成 static background memory（適用 FOV rule）與 dynamic object memory（用 short window）。邏輯依據：作者 §5 明列 dynamic scene 為主要限制，而 background 與 foreground 的記憶需求在物理上本來就不同。
+5. **Quantitative open-domain benchmark（中可行性）**: 蒐集 50–100 張各風格首幀，固定一組從簡到難的軌跡，回報 CLIP-temporal-consistency 與 user study。邏輯依據：Fig. 6/8/9 全為 qualitative，使「open-domain effective memory」的論述缺乏實證。
+6. **6DoF retrieval 與資料集擴充（中低可行性）**: 將 UE5 trajectory 解除 XY-plane 限制，重訓並改寫 retrieval 為 frustum-frustum 重疊。邏輯依據：本文最大 hidden 限制（4.2.2）即 2D 軌跡，這是邁向真實互動場景的硬性需求。
+7. **替換為更大 base model 並追蹤 error accumulation（低可行性，依資源）**: 作者 Appendix C 已點名 1B 不足，此為純規模擴張；惟需保留小模型對照組以分離「記憶能力提升」與「base model 提升」貢獻。邏輯依據：7.2 第三段指出 error accumulation 在本框架下會 self-reinforce，必須以 controlled scale-up 才能判斷規模能否治本。

@@ -1,0 +1,447 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>PhysInOne: Visual Physics Learning and Reasoning in One Suite</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: rgba(255,255,255,0.86);
+  --p-formula-bg: rgba(255,255,255,0.6);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; color: var(--p-text); background: var(--p-light); }
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+         padding: 56px 80px 80px 80px; overflow: auto; opacity: 0;
+         pointer-events: none; transition: opacity 220ms ease-in-out;
+         background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%); }
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide-title { font-size: 1.6rem; font-weight: 600; color: var(--p-dark);
+               border-bottom: 2px solid var(--p-accent); padding-bottom: 8px;
+               margin: 0 0 24px 0; }
+.cover-block { display: flex; flex-direction: column; justify-content: center;
+               height: 80vh; }
+.cover-title { font-size: 2.6rem; line-height: 1.2; color: var(--p-dark);
+               margin: 0 0 24px 0; }
+.cover-meta { font-size: 1.05rem; color: var(--p-dark); margin: 4px 0; }
+.cover-tagline { margin-top: 32px; font-size: 1.05rem; line-height: 1.6;
+                 max-width: 1100px; }
+.card { background: var(--p-bg-card); border: 1px solid var(--p-border);
+        border-left: 4px solid var(--p-accent); border-radius: 8px;
+        padding: 20px 24px; margin: 0 0 16px 0; line-height: 1.6; }
+.card h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--p-dark); }
+.card p { margin: 0 0 10px 0; }
+.card ul, .card ol { margin: 8px 0 8px 24px; padding: 0; }
+.card li { margin: 4px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.codeblock { background: rgba(255,255,255,0.7); border: 1px solid var(--p-border);
+             border-radius: 6px; padding: 12px 16px; font-family:
+             "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+             font-size: 0.85rem; line-height: 1.55; overflow-x: auto;
+             white-space: pre; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 8px 0; }
+th { background: var(--p-accent); color: #FFF; padding: 8px 10px; text-align: left; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.04); }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+.paper-fig { max-width: 100%; max-height: 60vh; display: block; margin: 8px auto;
+             border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+              display: flex; align-items: center; padding: 0 24px;
+              background: rgba(0,0,0,0.04); border-top: 1px solid var(--p-border);
+              backdrop-filter: blur(6px); gap: 16px; }
+.bottom-bar .progress { flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+                        border-radius: 2px; overflow: hidden; }
+.bottom-bar .progress > div { height: 100%; background: var(--p-accent);
+                              transition: width 220ms; }
+.bottom-bar .nav { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.bottom-bar button { background: var(--p-accent); color: #FFF; border: 0;
+                     padding: 8px 14px; border-radius: 6px; cursor: pointer;
+                     font-size: 0.9rem; }
+.bottom-bar button:hover { background: var(--p-dark); }
+.bottom-bar .index { font-size: 0.9rem; color: var(--p-dark); min-width: 80px;
+                     text-align: center; flex: 0 0 auto; }
+.bottom-bar .title { font-size: 0.95rem; color: var(--p-dark); flex: 1 1 auto;
+                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                     min-width: 0; }
+.section-meta { font-size: 0.85rem; color: var(--p-dark); opacity: 0.7;
+                margin: 0 0 12px 0; font-style: italic; }
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <main class="deck">
+        <section class="slide" data-title="Cover"><h2 class="slide-title">Cover</h2>
+        <div class="cover-block">
+          <h1 class="cover-title">PhysInOne: Visual Physics Learning and Reasoning in One Suite</h1>
+          <p class="cover-meta">Siyuan Zhou, Hejun Wang, Hu Cheng, Jinxi Li, et al. (vLAR Group, PolyU; Syai Singapore; Meta)</p>
+          <p class="cover-meta">2604.09415 · CVPR 2026 · 2026-04-10</p>
+          <div class="cover-tagline"><p>本論文發表 PhysInOne：一個面向視覺物理學習與推理的大規模合成資料集，涵蓋力學、光學、流體力學與磁學四大日常物理領域，系統化整理 71 種基本物理現象並組合為 3,284 種 multiphysics 活動。作者使用 2,231 個 3D 物件、623 種材質與 528 個 3D 背景，建構出 153,810 個動態 3D 場景；每個場景以 12 個固定相機加 1 個移動單目相機渲染，產生 200 萬支具備 3D 幾何、語意分割、運動軌跡、物理屬性與文字描述等完整 ground-truth 標註的影片。透過 Chaos Physics、MPM 與 SPH 等多種模擬引擎，論文確保動力學遵循 Newton 定律、動量守恆、Hooke 定律等基本物理規律，並在 physics-aware video generation、long-/short-term future frame prediction、physical property estimation 與 motion transfer 四項應用上提供基準，為物理基礎的世界模型研究奠定資料基石。</p></div>
+        </div>
+        </section>
+<section class="slide" data-title="Overview"><h2 class="slide-title">Overview</h2>
+        <div class="grid-3">
+          <div class="card"><h3>Research Topic</h3><p>本論文發表 PhysInOne：一個面向視覺物理學習與推理的大規模合成資料集，涵蓋力學、光學、流體力學與磁學四大日常物理領域，系統化整理 71 種基本物理現象並組合為 3,284 種 multiphysics 活動。作者使用 2,231 個 3D 物件、623 種材質與 528 個 3D 背景，建構出 153,810 個動態 3D 場景；每個場景以 12 個固定相機加 1 個移動單目相機渲染，產生 200 萬支具備 3D 幾何、語意分割、運動軌跡、物理屬性與文字描述等完整 ground-truth 標註的影片。透過 Chaos Physics、MPM 與 SPH 等多種模擬引擎，論文確保動力學遵循 Newton 定律、動量守恆、Hooke 定律等基本物理規律，並在 physics-aware video generation、long-/short-term future frame prediction、physical property estimation 與 motion transfer 四項應用上提供基準，為物理基礎的世界模型研究奠定資料基石。</p></div>
+          <div class="card"><h3>Core Argument</h3><p>作者主張現有 LLM/LVM/MLLM 與生成模型即便具備視覺逼真度，仍頻繁違反基本物理定律（如物體向上掉落、速度突變），其根本原因不在於模型架構，而在於缺乏「足夠大規模、足夠多樣、且具備密集物理標註」的訓練資料。過往視覺物理資料集普遍存在三類侷限：（1）規模僅數十至數千樣本，遠不足以驅動基礎模型學會物理常識；（2）只涵蓋單一或極少數現象（如僅 stacking、僅 collision、僅 fluid），無法支撐世界模擬器所需的 multiphysics 同時/序列發生；（3）幾乎全為單一同質背景下的簡化幾何（cube、ball），與真實世界的多物互動、複雜背景、異質材質脫節。作者由此推導：要讓模型真正學會物理，資料必須同時在「現象廣度（71 種基本現象）、活動複雜度（single/double/triple-physics）、場景多樣性（multiobject + complex background + 多材質）、標註豐富度（geometry/semantics/motion/properties/text）與絕對規模（百萬級影片）」五個維度同時放大。PhysInOne 正是針對此論斷的逐項回應——以四大物理領域 71 現象為骨架，透過 Chaos Physics/MPM/SPH 多套模擬器確保 ground-truth 動力學嚴格遵循 Newton 定律、動量守恆、Hooke 定律等基本法則，並以 12+1 多視角相機產生密集監督訊號。實驗證明，僅以子集對 SVD、CogVideoX、Wan2.2 微調，便可顯著提升新提出的 Physical Motion Fidelity (PMF) 指標與人類評分；同時在 future frame prediction、property estimation、motion transfer 上揭露現有方法在新視角與複雜物理動態下的明顯缺口。因此資料集的存在不只是工程量級的擴展，而是物理基礎世界模型研究在邏輯上不可或缺的前置條件。</p></div>
+          <div class="card"><h3>Highlights</h3><ul><li>規模上將 visual physics dataset 推進到 2 million videos / 153,810 scenes，相較 Physion 的 24K 與 CLEVRER 的 10K 提升一至兩個數量級（Table 1, p.3）。</li><li>系統化定義 71 個 basic physical phenomena 並組合為 71 + 943 + 2270 = 3284 個 single/double/triple-physics 活動，是目前唯一明確標註多現象同時／序列發生的 dataset（§3.3, p.4–5）。</li><li>同時整合 Chaos Physics（UE5）、MPM（Taichi）、SPH（Doriflow）三套引擎，分別處理 rigid body、deformable/granular、liquid，避免單一 simulator 的物理覆蓋盲點（§3.4, p.5）。</li><li>每個場景以 12 個 fixed cameras 加 1 個 moving monocular camera、1120×1120 解析度、30 FPS（雷射場景 60 FPS）渲染，提供 seen 與 novel view 雙重評估能力（§3.5, p.5）。</li><li>annotation 涵蓋 geometry、semantics、motion、physical properties、text 五個面向，平均每場景 64 詞的人工 text 並以 Qwen3 校對（§3.6, p.5）。</li><li>提出 Physical Motion Fidelity (PMF) 指標，透過 $\mathrm{DFT}(V_{gen})$ 與 $\mathrm{DFT}(V_{ref})$ 的能量比較量化 kinematic 偏差，避開 pixel-level 對齊不可能的問題（Eq. 1, p.6）。</li><li>Wan2.2-5B 經 SFT 後 PMF 從 $2.041 \to 2.978$、human rating 從 $2.26 \to 5.95$，FVD 從 $258 \to 190$，三項指標一致改善（Table 2, p.6）。</li><li>long-term future frame prediction 顯示所有 4D modeling 方法在 novel viewpoint 下 PSNR 平均下降約 5 dB（DefGS $22.85 \to 17.95$），明確暴露 3D 物理建模的泛化缺口（Table 3, p.6）。</li><li>physical property estimation 上 PAC-NeRF 與 GIC 對 Young&#x27;s modulus $E$、Poisson&#x27;s ratio $\nu$、viscosity $\mu$ 的估計誤差動輒上百，量化呈現現有 system identification 在複雜場景下的失效（Table 5, p.7）。</li><li>資產規模可觀：2,231 objects（~163 categories）、623 materials（5 大類）、528 backgrounds，且全數採用允許學術／商業使用的 license（§3.2, p.4；Appendix 5.2, p.15）。</li></ul></div>
+        </div>
+        </section>
+<section class="slide" data-title="Paper Structure"><h2 class="slide-title">Paper Structure</h2><h2>3. Section Walkthrough</h2>
+<h3>3.1 Title and Abstract</h3>
+<p>(190 words)</p>
+<p>標題 PhysInOne: Visual Physics Learning and Reasoning in One Suite 中的 &quot;in One Suite&quot; 一語暗示作者要把多種 visual physics 任務所需的訓練與評估資料整合進「同一個」資料集，而不是再做一份只能服務單一現象或單一任務的小型 benchmark。Abstract 開門見山地把 PhysInOne 定位為對抗 &quot;physically-grounded training data scarcity&quot; 的大型 synthetic dataset，並用三個量化指標立刻把它和先前工作區分開：2 million videos、153,810 dynamic 3D scenes、71 basic physical phenomena，覆蓋 mechanics、optics、fluid dynamics、magnetism 四大日常物理領域。Abstract 接著強調與既有資料集的兩個質性差異，一是 scenes feature multiobject interactions against complex backgrounds，二是 ground-truth annotations 同時涵蓋 3D geometry、semantics、dynamic motion、physical properties、text descriptions 五類，為後文「能同時支援 generation、prediction、estimation、transfer 多種任務」鋪好邏輯前提。最後 abstract 主動承認 fine-tuning 雖能 significantly enhance physical plausibility，但同時 expose critical gaps in modeling complex physical dynamics and estimating intrinsic properties；這個 &quot;one-handed boast, one-handed honesty&quot; 的收尾把全文定調為「我們提供新尺度的資料、並用實驗顯示這個尺度依然不夠把問題解決」，自然地把讀者導向 §1 對 data scale 與 physical reasoning 之間關係的論證。</p>
+<h3>3.2 Introduction</h3>
+<p>(900 words)</p>
+<p>Introduction 採用「以資料規模史推論物理理解現況」的論證結構。第一段先列 Common Crawl、ImageNet、MS-COCO、LAION-5B、Objaverse-XL、Panda-70M，把「大規模、高品質資料是現代 ML 突破的催化劑」當作公理。第二段隨即指出儘管 LLM/LVM/MLLM/GenAI 在這些資料上取得進展，他們對 physical world 的理解仍然有限：AI 生成的影片頻繁違反基本物理定律（objects falling upward、suddenly shifting velocity），並引用近兩年 visual physics 學習工作說明這些方法 &quot;typically trained on only dozens, hundreds, or thousands of data points&quot;，把資料規模與物理理解能力直接掛鉤。第三段開始正面介紹 PhysInOne：作者依據大學物理教科書 Fundamentals of Physics 與近期 benchmark 工作 [62, 63] 鎖定 mechanics/optics/fluid dynamics/magnetism 四大可視化的日常物理領域，刻意排除 thermodynamics 與 acoustics，並從中萃取 71 個 key phenomena。每個 scene 同時或依序體現多個 phenomena，且嚴格遵循 Newton&#x27;s Laws、Mass Conservation、(Angular) Momentum Conservation、Hooke&#x27;s Law 等定律。每個 scene 配 13 段影片（12 fixed cameras + 1 smoothly moving monocular camera）並由人工撰寫一段品質標註的文字描述，搭配 3D mesh、moving trajectories、2D masks、materials、depths、camera poses 等 ground truth，主張這個量級 &quot;orders of magnitude larger than all existing visual physics datasets&quot;。第四到七段預告四個 emerging applications，這也是後續 §4 的骨架：(1) Physics-aware Video Generation，藉由 fine-tune SVD、CogVideoX、WAN，並用作者新提出的 PMF 量化 physical motion fidelity；(2) (Long-/Short-term) Future Frame Prediction，引用 Feynman 名言把「能不能預測下一幀」當成物理理解的試金石，並列出 TiNeuVox、DefGS、FreeGave、TRACE、ExtDM、MAGI-1 六個比較對象；(3) Physical Properties Estimation，benchmark PAC-NeRF 與 GIC，估計 Young&#x27;s modulus、Poisson&#x27;s ratio、viscosity 等參數；(4) Motion Transfer，評估 MotionPro 與 GoWithTheFlow，並坦承「結果仍然 largely unsatisfactory」。Introduction 的修辭策略很值得注意：每介紹一個應用，作者都同時給出一個 positive finding（fine-tune 後 PMF 進步、預測在 trained viewpoint 可用）和一個 negative finding（novel viewpoint 退化、複雜物體無法準確 inverse、physical motion 難以遷移），把 dataset 同時包裝為「能催化進步的訓練資源」與「能暴露現有方法極限的嚴格 benchmark」。最後一段以 &quot;these findings represent just a fraction of its potential&quot; 作收，把 §3 與 §4 設定為「示範性」而非「窮盡」，留下 community 接續使用的空間，自然將讀者帶往 §2 的 related work 比較。</p>
+<h3>3.3 Related Work / Preliminaries</h3>
+<p>(380 words)</p>
+<p>Section 2 把與 PhysInOne 在資料層面相關的工作切成三條軸線，目的是要在 §3 開始介紹自家資料集之前，把「為什麼需要再造一個」的論述補完。第一條軸線是 Datasets for Learning Physical Dynamics：作者點名 ShapeStacks 與 StableText2Brick 只關心 stability、VOE/IntPhys2019/PHYRE/ADEPT/CLEVRER/ESPRIT/Physion/CoPhy/CRAFT/SPACE+ 多半只 examine 單物體軌跡是否符合 intuitive physics，而非嚴格驗證對 strict physical laws 的遵守，並補刀說這些資料集裡的物體幾乎全是 oversimplified shapes（cubes、balls）配 homogeneous colors 與 clean backgrounds；至於 fluid 專門資料集（ScalarFlow、TomoFluid、FLAME、Obstacles、Richter et al.、NeuroFluid）也只覆蓋煙或液體單一面向。第二條軸線是 Datasets for Learning Physical Properties：列舉 Physics101、Physion++、Materialistic、PAC-NeRF、PhysTwin、PhysXNet、SOPHY、PixieVerse、PhysVid、VoMP，批評它們 &quot;usually focus on isolated individual objects or oversimplified 3D scenes&quot;。第三條軸線是 Datasets for Testing Physical Understanding：列出 ComPhy、PerceptionTest、TraySim、GRASP、PhyBench、Physics-IQ、Morpheus、WorldModelBench、WISA、VBench-2.0、PhysBench、DynSuperCLEVR、VideoPhy、VideoPhy-2、PhyX、IntPhys2、PhyGenBench、UGPhysics、STI-Bench、PhyWorldBench、PisaBench、NewtonGen、NewtonBench-60K，並指出這些 benchmark 多半圍繞 text-image-video QA 或 narrow scenarios，缺乏 &quot;the precise and diverse visual data and annotations needed to train or fine-tune large, general models&quot;。三條軸線分別對應 §1 預告的訓練資料、屬性估計、評估三個用途，每一軸都得出同一個結論：existing datasets 在 phenomena 數、scene 數、object/background 複雜度與 annotation 完整度其中至少一項上有顯著缺口。最後 §2 把 Table 1 當成證據總結：PhysInOne 在 # Physical Phenomena (71)、# Physical Scenes (153,810)、# Dynamic Videos (2 million)、Multiobject Interactions、Multiphysics Activities、Complex Objects、Complex Backgrounds、相機數 (12 fixed + 1 monocular)、annotation 五項齊全等所有欄位都同時為「最大」或「唯一打勾」。這張表格把 §3 的章節合理化為「不是要再做一個 incremental dataset，而是要把過去碎片化的資料層面一次補齊」，並為 §3 接下來說明 dataset 構造管線提供承接。</p>
+<h3>3.4 Method (overview narrative)</h3>
+<p>(1200 words)</p>
+<p>Section 3 的整體敘事是把資料集的構造拆成 phenomena 定義 → asset 採集 → scene 組合 → 動力學模擬 → 相機與影片渲染 → 標註與切分 六步管線（Figure 2）。§3.1 先把 §1、§2 已經提到的「71 basic physical phenomena」具體化：每個 phenomenon 是一個概念性的日常物理事件，受 Newton&#x27;s Laws、Conservation of Momentum、Hooke&#x27;s Law、Bernoulli&#x27;s Principle 等一條或多條 fundamental law 支配，完整列表延後到附錄 5.1。重要的鋪陳是作者強調 &quot;each basic physical phenomenon represents a conceptual occurrence in daily life, not a specific, concrete 3D scene&quot;，這把 phenomenon 與 scene 兩個概念分層，為 §3.3 的 single/double/triple-physics 組合留下乘法擴張空間。§3.2 接著介紹 3D asset 採集策略：2,231 個來自 Sketchfab、FAB、BlenderKit 的 common objects（約 163 categories），按 physical 行為再細分為 solid、interactable（以 Blueprints 實作於 UE）、destructible（以 Geometry Collections 實作）、deformable（用 MPM 模擬）、granular（同樣用 MPM）、liquid（用 SPH）六類，再加上 623 個跨 plastic/metal/wood/stone/fabric 五大類別並可調整 friction、density、restitution 的 materials，以及 528 個涵蓋室內外、不同空間尺度的 backgrounds，所有資產都明確標示為學術與商業可用。§3.3 是把 §3.1 與 §3.2 連起來的關鍵：作者在 Step 1 把 phenomena 拆成 single-physics（71）、double-physics（C(71,2) 篩選後 943）、triple-physics（篩選後 2,270）三個 activity 等級，總共 3,284 個 conceptual activities；Step 2 為每個 activity 設計合理的背景；Step 3 把多個 asset 放進背景；Step 4 變更 material 與物理參數產生 scene 變體。最後 153,810 個 unique multiphysics multiobject scenes 平均對應每個 activity 46.84 個 scenes，且 single/double/triple 平均物件數為 3.9/6.3/7.8，作者用這個遞增證明場景複雜度確實隨 activity 級別遞增。§3.4 切到 simulation backend：UE5 的 Chaos Physics 處理多數 daily 場景、Taichi 的 MPM 處理 deformable 與 granular、Doriflow 的 SPH 處理 liquid；作者主動承認 simulator 不可能 perfect，但引用 [32, 60, 100] 主張 errors 已被 thoroughly studied 且足以推進研究。§3.5 處理「拍攝」：每個 scene 在上半球 elevation 30°-60° 均勻擺 12 個 static cameras 並依背景空間做 per-scene 微調，再加一個沿著預設軌跡圍繞 activity 的 monocular moving camera，輸出 1120×1120 解析度、30 FPS（laser activity 的 8,780 個場景用 60 FPS）平均 5.2 秒長的影片，總計 2 million dynamic videos。§3.6 收尾於標註：每個 scene 配一段平均 64 字、由人工撰寫並用 Qwen3 校對文法的英文段落，渲染同時輸出 depth、per-frame masks、3D trajectories、object meshes、material properties，覆蓋 geometry、semantics、motion、physical properties、textual descriptions 五個面向；最後採 8:1:1 切分 train/val/held-out test，並 enforce 所有 3D asset 只出現在單一 partition 以避免 data leakage，並補上 standardized development 與 independent validation 的品質流程。整節敘事的功能是把 §1、§2 點過的「scale、diversity、annotation」三個賣點轉成可重現的工程程序，並透過 phenomena/activity/scene 的層級遞推、與 single/double/triple physics 的組合爆炸，邏輯地論證為何能達到 153,810 scenes 與 2M videos 的量級，順勢為 §4 的四個下游任務提供足夠且分布合理的訓練/測試資料。</p>
+<h3>3.5 Experiments (overview narrative)</h3>
+<p>(1700 words)</p>
+<p>Section 4 把 §1 預告的四個 emerging applications 一一展開，並維持「先驗證 PhysInOne 訓練有效、再揭露現有方法仍不足」的雙軌結論。§4.1 Physics-aware Video Generation 選了三個代表性架構作 fine-tune：UNet-based I2V SVD-XT、Transformer-based TI2V CogVideoX-1.5-5B、最新 Transformer + flow matching 的 Wan2.2-5B；每個模型都試 LoRA、SFT、FLT 三種微調策略。為了量化「物理運動正確性」，作者主張 FVD 等傳統指標只測視覺真實感、video VLM 缺乏物理理解、QA-based benchmark 又僅能定性評估，因此提出新指標 Physical Motion Fidelity (PMF)：對 reference video Vref 與在相同 initial frame 與 prompt 下生成的 Vgen，分別取 DFT，比較 squared amplitude 的 energy 差異，並聲明 frame-perfect alignment &quot;is neither achievable nor desirable in generative tasks&quot;。實驗從 PhysInOne 抽 83,650 text-video pairs 訓練、772 pairs 測試（test-small），結果（Table 2）顯示 SVDsft、Wan2.2sft 在 PMF 上明顯超過原 baseline，且 user study 評分與 PMF 高度相關，作為對新指標的人類驗證；右半部依四大物理領域分項，magnetism 與 fluid 普遍較高，mechanics 與 optics 較低，作者解讀為 future research 應對的難點。§4.2 切成 long-term 與 short-term 兩個 future frame prediction 子任務以對齊 video understanding 與 robot manipulation 兩種應用情境。§4.2.1 long-term 任務在 test-mini（103 scenes）上要求模型用前半段預測後半段（約 2.6 秒、78 幀），對比 4D modeling 路線（TiNeuVox、DefGS、FreeGave、TRACE）與 video prediction 路線（從零訓練的 ExtDM、預訓練的 MAGI-1），同時報告 PSNR/SSIM/LPIPS 與 PMF；Table 3 顯示在 trained viewpoint 各方法尚可，但 4D 方法在 novel viewpoint 全面退化，作者把這視為「3D 空間中的 complex physical motion 仍是公開難題」的證據。§4.2.2 short-term 任務模擬機器人控制需求，要求連續預測下一個 10 幀；只評估 DefGS、FreeGave、ExtDM、MAGI-1 四個方法，結論方向與 long-term 一致：seen view 表現可用、novel view 仍是瓶頸。§4.3 Physical Properties Estimation 在 test-tiny（20 scenes，每類 4 個）上評 PAC-NeRF 與 GIC 對 Elastic Solids（log10(E)、ν）、Plasticine（再加 log10(τY)）、Newtonian Fluids（log10(µ)、log10(κ)）、Non-Newtonian Fluids（再加 log10(τY)、log10(η)）、Granular Substances（θfric）五大類材料的反演精度，並額外估計 initial velocity v；除了 Table 5 直接比對估計誤差，作者還做 resimulation：用估計參數在 modified 初始條件下重渲染，再與 ground-truth physics 渲出來的 reference video 比 PSNR/SSIM/LPIPS/PMF（Table 6）。結論是兩個方法都 infer 出 plausible 屬性，但在 PhysInOne 的 complex object 與 intricate background 場景下精度顯著不足，圖 5 直接展示這些失敗的 resimulation 視覺結果。§4.4 Motion Transfer 用 PhysInOne val set 中 273 個 dynamic scenes 當 source，把 source object 替換成不同 shape 與 material 但保持相同 physics activity 來生成 target；評估 MotionPro 與 GoWithTheFlow 在 PSNR/SSIM/LPIPS 與 PMF 上的表現（Table 7），結論是兩者皆能維持高 visual fidelity，但無法準確遷移 multiphysics interactions（圖 6 顯示 ball 沒有正確下落、car 沒有正確被撞）。整個 §4 的整體敘事策略是把 PhysInOne 同時鋪成「微調資源」「benchmark testbed」「新指標 (PMF) 的試金石」三角；四個應用都遵循「fine-tune 進步 → seen 場景可用 → novel/複雜場景退化」的同構結論，把整篇文章的下半部寫成對未來研究方向的廣告，與 §5 的限制段落自然銜接。</p>
+<h3>3.6 Conclusion / Limitations / Future Work</h3>
+<p>(80 words)</p>
+<p>Section 5 Conclusion 極為精簡，等同把全文五大要素濃縮為兩句：第一句重申 contribution，PhysInOne 是覆蓋 71 phenomena、153,810 dynamic 3D scenes、2 million videos 的 comprehensive dataset；第二句平衡 §4 的雙軌結論，承認 fine-tuning 在四個任務都顯著提升 physical plausibility，但 existing methods 仍然 struggle to accurately learn complex multiobject dynamics and physical properties，並把這個事實重新包裝為 &quot;validating the dataset&#x27;s value as a rigorous testbed&quot;，把 dataset 同時當成資源與標尺。值得注意的是，正文沒有顯式的 Limitations 與 Future Work 小節，敘事上把 §4 各應用尾段隨手點出的弱點（novel-view 退化、complex-scene 反演不準、motion-transfer 失真）暗示為 future work 的方向；而 simulator fidelity 的不確定性則由 §3.4 段落中對 [32, 60] 的引用以及「errors are thoroughly studied and controlled」這個自我緩解陳述代為承擔。換言之，作者選擇不另立明確的 limitations 段落，而是把「資料集很大但仍不完美、模型微調有效但仍不夠」這個 honest framing 透過 abstract → introduction → applications → conclusion 反覆出現的「improve / yet expose gaps」修辭，讓讀者把限制與未來工作自行補完。這個結尾的功能是把整篇論文鎖定為一個 &quot;infrastructure paper&quot;：作者主張自己提供的是 community 可繼續挖掘的工具，而不是要把所有 visual physics 問題就此解決。</p></section>
+<section class="slide" data-title="Introduction"><h2 class="slide-title">Introduction</h2><p class="section-meta">(900 words)</p>
+<div class="card"><p>Introduction 採用「以資料規模史推論物理理解現況」的論證結構。第一段先列 Common Crawl、ImageNet、MS-COCO、LAION-5B、Objaverse-XL、Panda-70M，把「大規模、高品質資料是現代 ML 突破的催化劑」當作公理。第二段隨即指出儘管 LLM/LVM/MLLM/GenAI 在這些資料上取得進展，他們對 physical world 的理解仍然有限：AI 生成的影片頻繁違反基本物理定律（objects falling upward、suddenly shifting velocity），並引用近兩年 visual physics 學習工作說明這些方法 &quot;typically trained on only dozens, hundreds, or thousands of data points&quot;，把資料規模與物理理解能力直接掛鉤。第三段開始正面介紹 PhysInOne：作者依據大學物理教科書 Fundamentals of Physics 與近期 benchmark 工作 [62, 63] 鎖定 mechanics/optics/fluid dynamics/magnetism 四大可視化的日常物理領域，刻意排除 thermodynamics 與 acoustics，並從中萃取 71 個 key phenomena。每個 scene 同時或依序體現多個 phenomena，且嚴格遵循 Newton&#x27;s Laws、Mass Conservation、(Angular) Momentum Conservation、Hooke&#x27;s Law 等定律。每個 scene 配 13 段影片（12 fixed cameras + 1 smoothly moving monocular camera）並由人工撰寫一段品質標註的文字描述，搭配 3D mesh、moving trajectories、2D masks、materials、depths、camera poses 等 ground truth，主張這個量級 &quot;orders of magnitude larger than all existing visual physics datasets&quot;。第四到七段預告四個 emerging applications，這也是後續 §4 的骨架：(1) Physics-aware Video Generation，藉由 fine-tune SVD、CogVideoX、WAN，並用作者新提出的 PMF 量化 physical motion fidelity；(2) (Long-/Short-term) Future Frame Prediction，引用 Feynman 名言把「能不能預測下一幀」當成物理理解的試金石，並列出 TiNeuVox、DefGS、FreeGave、TRACE、ExtDM、MAGI-1 六個比較對象；(3) Physical Properties Estimation，benchmark PAC-NeRF 與 GIC，估計 Young&#x27;s modulus、Poisson&#x27;s ratio、viscosity 等參數；(4) Motion Transfer，評估 MotionPro 與 GoWithTheFlow，並坦承「結果仍然 largely unsatisfactory」。Introduction 的修辭策略很值得注意：每介紹一個應用，作者都同時給出一個 positive finding（fine-tune 後 PMF 進步、預測在 trained viewpoint 可用）和一個 negative finding（novel viewpoint 退化、複雜物體無法準確 inverse、physical motion 難以遷移），把 dataset 同時包裝為「能催化進步的訓練資源」與「能暴露現有方法極限的嚴格 benchmark」。最後一段以 &quot;these findings represent just a fraction of its potential&quot; 作收，把 §3 與 §4 設定為「示範性」而非「窮盡」，留下 community 接續使用的空間，自然將讀者帶往 §2 的 related work 比較。</p></div></section>
+<section class="slide" data-title="Related Work"><h2 class="slide-title">Related Work</h2><p class="section-meta">(380 words)</p>
+<div class="card"><p>Section 2 把與 PhysInOne 在資料層面相關的工作切成三條軸線，目的是要在 §3 開始介紹自家資料集之前，把「為什麼需要再造一個」的論述補完。第一條軸線是 Datasets for Learning Physical Dynamics：作者點名 ShapeStacks 與 StableText2Brick 只關心 stability、VOE/IntPhys2019/PHYRE/ADEPT/CLEVRER/ESPRIT/Physion/CoPhy/CRAFT/SPACE+ 多半只 examine 單物體軌跡是否符合 intuitive physics，而非嚴格驗證對 strict physical laws 的遵守，並補刀說這些資料集裡的物體幾乎全是 oversimplified shapes（cubes、balls）配 homogeneous colors 與 clean backgrounds；至於 fluid 專門資料集（ScalarFlow、TomoFluid、FLAME、Obstacles、Richter et al.、NeuroFluid）也只覆蓋煙或液體單一面向。第二條軸線是 Datasets for Learning Physical Properties：列舉 Physics101、Physion++、Materialistic、PAC-NeRF、PhysTwin、PhysXNet、SOPHY、PixieVerse、PhysVid、VoMP，批評它們 &quot;usually focus on isolated individual objects or oversimplified 3D scenes&quot;。第三條軸線是 Datasets for Testing Physical Understanding：列出 ComPhy、PerceptionTest、TraySim、GRASP、PhyBench、Physics-IQ、Morpheus、WorldModelBench、WISA、VBench-2.0、PhysBench、DynSuperCLEVR、VideoPhy、VideoPhy-2、PhyX、IntPhys2、PhyGenBench、UGPhysics、STI-Bench、PhyWorldBench、PisaBench、NewtonGen、NewtonBench-60K，並指出這些 benchmark 多半圍繞 text-image-video QA 或 narrow scenarios，缺乏 &quot;the precise and diverse visual data and annotations needed to train or fine-tune large, general models&quot;。三條軸線分別對應 §1 預告的訓練資料、屬性估計、評估三個用途，每一軸都得出同一個結論：existing datasets 在 phenomena 數、scene 數、object/background 複雜度與 annotation 完整度其中至少一項上有顯著缺口。最後 §2 把 Table 1 當成證據總結：PhysInOne 在 # Physical Phenomena (71)、# Physical Scenes (153,810)、# Dynamic Videos (2 million)、Multiobject Interactions、Multiphysics Activities、Complex Objects、Complex Backgrounds、相機數 (12 fixed + 1 monocular)、annotation 五項齊全等所有欄位都同時為「最大」或「唯一打勾」。這張表格把 §3 的章節合理化為「不是要再做一個 incremental dataset，而是要把過去碎片化的資料層面一次補齊」，並為 §3 接下來說明 dataset 構造管線提供承接。</p></div></section>
+<section class="slide" data-title="Method — Overview"><h2 class="slide-title">Method — Overview</h2>
+        <div class="grid-2">
+          <div class="card"><h3>Narrative</h3><p>PhysInOne 提出的並不是一個新的模型，而是一條完整的「視覺物理資料生產管線」（Figure 2，page 4）。整條管線的核心命題是：要讓 foundation models 真正理解物理，資料必須在現象廣度、活動複雜度、場景多樣性、標註豐富度、絕對規模五個維度同時放大；因此管線將日常物理拆解為 4 個 core areas（mechanics、optics、fluid dynamics、magnetism）下的 71 個 basic phenomena，再藉由組合操作放大為 3,284 個 multiphysics activities，最終實例化為 153,810 個動態 3D 場景並以 12+1 多視角相機渲染為約 2,000,000 支具備密集 ground-truth 的影片（page 2、page 4 Figure 2）。</p>
+<p>管線上半段是「資產到活動到場景」的離散組合過程。§3.1（page 4）固定了 71 個 phenomena 及其 governing laws（Newton&#x27;s Laws、Conservation of Momentum、Hooke&#x27;s Law、Bernoulli&#x27;s Principle 等，完整對應表在 Appendix 5.1）；§3.2（page 4）收集 2,231 個 3D objects（涵蓋 solid、interactable、destructible、deformable、granular、liquid 六種類型，約 163 categories）、623 個 materials（plastic、metal、wood、stone、fabric 五類，每類附帶可調 friction coefficient、density、restitution 等物理屬性）、528 個 3D backgrounds；§3.3（page 4–5）以四步驟流程（Emulating Multiphysics、Setting Up Backgrounds、Placing Multiobjects、Varying Materials）將 single/double/triple-physics activities 各自實例化，平均每個 activity 對應 $46.84$ 個 scenes，每場景平均 $3.9/6.3/7.8$ 個 3D assets，呈現複雜度遞增的階梯。</p>
+<p>管線下半段是「模擬到渲染到標註」的連續訊號生產過程。§3.4（page 5）依 object type 將動力學 dispatch 至三套 simulator：Chaos Physics（內建於 UE5，處理絕大多數 rigid 與 destructible 動力學）、MPM（以 Taichi 實作，處理 deformable 與 granular）、SPH（以 Doriflow 實作，處理 liquid）。§3.5（page 5）為每個 scene 部署 12 個 fixed cameras（在上半球以仰角 $30^\circ$ 至 $60^\circ$ 均勻取樣）加 1 個 moving monocular camera（以 random elevation 預先定義繞行軌跡），以 $1120 \times 1120$ 解析度、$30$ FPS（laser 相關 8,780 scenes 為 $60$ FPS）渲染平均 $5.2$ 秒影片。§3.6（page 5）同步輸出 depth、per-frame object masks、3D trajectories、object meshes、material properties，以及平均 $\sim 64$ 個英文字、經 Qwen3 校稿的人工敘事文本，並以 $8{:}1{:}1$ 切分 train/val/held-out test，且確保 3D assets 不跨集合，以避免 data leakage。</p></div>
+          <div class="card"><h3>Pipeline (tensor shapes)</h3><pre class="codeblock"><code>Input: 4 everyday physics domains {Mechanics, Optics, Fluid Dynamics, Magnetism}
+   │
+   ├→ [§3.1, p.4] Phenomenon Taxonomy
+   │     governing laws: {Newton&#x27;s, (Angular) Momentum/Mass Conservation,
+   │                      Hooke&#x27;s, Bernoulli&#x27;s, ...}
+   │     output: basic_phenomena, shape [71]
+   │
+   ├→ [§3.2, p.4] Asset Collection (Sketchfab / FAB / BlenderKit)
+   │     ├─ objects:      shape [2231]   (6 sub-types, ~163 categories)
+   │     ├─ materials:    shape [623]    (5 categories, with physics params)
+   │     └─ backgrounds:  shape [528]    (indoor + outdoor, multi-scale)
+   │
+   ├→ [§3.3 Step 1, p.4–5] Activity Composition (curated combinatorial)
+   │     ├─ single-physics: shape [71]
+   │     ├─ double-physics: shape [943]    (filtered from C(71,2)=2485)
+   │     └─ triple-physics: shape [2270]   (filtered from C(71,3)=57155)
+   │     output: activities, shape [3284]
+   │
+   ├→ [§3.3 Step 2–4, p.5] Scene Instantiation
+   │     for each activity a in [3284]:
+   │       Step 2  pick background      b  ∈ [528]
+   │       Step 3  place N_obj objects  N̄_obj = {3.9, 6.3, 7.8} (single/double/triple)
+   │       Step 4  assign materials     m_i ∈ [623]; sample physical params
+   │     output: scenes, shape [153810]    (≈ 46.84 scenes per activity)
+   │
+   ├→ [§3.4, p.5] Physics Simulation (router by object type)
+   │     ├─ Chaos Physics @ UE5:  rigid + destructible    → object state traj
+   │     ├─ MPM @ Taichi:         deformable + granular   → particle traj
+   │     └─ SPH @ Doriflow:       liquid                  → particle traj
+   │     per-scene dynamics over T frames; FPS = 30 (60 for 8780 laser scenes)
+   │     T̄ ≈ ⌊5.2 × FPS⌋ ≈ 156 frames (variable)
+   │
+   ├→ [§3.5, p.5] Multi-View Rendering
+   │     per scene: 12 fixed cameras (upper hemisphere, elevation 30°–60°)
+   │              + 1 moving monocular camera (random-elevation orbit)
+   │     RGB tensor (per scene):  shape [13, T, 1120, 1120, 3]
+   │     output: video corpus,    shape [≈2,000,000]   (= 153810 × 13)
+   │
+   └→ [§3.6, p.5] Joint Annotation Generation
+         ├─ text:          ~64 English words / scene (Qwen3-proofread)
+         ├─ depth:         shape [13, T, 1120, 1120]
+         ├─ masks:         shape [13, T, 1120, 1120]   (per-frame object masks)
+         ├─ 3D traj:       shape [N_obj_dyn, T, 3]
+         ├─ meshes:        per-object, per-frame
+         └─ properties:    {E, ν, μ, κ, τ_Y, η, θ_fric, ...}
+         split: 8:1:1 (train / val / held-out test); 3D-asset-disjoint partitions</code></pre></div>
+        </div>
+        </section>
+<section class="slide" data-title="Method — 5.3.1 Physical Phenomenon Taxonomy"><h2 class="slide-title">Method — 5.3.1 Physical Phenomenon Taxonomy</h2><div class="card"><p><strong>Function:</strong> 定義整條管線的「物理詞彙表」，將日常物理離散化為一組可組合、可標註、且各自綁定 governing laws 的 basic phenomena。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>physics_areas</code></li><li>Shape: <code>[4]</code> (mechanics, optics, fluid dynamics, magnetism)</li><li>Source: 由 textbook <em>Fundamentals of Physics</em> [39] 與 [62, 63] 推得（page 2）</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>basic_phenomena</code></li><li>Shape: <code>[71]</code></li><li>Consumer: §3.3 Step 1 Activity Composition</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>從四個 core areas 中刪除 thermodynamics 與 acoustics（page 2 說明：兩者通常不可見或需要溫度/聲音額外感測）。</li><li>依日常出現頻率與視覺可觀測性，逐一列舉如 gravity、reflection、buoyancy、magnetic attraction 等 71 個 basic phenomena。</li><li>為每個 phenomenon 綁定一個或多個 governing laws，作為後續 simulator 參數設定與 ground-truth 校驗的依據。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>paper 並未給出 phenomenon 的閉式定義；governing laws 以名稱列舉，例如 Newton&#x27;s Laws、Conservation of (Angular) Momentum、Hooke&#x27;s Law、Bernoulli&#x27;s Principle（page 4 §3.1）。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>71 個 phenomena 與其 governing laws 的完整對應表放在 Appendix 5.1（main text 未列出）。$71$ 是「廣度」維度的關鍵數字，相較 ShapeStacks/CLEVRER 的單一現象與 Physion 的 8 種，呈一個數量級的差距（Table 1，page 3）。</p></div></section>
+<section class="slide" data-title="Method — 5.3.2 3D Asset Collection"><h2 class="slide-title">Method — 5.3.2 3D Asset Collection</h2><div class="card"><p><strong>Function:</strong> 提供場景實例化所需的視覺與物理素材池，使同一個 phenomenon 能在不同物件、材質、背景下被反覆呈現以避免單一化。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>phenomenon_targets</code></li><li>Shape: <code>[71]</code></li><li>Source: §3.1 phenomenon 清單，作為「需涵蓋哪些互動類型」的需求向量</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>assets = (objects, materials, backgrounds)</code></li><li>Shape: <code>objects [2231]</code>、<code>materials [623]</code>、<code>backgrounds [528]</code></li><li>Consumer: §3.3 Steps 2–4 Scene Instantiation</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Objects</strong> 從 Sketchfab [77]、FAB [30]、BlenderKit [11] 收集 $2{,}231$ 個物件，依與 phenomena 的互動形式劃分為六類：solid、interactable（可動部件，UE Blueprints）、destructible（可破壞，UE Geometry Collections）、deformable（MPM）、granular（MPM，例如 sand）、liquid（SPH，例如 water、cream、milk）。</li><li><strong>Materials</strong> 收集 $623$ 個橫跨 plastic、metal、wood、stone、fabric 五類；每個 material 暴露 friction coefficient、density、restitution 等可調 physical attributes，作為「同一物件、不同材質」的變化軸。</li><li><strong>Backgrounds</strong> 收集 $528$ 個 indoor 與 outdoor 環境（living rooms、bedrooms、factories、swimming pools 等），覆蓋不同空間尺度。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>paper 未給出資產採樣機率的閉式表達；採集策略以「與 phenomena 直接相關」為篩選條件（page 4 §3.2），這也是 PhysInOne 與 Objaverse/XL 等通用 3D 倉儲的關鍵差異。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>所有 3D assets 皆為 academic 與 commercial 雙授權（page 4）。資產類型直接決定 §3.4 的 simulator 路由：deformable/granular 走 MPM、liquid 走 SPH、其餘走 Chaos Physics。更多細節在 Appendix 5.2。</p></div></section>
+<section class="slide" data-title="Method — 5.3.3 Multiphysics Activity Composition"><h2 class="slide-title">Method — 5.3.3 Multiphysics Activity Composition</h2><div class="card"><p><strong>Function:</strong> 將 71 個 basic phenomena 透過組合操作放大為 3,284 個 multiphysics activities，模擬日常活動中多個物理現象同時或序列發生的複雜性。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>basic_phenomena</code></li><li>Shape: <code>[71]</code></li><li>Source: §3.1 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>activities = single ∪ double ∪ triple</code></li><li>Shape: <code>[71] ∪ [943] ∪ [2270] = [3284]</code></li><li>Consumer: §3.3 Steps 2–4 Scene Instantiation</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Single-physics:</strong> 每個 basic phenomenon 直接視為一個 single-physics activity，得 $71$ 個。</li><li><strong>Double-physics:</strong> 從 $\binom{71}{2} = 2485$ 個 pair 中經人工篩選保留物理意義合理者，得 $943$ 個 double-physics activities（page 4–5）。</li><li><strong>Triple-physics:</strong> 從 $\binom{71}{3} = 57155$ 個 triple 中經篩選得 $2270$ 個 triple-physics activities（page 5）。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$|\mathcal{A}| = 71 + 943 + 2270 = 3284$</p>
+<p>其中 $943 \ll \binom{71}{2}$、$2270 \ll \binom{71}{3}$ 體現「許多組合 lack physical meaning」的人工 curation 結果（page 4–5）。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>paper 未公開 curation 的具體 rubric，僅描述為「careful selection」（page 4–5）。activities 此時仍是 conceptual，尚未實例化為具體 3D 場景，留待 Step 2–4 完成。</p></div></section>
+<section class="slide" data-title="Method — 5.3.4 Scene Instantiation Pipeline"><h2 class="slide-title">Method — 5.3.4 Scene Instantiation Pipeline</h2><div class="card"><p><strong>Function:</strong> 把 conceptual 的 3,284 個 activities 物質化為 153,810 個 unique 動態 3D scenes，每個 scene 是一組 (背景, 物件群, 材質配置) 的具體 instance。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>(activities, assets)</code></li><li>Shape: <code>activities [3284]</code>、<code>(objects [2231], materials [623], backgrounds [528])</code></li><li>Source: §3.3 Step 1 與 §3.2</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>scenes</code></li><li>Shape: <code>[153810]</code></li><li>Consumer: §3.4 Physics Simulation</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每個 activity $a \in [3284]$ 重複以下流程：</p>
+<ol><li><strong>Step 2 — Setting Up Backgrounds:</strong> 從 $528$ 個 backgrounds 挑選與 activity 物理可信的環境（例如 fluid 活動配 swimming pool）。</li><li><strong>Step 3 — Placing Multiobjects:</strong> 從 objects 池中挑 $N_{\text{obj}}$ 個 assets 放入背景，$N_{\text{obj}}$ 隨複雜度增加：single/double/triple-physics 平均為 $3.9/6.3/7.8$（page 5）。</li><li><strong>Step 4 — Varying Materials:</strong> 對每個 asset 替換 material 並重新採樣 friction、density、restitution 等 physical parameters，產生同一活動的多個變體場景。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$\bar{S}_{\text{per-activity}} = \frac{153810}{3284} \approx 46.84$</p>
+<p>每個 activity 平均對應 $46.84$ 個 unique scenes（page 5）。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>paper 未揭露 Step 2–4 的自動化程度（人工挑選比例、是否使用啟發式排版器等）；僅在 Appendix 5.3 提供更多細節。物件數階梯 $3.9 &lt; 6.3 &lt; 7.8$ 是場景複雜度與 activity 複雜度正相關的直接量化證據。</p></div></section>
+<section class="slide" data-title="Method — 5.3.5 Multi-Engine Physics Simulation"><h2 class="slide-title">Method — 5.3.5 Multi-Engine Physics Simulation</h2><div class="card"><p><strong>Function:</strong> 依據 scene 中物件的物理屬性，將動力學求解 dispatch 至三套不同 simulator，使所有 153,810 個 scenes 的 ground-truth trajectory 嚴格遵守 governing laws。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>scenes</code></li><li>Shape: <code>[153810]</code></li><li>Source: §3.3 Step 4 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>dynamics_traj</code></li><li>Shape: 每個 scene 對應 $T$ 個 frames 的 object/particle states；$T$ 可變、$T \approx 5.2 \times \text{FPS}$</li><li>Consumer: §3.5 Multi-View Rendering</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>對每個 scene 中的 assets 檢查類型，決定 simulator 路由。</li><li><strong>Chaos Physics @ UE5 [81]:</strong> 處理絕大多數 daily phenomena（rigid body 動力學、destructible 破壞模擬）。</li><li><strong>MPM @ Taichi [79]:</strong> 處理 deformable 與 granular，採用 Moving Least Squares MPM [43]。</li><li><strong>SPH @ Doriflow [27]:</strong> 處理 liquid，採用 Smoothed Particle Hydrodynamics [35]。</li><li>三個 simulator 在同一場景內可並行/串接，以支援 multiphysics activities 中異質物件共存的需求。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>paper 未在 main text 列出 simulator 內部的 PDE 或離散化公式；僅引用 MPM [43]、SPH [35]、XPBD [60] 等原始論文。governing laws 在 simulator 中以參數約束形式生效（如 Newton&#x27;s $F=ma$、Hooke&#x27;s $\sigma = E\varepsilon$ 等隱含於各 solver）。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>paper 明確承認「current simulators may not achieve perfect physical fidelity」，但其誤差「are thoroughly studied and controlled」並引用 [32, 60]（page 5）。physical parameter 的取值範圍在 Appendix 5.4。simulator 路由策略並未以可程式化的形式在 main text 揭露。</p></div></section>
+<section class="slide" data-title="Method — 5.3.6 Multi-View Rendering and Joint Annotation"><h2 class="slide-title">Method — 5.3.6 Multi-View Rendering and Joint Annotation</h2><div class="card"><p><strong>Function:</strong> 將模擬結果以 12 fixed + 1 moving monocular cameras 渲染為高解析度影片，並同步輸出 geometry、semantics、motion、physical properties、text 五類 ground-truth annotations，最終產出 2 million 級的監督訊號。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: <code>dynamics_traj</code></li><li>Shape: 每個 scene 的 $T$ frames 動力學狀態</li><li>Source: §3.4 輸出</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: <code>(videos, annotations)</code></li><li>Shape:</li><li><code>videos</code>：總計約 $2 \times 10^6$ 支（$153810 \times 13 = 1{,}999{,}530$），每支 $[T, 1120, 1120, 3]$</li><li><code>depth</code>、<code>masks</code>：與 RGB 同形狀，$[13, T, 1120, 1120]$</li><li><code>3D trajectories</code>：$[N_{\text{obj}_{\text{dyn}}}, T, 3]$</li><li><code>text</code>：每 scene 約 $64$ 個英文字</li><li>Consumer: §4 Applications（video generation、future frame prediction、property estimation、motion transfer）</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>相機部署（§3.5）：</strong> 12 fixed cameras 在 upper hemisphere 以 elevation $\in [30^\circ, 60^\circ]$ 均勻取樣，positions 隨場景空間配置調整；1 moving camera 以 random elevation 沿預定軌跡環繞活動中心。</li><li><strong>渲染（§3.5）：</strong> 解析度 $1120 \times 1120$、$30$ FPS；laser 相關的 $8{,}780$ scenes 因高頻光學動力學提升至 $60$ FPS；平均影片長度 $5.2$ s。</li><li><strong>annotation 同步輸出（§3.6）：</strong> 渲染過程同時生成 depth images、per-frame object masks、object 3D trajectories、object meshes、material properties。</li><li><strong>文本標註（§3.6）：</strong> 人工撰寫敘事段落並以 Qwen3 校稿，平均 $\sim 64$ 個 English words/scene。</li><li><strong>資料切分（§3.6）：</strong> 以 $8{:}1{:}1$ 切分為 train/val/held-out test，並確保 3D assets 不跨 partition 出現以避免 data leakage。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ |\mathcal{V}| = |\mathcal{S}| \times (C_{\text{fix}} + C_{\text{mov}}) = 153810 \times (12 + 1) = 1{,}999{,}530 \approx 2 \times 10^6 $$</p>
+<p>其中 $C_{\text{fix}} = 12$、$C_{\text{mov}} = 1$（page 5）。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>paper 未具體說明 fixed cameras 在每個場景內的 azimuth 採樣方式（僅說「positions vary across scenes according to different spatial arrangements and backgrounds」）。moving camera 的 trajectory 描述為「typically circling the activity at random elevation angles」，未提供軌跡長度或速度的數值範圍。Annotation 品質依賴「standardized development and independent validation」的 workflow，細節在 Appendix 5.5、5.6。</p></div></section>
+<section class="slide" data-title="Experiments — Setup"><h2 class="slide-title">Experiments — Setup</h2>
+            <div class="grid-3">
+              <div class="card"><h3>Datasets</h3><table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>PhysInOne (full)</td><td>全資料集劃分</td><td>153,810 個 3D scenes、2 million videos</td><td>8:1:1 train/val/held-out test，3D assets 不跨切分以避免 leakage</td></tr><tr><td>PhysInOne train subset</td><td>Video generation fine-tuning（§4.1）；ExtDM from-scratch training（§4.2.1）</td><td>83,650 text-video pairs</td><td>train（隨機抽樣 fine-tune SVD-XT、CogVideoX-1.5-5B、Wan2.2-5B 至收斂；ExtDM 同樣以此子集 train from scratch）</td></tr><tr><td>PhysInOne test-small</td><td>Video generation 評估（§4.1）</td><td>772 text-video pairs</td><td>test</td></tr><tr><td>PhysInOne test-mini</td><td>Long-/short-term future frame prediction（§4.2）</td><td>103 dynamic 3D scenes（seen + novel viewpoints）</td><td>test</td></tr><tr><td>PhysInOne test-tiny</td><td>Physical properties estimation（§4.3）</td><td>20 scenes（5 material categories × 4 scenes）</td><td>test</td></tr><tr><td>PhysInOne val subset</td><td>Motion transfer（§4.4）</td><td>273 dynamic 3D scenes（成對生成 source/target）</td><td>val</td></tr></tbody></table></div>
+              <div class="card"><h3>Metrics</h3><table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>PMF (Physical Motion Fidelity)</td><td>本論文新提出之指標，將 reference video $V_{\text{ref}}$ 與 generated video $V_{\text{gen}}$ 透過 DFT 轉到頻域後比較其能量（squared amplitude），定義為 $\text{PMF} = f_{\text{energy}}\bigl(\text{DFT}(V_{\text{gen}}), \text{DFT}(V_{\text{ref}})\bigr)$，分數越高代表動態軌跡越貼近 reference；用於量化物理運動保真度而非像素對齊</td><td>yes</td></tr><tr><td>FVD</td><td>視訊生成的 visual realism 傳統指標，越低越好</td><td>no</td></tr><tr><td>Human Rating</td><td>User study 評分，越高代表人類感知到的物理合理性越強</td><td>no</td></tr><tr><td>PSNR</td><td>重建/預測影格的像素級訊噪比，越高越好</td><td>no</td></tr><tr><td>SSIM</td><td>結構相似度，越高越好</td><td>no</td></tr><tr><td>LPIPS</td><td>感知相似度距離，越低越好</td><td>no</td></tr><tr><td>物理參數估計誤差</td><td>對 $\log_{10}(E)$、$\nu$、$\log_{10}(\tau_Y)$、$\log_{10}(\mu)$、$\log_{10}(\kappa)$、$\log_{10}(\eta)$、$\theta_{\text{fric}}$、initial velocity $v$ 等與 ground truth 的差異（mean ± std），越低越好</td><td>no</td></tr></tbody></table></div>
+              <div class="card"><h3>Settings</h3><ul><li>Hardware：the paper does not specify。</li><li>Fine-tuning 對象：SVD-XT [10]、CogVideoX-1.5-5B [91]、Wan2.2-5B [83]，分別套用 LoRA、SFT、FLT 三種技術（見 §4.1，細節 in Appendix 5.7）。</li><li>Fine-tuning 資料量：隨機抽樣 83,650 text-video pairs，所有模型 fine-tune 至 convergence。</li><li>Batch size、optimizer、learning rate schedule、training steps：the paper does not specify（正文僅指向 Appendix 5.7；本次提供之 appendix 節錄到 §5.4 為止，未含這些超參數）。</li><li>資料合成端：Chaos Physics（UE5 [81]）處理多數剛體與互動；MPM via Taichi [79] 處理 deformable 與 granular；SPH via Doriflow [27] 處理 liquid（Blender 4.3.0、Doriflow 1.3）。</li><li>Rendering：12 個 static cameras 均勻分佈於 elevation $30^\circ \sim 60^\circ$ 的上半球，加 1 個 monocular moving camera；解析度 $1120\times1120$、30 FPS（含 laser 的 8,780 個 scenes 為 60 FPS），平均長度 5.2 秒。</li><li>推論／預測設定：Long-term future frame prediction 預測「scene 後半段約 2.6 秒、約 78 frames」，輸入為前半段 video clip；Short-term 為連續即時預測「下 10 frames」（見 §4.2.1、§4.2.2）；MAGI-1 直接使用 pretrained model，未經 PhysInOne fine-tune。</li><li>Resimulation 設定：對估出之物理參數，於 novel initial conditions（如改變物件位置）下重新模擬，與以 ground-truth physics 在相同 novel conditions 下渲染之 reference videos 比較（§4.3）。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Experiments — Main Results"><h2 class="slide-title">Experiments — Main Results</h2><div class="card"><p><strong>Physics-aware Video Generation（test-small, 772 pairs；§4.1, Table 2）</strong></p>
+<table><thead><tr><th>Method</th><th>PMF ↑</th><th>FVD ↓</th><th>Human Rating ↑</th><th>Notes</th></tr></thead><tbody><tr><td>SVD [10]</td><td>2.753</td><td>203</td><td>6.09</td><td>baseline</td></tr><tr><td><strong>SVD$_{\text{sft}}$</strong></td><td><strong>3.147</strong></td><td><strong>143</strong></td><td><strong>6.08</strong></td><td>在 SVD 系列中三項指標最佳</td></tr><tr><td>SVD$_{\text{lora}}$</td><td>2.446</td><td>150</td><td>5.82</td><td>LoRA 反而下降</td></tr><tr><td>SVD$_{\text{flt}}$</td><td>2.464</td><td>147</td><td>5.45</td><td></td></tr><tr><td>CogVideoX [91]</td><td>2.877</td><td>165</td><td>2.98</td><td>baseline</td></tr><tr><td>CogVideoX$_{\text{lora}}$</td><td>2.869</td><td>149</td><td>2.95</td><td>PMF 幾乎持平</td></tr><tr><td>Wan2.2-5B [83]</td><td>2.041</td><td>258</td><td>2.26</td><td>baseline</td></tr><tr><td><strong>Wan2.2-5B$_{\text{sft}}$</strong></td><td><strong>2.978</strong></td><td>190</td><td><strong>5.95</strong></td><td>PMF 與 Human Rating 均最佳</td></tr><tr><td>Wan2.2-5B$_{\text{lora}}$</td><td>2.785</td><td><strong>178</strong></td><td>4.80</td><td>FVD 在 Wan 系列中最低</td></tr><tr><td>Wan2.2-5B$_{\text{flt}}$</td><td>2.227</td><td>341</td><td>2.61</td><td>FLT 反而劣化</td></tr></tbody></table>
+<p>依物理領域拆分（PMF）：多數模型在 magnetism 與 fluid 上得分較高、mechanics 與 optics 較低。</p>
+<p><strong>Long-term Future Frame Prediction（test-mini, 103 scenes；seen / novel；§4.2.1, Table 3）</strong></p>
+<table><thead><tr><th>Method</th><th>PMF ↑</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>Notes</th></tr></thead><tbody><tr><td>TiNeuVox [31]</td><td>3.710 / 2.885</td><td>21.49 / 15.20</td><td>0.633 / 0.452</td><td>0.517 / 0.665</td><td></td></tr><tr><td>DefGS [90]</td><td>3.980 / <strong>3.347</strong></td><td>22.85 / <strong>17.95</strong></td><td><strong>0.833</strong> / 0.598</td><td><strong>0.192</strong> / 0.348</td><td>novel view 多項最佳</td></tr><tr><td>TRACE [53]</td><td>3.869 / 3.242</td><td>22.42 / 17.44</td><td>0.756 / 0.599</td><td>0.295 / 0.422</td><td></td></tr><tr><td>FreeGave [54]</td><td>3.897 / 3.265</td><td>22.57 / 17.75</td><td>0.818 / <strong>0.619</strong></td><td>0.219 / <strong>0.355</strong></td><td></td></tr><tr><td>ExtDM [98]</td><td>3.363 / –</td><td>19.55 / –</td><td>0.657 / –</td><td>0.771 / –</td><td>僅報告 seen view</td></tr><tr><td>MAGI-1 [1]</td><td><strong>4.086</strong> / –</td><td><strong>23.14</strong> / –</td><td>0.788 / –</td><td>0.364 / –</td><td>seen-view PMF/PSNR 最佳，未跑 novel view</td></tr></tbody></table>
+<p><strong>Short-term Future Frame Prediction（test-mini；seen / novel；§4.2.2, Table 4）</strong></p>
+<table><thead><tr><th>Method</th><th>PMF ↑</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th></tr></thead><tbody><tr><td>DefGS [90]</td><td>4.536 / <strong>3.728</strong></td><td>26.02 / <strong>20.92</strong></td><td>0.861 / <strong>0.739</strong></td><td>0.206 / 0.322</td></tr><tr><td>FreeGave [54]</td><td><strong>4.742</strong> / 3.706</td><td><strong>27.09</strong> / 20.80</td><td>0.876 / 0.715</td><td>0.199 / 0.336</td></tr><tr><td>ExtDM [98]</td><td>3.774 / –</td><td>22.14 / –</td><td>0.717 / –</td><td>0.715 / –</td></tr><tr><td>MAGI-1 [1]</td><td>4.696 / –</td><td>26.75 / –</td><td><strong>0.886</strong> / –</td><td><strong>0.116</strong> / –</td></tr></tbody></table>
+<p><strong>Physical Properties Estimation（test-tiny, 20 scenes；§4.3, Table 5 + resimulation Table 6）</strong> PAC-NeRF [55] 與 GIC [14] 在 elastic solids、plasticine、Newtonian fluids、non-Newtonian fluids、granular substances 五類材料上互有勝負；resimulation 比較中 GIC 全面領先（PMF 5.938 vs. 5.617、PSNR 26.90 vs. 24.12、SSIM 0.950 vs. 0.942、LPIPS 0.074 vs. 0.086）。論文結論為兩者於本資料集複雜物件與背景下準確度均不足。</p>
+<p><strong>Motion Transfer（val 子集 273 scenes；§4.4, Table 7）</strong></p>
+<table><thead><tr><th>Method</th><th>PMF ↑</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th></tr></thead><tbody><tr><td>GoWithTheFlow [13]</td><td>3.309</td><td>18.98</td><td>0.691</td><td>0.410</td></tr><tr><td><strong>MotionPro [99]</strong></td><td><strong>3.484</strong></td><td><strong>20.28</strong></td><td><strong>0.775</strong></td><td>0.467</td></tr></tbody></table>
+<p>Notes：本論文並未提出新模型作為「我方方法」；上方加粗者為各任務中表現最佳的條目，主張在於「以 PhysInOne fine-tune 後 SVD$_{\text{sft}}$、Wan2.2-5B$_{\text{sft}}$ 顯著優於原 baseline」，這是論文核心 claim 對應的結果。</p></div></section>
+<section class="slide" data-title="Experiments — Ablations &amp; Assessment"><h2 class="slide-title">Experiments — Ablations &amp; Assessment</h2>
+            <div class="grid-2">
+              <div class="card"><h3>Ablations</h3><p>本論文未設計傳統意義下針對自家「新模組」的 ablation（因為核心貢獻是 dataset 而非 model）。可視為 ablation 性質的對照如下：</p>
+<ul><li><strong>Fine-tuning 技術對照（LoRA vs. SFT vs. FLT vs. baseline）</strong>：在 SVD、CogVideoX、Wan2.2 三個模型上同時跑四種設定。結果顯示 SFT 對 SVD 與 Wan2.2 均明顯抬升 PMF（SVD：2.753 → 3.147；Wan2.2：2.041 → 2.978），但 FLT 反而劣化 Wan2.2（2.041 → 2.227，FVD 從 258 升到 341），LoRA 對 SVD 也是負向（2.753 → 2.446）。此對照能診斷「PhysInOne 的訓練訊號需要足夠強的 fine-tuning capacity 才能轉化成物理保真度」，屬於有診斷價值的設計，而非單純 sanity check。</li><li><strong>依物理領域分項 PMF（Table 2 右半）</strong>：將 PMF 拆成 mechanics / magnetism / optics / fluid 四欄。這是診斷性對照，揭露 mechanics 與 optics 較難學的弱點，而非單純展示總體分數。</li><li><strong>Seen vs. Novel viewpoint（Table 3、Table 4）</strong>：所有 4D 方法在 novel view 上一致退化（例如 DefGS PSNR 22.85 → 17.95），有效診斷出「現有方法在 3D 空間泛化物理動態的能力不足」，這是有意義的對照而非 sanity check。</li><li><strong>缺乏的 ablation</strong>：未對 PhysInOne 的「scale 對 fine-tuning 效果」、「資料子集（單／雙／三 physics）對結果」、「camera 數量對 4D 方法」等做拆解。整體而言，論文沒有針對 dataset 的成分（71 phenomena、12+1 cameras、annotation 完整性）做 ablate-by-removal 式診斷實驗，這是讀者最可能想看但缺席的 ablation。</li></ul></div>
+              <div class="card"><h3>Phyra Assessment</h3><ul><li>[partial] Has at least one strong baseline (a current SoTA on the chosen task) — 各任務挑了當期代表性方法（SVD、CogVideoX、Wan2.2、MAGI-1、DefGS、TRACE、FreeGave、PAC-NeRF、GIC、MotionPro、GoWithTheFlow），但論文未明確指出哪一個是該任務 SoTA、也未與最強通用基線（如最新 closed-source 視訊生成模型）對齊比較。</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 同一 PhysInOne 上跨 4 個任務（video generation、future frame prediction、physical property estimation、motion transfer）評估，雖未跨外部 dataset，但跨任務多樣性充足。</li><li>[partial] Has ablations that diagnose the new components (not just sanity checks) — 有 LoRA/SFT/FLT、seen/novel view、依物理領域拆分等診斷性對照（§6.5），但缺少對 dataset 規模、phenomena 涵蓋面、annotation 種類的 ablate-by-removal 分析。</li><li>[missing] Has a scaling study (size, length, or compute) — 未報告改變 fine-tuning 樣本數（如 10k／30k／83k）或 epoch／step 的曲線，僅以單一 83,650 pairs 子集訓練至 convergence。</li><li>[missing] Has an efficiency / wall-clock comparison — 全文未提供任一方法的訓練/推論 wall-clock、GPU hours、throughput 比較。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — Table 5 對物理參數估計報告 mean ± std（跨 4 scenes/category），但 video generation、future frame prediction、motion transfer 的所有指標皆為單次數值，未跑多 seeds。</li><li>[partial] Releases code / weights / data sufficient for reproducibility — 提供 project page（https://vlar-group.github.io/PhysInOne.html）並聲明所有 3D assets 取自允許學術／商業使用之來源（Sketchfab、FAB、BlenderKit、ShareTextures），但正文未明確承諾 release 訓練 code、fine-tuned weights、或 PMF 計算腳本，the paper does not specify 是否會公開 fine-tuning checkpoints。</li></ul></div>
+            </div>
+            </section>
+<section class="slide" data-title="Weaknesses"><h2 class="slide-title">Weaknesses</h2><div class="card"><h4>4.2.1 Author-acknowledged</h4>
+<ul><li>作者承認 simulator 並非完美，僅以「errors are thoroughly studied and controlled」帶過，未量化 simulation gap（§3.4, p.5）。</li><li>主動排除 thermodynamics 與 acoustics 兩個 everyday physics 領域，理由是「rarely visible or require additional sensory data」，但這也使 dataset 對「全領域 world model」的覆蓋不完整（§1, p.2）。</li><li>motion transfer 結果「remain largely unsatisfactory」，承認複雜物理運動的轉移目前尚無 baseline 可達到可用水準（§1 與 §4.4, p.3, p.8）。</li><li>在 physical property estimation 中明言兩個 baselines「fall short of accuracy in scenes with complex objects and backgrounds」，但將此歸因於方法、而非資料設計（§4.3, p.8）。</li></ul>
+<h4>4.2.2 Phyra-inferred</h4>
+<ul><li>PMF 的核心函數 $f_{energy}$ 在主文 Eq. 1 完全未定義（是 L1、L2、ratio？沿哪個 frequency axis？正規化？），讀者無法重現該指標，這對一個被當作主要貢獻的 metric 是嚴重缺陷（§4.1, p.6）。</li><li>「fine-tuning on PhysInOne 提升 physical plausibility」的論點與表格不符：SVD-LoRA 與 SVD-FLT 都讓 PMF 從 $2.753$ 退步到 $2.446$ / $2.464$，CogVideoX-LoRA 幾乎無變化（$2.877 \to 2.869$），只有 SFT 一致有效（Table 2, p.6）。</li><li>PMF 與 human rating 的「高度相關」是質性宣稱，論文未提供 Pearson／Spearman 數值或 scatter plot，難以驗證該 metric 的 human alignment（§4.1, p.6）。</li><li>evaluation set 規模偏小：test-small 772、test-mini 103、test-tiny 20，特別是 property estimation 每個 material 類別只有 4 個 scenes，標準差動輒大於均值（如 PAC-NeRF 的 $\log_{10}(E)$ $117.18 \pm 68.44$），統計顯著性未討論（Table 5, p.7）。</li><li>fine-tuning 僅用了 83,650 videos（不到 dataset 的 5%），整個 2M 規模的「scaling」貢獻並未透過 scale curve 實證，2M 與 100K 的差別未被驗證（§4.1, p.5）。</li><li>未與 concurrent 工作 NewtonGen [94]、VideoPhy [6]、Physics-IQ [63] 在共同 benchmark 上做頭對頭比較，「largest of its kind」之外的方法論優勢無法被證偽（Table 1, p.3）。</li><li>全為 synthetic data，未提供任何 sim-to-real transfer 實驗（例如把 fine-tuned model 拿到 real video 上評估 physics violation 率），這是 world model 訓練資料最關鍵的開放問題卻完全未觸碰（全文）。</li><li>公開資源不足：BIBLIO.json 中 <code>code: null</code>，論文未提供 simulation pipeline、PMF 計算、或 fine-tuning script 的釋出時程（基本資訊）。</li><li>multiphysics 的「sequential vs simultaneous」在 dataset 中未被區分標註，後續模型若要學「因果序」資訊（A 撞 B 才導致 B 落水）將難以利用（§3.3, p.4）。</li><li>per-domain 結果（Table 2 右半）顯示 mechanics 與 optics 系統性低於 magnetism 與 fluid，但作者僅以「challenges for future research」一語帶過，未調查是否來自 simulator quality（Chaos vs MPM/SPH）的不平衡（§4.1, p.6）。</li></ul></div></section>
+<section class="slide" data-title="Phyra&#x27;s Judgment"><h2 class="slide-title">Phyra&#x27;s Judgment</h2><div class="card"><h2>7. Phyra&#x27;s Judgment</h2>
+<h3>7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: 規模與多樣性遠超既有 dataset。</strong> 充分支持。Table 1 並排比較顯示 PhysInOne 在 # phenomena (71)、# scenes (153,810)、# videos (2M)、multiphysics、複雜物件與背景、相機數量、annotation 完整度等所有欄位均勝出（Table 1, p.3）。</li><li><strong>C2: fine-tuning 在 PhysInOne 上能提升 video generation 的物理可信度。</strong> 部分支持／有過度泛化嫌疑。Table 2 中 SVD-SFT 與 Wan2.2-SFT 確實同時改善 PMF、FVD、human rating，但 SVD-LoRA／SVD-FLT／CogVideoX-LoRA 並未改善甚至退步；論文 abstract 與 §4.1 的措辭未反映此分歧（Table 2, p.6）。</li><li><strong>C3: PhysInOne 暴露現有方法在複雜物理動態與屬性估計上的 gap。</strong> 充分支持。novel viewpoint 下 4D 方法 PSNR 普遍下降 4–6 dB（Table 3）、property estimation 多項參數誤差大於均值一個數量級（Table 5）、motion transfer PSNR 僅 18.98–20.28（Table 7），三條獨立證據一致（Tables 3, 5, 7, p.6–8）。</li><li><strong>C4: PMF 是評估 physical motion fidelity 的有效新指標、且與人類感知高度相關。</strong> 過度宣稱。指標公式只給到 $\mathrm{PMF} = f_{energy}(\mathrm{DFT}(V_{gen}), \mathrm{DFT}(V_{ref}))$，$f_{energy}$ 未定義；human correlation 僅靠 Table 2 兩列「同向」的觀察，未提供任何相關係數或統計檢定（Eq. 1 與 §4.1, p.6）。</li><li><strong>C5: 動力學嚴格遵循 Newton 定律、動量守恆、Hooke 定律等。</strong> 部分支持。引擎本身（Chaos／MPM／SPH）確實基於這些定律，但作者自承 simulator 有誤差且未量化，per-domain PMF 上 mechanics 反而低於 magnetism／fluid，間接顯示 simulation quality 不均衡（§3.4 與 Table 2 右側, p.5–6）。</li></ul>
+<h3>7.2 Fundamental Limitations of the Method</h3>
+<p><strong>Synthetic-only 訓練資料的 sim-to-real gap 完全未被處理。</strong> Dataset 全部由 UE5 Chaos、MPM 與 SPH 渲染，texture、lighting、相機軌跡都帶有可辨識的 synthetic signature。論文未提供 fine-tuned model 在任一 real video benchmark（如 VideoPhy、Morpheus、Physics-IQ real splits）上的評估，因此「improving physical plausibility」可能只是讓 generator 更接近 PhysInOne 的渲染分佈，而非真正吸收物理 prior。這在 architecture 不變的前提下無法以 dataset 工作本身解決。</p>
+<p><strong>PMF 指標定義不閉環。</strong> Eq. 1 把 PMF 寫成 $f_{energy}$ 套上 $\mathrm{DFT}$ 的差距，但對 video tensor 形狀為 $[T, H, W, C]$ 時 DFT 沿哪些軸、能量如何 aggregate、是否做 spatial／temporal normalization 完全未說明。從 Table 2–7 的數值範圍 1.5–6 也看不出有 well-defined upper bound 或 null baseline（如 random video 的 PMF 是多少）。沒有這些，PMF 既不可重現也不可作為跨論文比較的標準，與 FVD 並列為主要指標的定位站不住。</p>
+<p><strong>評估規模與置信區間不足以支撐結論。</strong> test-tiny 只有 20 個 scene、每 material 類別 4 個樣本，property estimation 的標準差幾乎都大於均值（例 PAC-NeRF 的 $\log_{10}(E)$: $117.18 \pm 68.44$），這個 sample size 下宣稱「baselines fall short」缺乏統計力。long-term prediction 的 test-mini 103 場景對於跨 method ranking 也偏小，特別是 MAGI-1 與 DefGS 的 PMF 差距僅 0.1，未做顯著性測試。</p>
+<p><strong>多現象組合的學習效益未實證。</strong> 3284 個 multiphysics activities 是論文的招牌數字之一，但所有 fine-tuning 與 benchmark 都沒有 ablation 比較「只訓 single-physics」vs「single+double+triple」對下游 PMF 的影響。如果 generator 學到的只是 71 個 atomic phenomena，那 943 + 2270 個組合活動就只是 data augmentation 而非 conceptual breakthrough，這個關鍵問題在當前 formulation 下沒有實驗答案。</p>
+<h3>7.3 Citations Worth Tracking</h3>
+<ul><li><strong>Physics-IQ [63] (Motamed et al., arXiv&#x27;25)</strong>: 同期 physics understanding benchmark，且論文以它為主要 motivation 之一；要評估 PhysInOne 訓練收益是否能轉移到 real-world physics，這是現成的對照組。</li><li><strong>NewtonGen [94] (ICLR&#x27;26)</strong>: concurrent work，主打用 Newtonian dynamics 約束生成而非 dataset 規模，正好與 PhysInOne 形成「資料路線 vs 模型路線」對照，值得讀來判斷哪條路 ROI 較高。</li><li><strong>PAC-NeRF [55] (Li et al., NeurIPS&#x27;23)</strong>: 本文 property estimation 的主要 baseline，且 PhysInOne 的 elastic／plasticine／fluid／granular 五分類設計直接沿用其框架；要復現或改進 system identification 必讀。</li><li><strong>VideoPhy [6] (Bansal et al., ICLR&#x27;25)</strong>: 提供 text–video physical commonsense 的 human-rated benchmark；如果想把 PhysInOne fine-tuned model 拉到 real-world physics 評估，這是最直接的 sim-to-real 測試平台。</li><li><strong>&quot;How Far is Video Generation from World Model&quot; [47] (Kang et al., ICML&#x27;25)</strong>: 作者引用為 motivation，分析 video generator 違反物理的具體失敗模式，能幫助判斷 PMF 是否真正捕捉到了那些失敗模式。</li></ul></div></section>
+<section class="slide" data-title="Open Questions"><h2 class="slide-title">Open Questions</h2><div class="card"><h2>8. Open Questions and Improvement Ideas</h2>
+<h3>8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在 PhysInOne 上 fine-tune 的 SVD/CogVideoX/Wan2.2，拿到 real-world video benchmark（如 VideoPhy 或 Physics-IQ real split）上，physical plausibility 是否仍然提升，還是只是 overfit 到 UE5 渲染分佈？</li><li>[ ] PMF 中的 $f_{energy}$ 的精確定義是什麼（沿哪些軸做 DFT？如何 aggregate？是否 normalize？），以及它與 human rating 的 Pearson／Spearman 相關係數實際是多少？</li><li>[ ] 為何 LoRA 對 SVD 與 CogVideoX 無效甚至退步，但對 Wan2.2 大幅有效（PMF $2.041 \to 2.785$）？是 base model 物理先驗強弱差異、還是 LoRA rank／layer 選擇問題？</li><li>[ ] 把訓練集從 single-physics（71 類）逐步擴展到 +double（+943）、+triple（+2270），下游 PMF 與 human rating 的 scale curve 長什麼樣？multiphysics 組合是否真的帶來 marginal gain？</li><li>[ ] 為什麼 per-domain PMF 上 mechanics 系統性低於 magnetism 與 fluid？是因為 Chaos Physics 在 mechanics 模擬上品質較差，還是因為 model architecture 對剛體運動的 inductive bias 較弱？</li><li>[ ] test-tiny 只有 20 個 scenes、每 material 4 個樣本的情況下，PAC-NeRF 與 GIC 之間的 ranking 是否在更大樣本下穩定？標準差大於均值的多項估計是否其實不可區分？</li><li>[ ] 將 fine-tuning 規模從 83,650 videos 擴大到全 2M，PMF 與 FVD 的改善是否持續，或在某個點飽和？整套 2M 規模的 marginal value 是多少？</li></ul>
+<h3>8.2 Improvement Directions</h3>
+<ol><li><strong>形式化並驗證 PMF</strong>（最高可行性）：在 supplementary 補上 $f_{energy}$ 的完整公式（DFT 軸、normalization、距離度量）、null baseline（random video、frozen frame）的 PMF 數值、以及 PMF vs human rating 的 scatter plot 與相關係數。理由：這是論文目前最低成本就能彌補的硬傷，補完之後 PMF 才有資格作為跨論文 metric。</li><li><strong>加上 sim-to-real transfer 實驗</strong>（中等可行性）：把 fine-tuned 的 SVD-SFT 與 Wan2.2-SFT 拿到 VideoPhy 與 Physics-IQ 的 real video splits，回報 physical plausibility 是否提升。理由：這直接回應 dataset 是否解決了 motivation 中所述的真實 video 物理違反問題，否則 dataset 的價值仍停留在 synthetic 自圓其說。</li><li><strong>跑 dataset scale curve</strong>（中等可行性）：在固定 architecture／hyperparameter 下，以 10K／50K／200K／1M／2M 五檔訓練量 fine-tune Wan2.2-SFT，觀察 PMF 與 FVD 的 scaling law。理由：這會讓「2M 是必要的」這個論點從口號變成證據，也能告訴後人 dataset 該下載多少。</li><li><strong>multiphysics ablation</strong>（中等可行性）：分別只用 single-physics、single+double、single+double+triple 三種子集 fine-tune，比較下游 PMF。理由：直接驗證 3284 個 activities 的概念貢獻是否大於 71 atomic phenomena 的 augmentation 效應，這是論文 narrative 的核心檢驗點。</li><li><strong>per-domain simulation quality 審計</strong>（較低可行性，需 ground-truth 物理計算）：對 mechanics／optics／fluid／magnetism 各取若干 scene，把模擬軌跡與解析解或高精度求解器比較，量化 simulator-induced error 的分布；以此解釋 per-domain PMF 落差。理由：作者目前以「errors thoroughly studied」一筆帶過，但 per-domain 表現差異暗示 simulator quality 並不一致，量化後可幫助使用者選擇 domain subset。</li><li><strong>擴張到 thermodynamics 與 acoustics</strong>（最低可行性）：以同樣 pipeline 加入 visible 熱效應（蒸氣、融化、熱輻射可視化）與 audio-conditioned 物理活動。理由：這兩個被排除的領域是 world model 完整性的明顯缺口，工程上可能需要新 simulator 與 sensor，成本最高，但在 dataset 持續演進的脈絡下是合理的下一步。</li></ol></div></section>
+<section class="slide" data-title="Conclusion"><h2 class="slide-title">Conclusion</h2><p class="section-meta">(80 words)</p>
+<div class="card"><p>Section 5 Conclusion 極為精簡，等同把全文五大要素濃縮為兩句：第一句重申 contribution，PhysInOne 是覆蓋 71 phenomena、153,810 dynamic 3D scenes、2 million videos 的 comprehensive dataset；第二句平衡 §4 的雙軌結論，承認 fine-tuning 在四個任務都顯著提升 physical plausibility，但 existing methods 仍然 struggle to accurately learn complex multiobject dynamics and physical properties，並把這個事實重新包裝為 &quot;validating the dataset&#x27;s value as a rigorous testbed&quot;，把 dataset 同時當成資源與標尺。值得注意的是，正文沒有顯式的 Limitations 與 Future Work 小節，敘事上把 §4 各應用尾段隨手點出的弱點（novel-view 退化、complex-scene 反演不準、motion-transfer 失真）暗示為 future work 的方向；而 simulator fidelity 的不確定性則由 §3.4 段落中對 [32, 60] 的引用以及「errors are thoroughly studied and controlled」這個自我緩解陳述代為承擔。換言之，作者選擇不另立明確的 limitations 段落，而是把「資料集很大但仍不完美、模型微調有效但仍不夠」這個 honest framing 透過 abstract → introduction → applications → conclusion 反覆出現的「improve / yet expose gaps」修辭，讓讀者把限制與未來工作自行補完。這個結尾的功能是把整篇論文鎖定為一個 &quot;infrastructure paper&quot;：作者主張自己提供的是 community 可繼續挖掘的工具，而不是要把所有 visual physics 問題就此解決。</p></div></section>
+        </main>
+        <footer class="bottom-bar">
+          <div class="nav">
+            <button onclick="go(-1)" aria-label="prev">←</button>
+            <button onclick="go(1)" aria-label="next">→</button>
+            <span class="index" id="idx"></span>
+          </div>
+          <div class="title" id="slide-title-bar"></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+        </footer>
+        <script>
+let SLIDE_INDEX = 0;
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+function render() {
+  SLIDES.forEach((el, i) => el.classList.toggle('active', i === SLIDE_INDEX));
+  const cur = document.getElementById('idx');
+  if (cur) cur.textContent = `${SLIDE_INDEX + 1} / ${TOTAL}`;
+  const bar = document.getElementById('progress-bar');
+  if (bar) bar.style.width = `${((SLIDE_INDEX + 1) / TOTAL) * 100}%`;
+  const tit = document.getElementById('slide-title-bar');
+  if (tit) tit.textContent = SLIDES[SLIDE_INDEX].dataset.title || '';
+}
+function go(delta) {
+  SLIDE_INDEX = Math.max(0, Math.min(TOTAL - 1, SLIDE_INDEX + delta));
+  render();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+  else if (e.key === 'Home') { SLIDE_INDEX = 0; render(); }
+  else if (e.key === 'End') { SLIDE_INDEX = TOTAL - 1; render(); }
+});
+window.addEventListener('DOMContentLoaded', render);
+</script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

@@ -1,0 +1,510 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MapAnything — MapAnything: Universal Feed-Forward Metric 3D Reconstruction</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-02 | lang: zh-TW --&gt;</p>
+<h1 id="mapanything-mapanything-universal-feed-forward-metric-3d-reconstruction">MapAnything — MapAnything: Universal Feed-Forward Metric 3D Reconstruction</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>MapAnything</td></tr><tr><td>Paper full title</td><td>MapAnything: Universal Feed-Forward Metric 3D Reconstruction</td></tr><tr><td>arXiv ID</td><td>2509.13414</td></tr><tr><td>Release date</td><td>2026-01-23</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2509.13414</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2509.13414</td></tr><tr><td>Code link</td><td>https://github.com/facebookresearch/map-anything</td></tr><tr><td>Project page</td><td>https://map-anything.github.io</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Nikhil Keetha</td><td>Meta Reality Labs; Carnegie Mellon University</td><td>https://nik-v9.github.io/</td><td>first author</td></tr><tr><td>Norman Müller</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Johannes Schönberger</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Lorenzo Porzi</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Yuchen Zhang</td><td>Carnegie Mellon University</td><td>—</td><td>co-author</td></tr><tr><td>Tobias Fischer</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Arno Knapitsch</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Duncan Zauss</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Ethan Weber</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Nelson Antunes</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Jonathon Luiten</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Manuel Lopez-Antequera</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Samuel Rota Bulò</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Christian Richardt</td><td>Meta Reality Labs</td><td>—</td><td>co-author</td></tr><tr><td>Deva Ramanan</td><td>Carnegie Mellon University</td><td>—</td><td>co-author</td></tr><tr><td>Sebastian Scherer</td><td>Carnegie Mellon University</td><td>—</td><td>co-author</td></tr><tr><td>Peter Kontschieder</td><td>Meta Reality Labs</td><td>— (https://www.linkedin.com/in/peter-kontschieder-2a6410134/)</td><td>senior author / corresponding</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>feed-forward 3D reconstruction, multi-view geometry, structure-from-motion, metric depth, factored scene representation, transformer, DINOv2, camera pose estimation</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>DUSt3R (Wang et al., 2024)</td><td>predecessor</td><td>Pointmap-based two-view feed-forward 3D reconstruction; baseline whose post-processing MapAnything replaces.</td></tr><tr><td>MASt3R (Leroy et al., 2024)</td><td>predecessor</td><td>Metric extension of DUSt3R; predicts coupled scene representation requiring expensive post hoc recovery.</td></tr><tr><td>VGGT (Wang et al., 2025)</td><td>baseline</td><td>Multi-view alternating-attention transformer predicting redundant pointmaps/depth/cameras; main feed-forward baseline.</td></tr><tr><td>Pow3R (Jang et al., 2025)</td><td>baseline</td><td>Two-view feed-forward method using camera priors as input; only prior work conditioning on geometric priors.</td></tr><tr><td>FASt3R (Yang et al., 2025)</td><td>baseline</td><td>Long-sequence multi-view DUSt3R variant predicting redundant local &amp; global pointmaps.</td></tr><tr><td>π3 (Wang et al., 2025)</td><td>concurrent</td><td>Concurrent VGGT fine-tuning that decouples local pointmaps and global pose; argued sub-optimal vs. MapAnything.</td></tr><tr><td>MV-DUSt3R+ (Tang et al., 2025)</td><td>baseline</td><td>Multi-view extension of DUSt3R with parallelized cross-attention across reference views.</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本研究探討「通用前饋式公制三維重建」問題,目標是以單一統一的 transformer 模型,從任意數量的輸入影像(可選擇性附加相機內參、外參、深度或部分重建)直接回歸出具有公制尺度的場景幾何與相機資訊。傳統 SfM、MVS、單目深度估計等任務通常各自設計專家方法並仰賴多階段後處理,而既有 feed-forward 方法(如 DUSt3R、MASt3R、VGGT)又侷限於固定輸入模態、視角數有限或預測耦合的 pointmap 表示。MapAnything 將場景拆解為深度圖、局部 raymap、相機姿態與單一公制尺度因子的因式化表示,並設計可彈性接受異質幾何輸入的編碼器,使同一模型能在 12 種以上重建任務(無校正 SfM、校正 MVS、定位、深度補全、單目深度等)中達成或超越專家模型的水準。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>computer vision</li><li>3D reconstruction</li><li>multi-view geometry</li><li>deep learning</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>DINOv2 ViT-G image encoder</strong>:作為主要視覺骨幹,以第 24 層 normalized patch features ($F_I \in \mathbb{R}^{1536\times H/14 \times W/14}$) 將輸入影像投射到共用潛在空間,經實驗在收斂速度、下游表現與泛化上皆優於 CroCov2、DUSt3R encoder、RADIO 等選項。</li><li><strong>Multi-modal geometric encoders</strong>:以 pixel-unshuffle 為核心的 shallow convolutional encoder 將 ray directions 與 normalized ray depths 編碼至與 DINOv2 一致的空間維度,並用 4-layer GeLU MLP 將 rotation quaternion、translation direction、pose scale、depth scale 等全域純量編碼成 broadcast 的 tokens。</li><li><strong>Alternating-attention multi-view transformer</strong>:借鑑 VGGT 的 16-layer、24-head、latent dim 1536、MLP ratio 4 之 alternating attention,並以 DINOv2 ViT-G 最後 16 層初始化,用以在 N 視角 patch tokens 與單一可學習 scale token 間做跨視角資訊融合。</li><li><strong>DPT dense prediction head</strong>:將 multi-view transformer 輸出的 N 視角 patch tokens 解碼為 per-view 的 ray directions $R_i$、up-to-scale ray depths $\tilde{D}_i$、masks $M_i$ 與 pointmap confidences $C_i$。</li><li><strong>Average-pooling convolutional pose head</strong>:以 average pooling 為基礎,從 N 視角 tokens 預測各視角相對於 view 1 的 unit quaternion $Q_i$ 與 up-to-scale translation $\tilde{T}_i$。</li><li><strong>Scale MLP head</strong>:2-layer ReLU MLP 將單一 scale token 解碼為公制尺度因子 $m$,並透過 exponential scaling 處理大幅變動的場景尺度,實現幾何與尺度梯度的解耦。</li><li><strong>Reference view embedding</strong>:對 view 1 的 patch tokens 加上固定 reference view embedding,以區分世界座標基準視角;不使用 RoPE,僅依賴 DINOv2 自帶的 patch-level positional encoding。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者指出,現有 feed-forward 三維重建模型的根本限制在於「耦合的場景表示」與「固定輸入模態」:DUSt3R/MASt3R 系列以 pointmap 直接編碼幾何、相機與姿態,導致必須仰賴昂貴的對稱推論與後處理才能取得多視角一致重建;VGGT、FASt3R 雖延伸至多視角,但需透過多個冗餘預測頭(全域與局部 pointmap、深度、相機)補償資訊糾纏,且僅支援像素 RGB 輸入與簡化的 pinhole 相機;Pow3R 雖嘗試引入幾何先驗,卻只能處理兩張影像且無法條件化於公制尺度。這些設計使得單一模型難以同時利用多樣資料集的部分標註(例如僅有 up-to-scale 幾何)、難以接收機器人或 AR/VR 應用中常見的內外參與深度先驗,也無法以統一管線解決從單視角校正到大規模 SfM 的所有任務。作者主張解決方案邏輯上必須做到三件事:(1) 把場景因式化為彼此解耦的 ray direction、ray depth、相機姿態與單一公制尺度 token,讓每個量都能由最適合的預測頭(DPT、pose head、scale MLP)處理,並可獨立來自輸入或輸出;(2) 將同樣的因式化套用到輸入端,讓模型在訓練與推論時能彈性接收任意子集的幾何先驗,並可吸收僅有 up-to-scale 標註的資料集;(3) 在 log-space 對深度、pointmap 與尺度套用尺度不變損失,使梯度不會被尺度差異主導,並讓 metric scale 預測獨立於幾何梯度。透過這三項設計,模型才得以在單一 feed-forward 過程中同時處理 12 種以上重建任務,並達到匹敵或勝過專家模型的精度。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(180 words)</p>
+<p>論文標題「MapAnything: Universal Feed-Forward Metric 3D Reconstruction」直接揭示三個核心定位：universal（單一模型涵蓋多任務）、feed-forward（一次前向推論、無需 BA 等迭代後處理）、metric（輸出真實尺度而非 up-to-scale）。Abstract 以「我們提出一個 unified transformer-based feed-forward model」開場，明確將方法放在近期 DUSt3R/MASt3R/VGGT 這條 feed-forward 重建脈絡之中，但強調差異化能力：可同時吃進 N 張影像加上選擇性的 camera intrinsics、poses、depth 或 partial reconstructions。</p>
+<p>Abstract 的論證鏈為三段式：（1）提出問題場景——多種 3D vision 任務目前各有專家模型，缺一個能彈性接受異質幾何輸入的統一模型；（2）提出技術主張——使用 factored representation（depth maps、local raymaps、camera poses、metric scale factor），把 local reconstruction 升級為 global metric frame；（3）提出實證主張——在 uncalibrated SfM、calibrated MVS、monocular depth、camera localization、depth completion 等任務上達到或超越 specialist feed-forward 模型，且 joint training 更有效率。Abstract 收尾以「paving the way toward a universal 3D reconstruction backbone」定位本文的長期野心，為後續 Introduction 鋪陳「為何需要一個 backbone 級的方法」的脈絡。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(620 words)</p>
+<p>Introduction 的故事邏輯沿著「傳統分解任務 → 近期 feed-forward 統一 → 仍有限制 → 我們的解法 → 貢獻清單」推進。</p>
+<p>第一段先回顧 image-based 3D reconstruction 的古典做法：SfM、photometric stereo、shape-from-shading 等，其共通策略是把問題拆成 feature detection、matching、two-view pose、calibration、resectioning、rotation/translation averaging、bundle adjustment、MVS、monocular surface 等子任務。作者隨即指出近年 feed-forward 架構（DUSt3R、VGGT、MASt3R 等）已展示在統一框架中解多任務的潛力，建立本文站立的技術基準。</p>
+<p>第二段則點出尚存缺口：先前 feed-forward 工作要嘛只處理單一任務，要嘛無法善用所有可得的幾何輸入模態。作者由此宣告 MapAnything 的目標——一個 end-to-end 模型同時處理 uncalibrated SfM、calibrated SfM、MVS、monocular depth、camera localization、metric depth completion 等。為達成此目標，作者提出三項技術需求：（1）支援多種幾何模態的 flexible input scheme；（2）能涵蓋所有任務的 output space；（3）跨資料集的彈性聚合與標準化。這三項需求正對應 §3 三個小節的編排，是後文的結構性鋪陳。</p>
+<p>第三段揭露關鍵洞見：以 factored representation 取代 pointmap-based 表示。具體而言，場景被分解為 depth maps、local raymaps、camera poses 與一個 metric scale factor，這四者共同把 local 重建提升到全域 metric 座標。這個分解同時用於 input 與 output，使得當機器人應用提供 intrinsics（rays）或 extrinsics（poses）時，模型可直接消化這些 prior。另一個重要副效益是訓練端：許多公開資料集只有 up-to-scale 標註，factored 表示讓模型仍能從這些 partial annotation 中學習。這段把「為什麼選 factored representation」的動機從「對齊輸入模態」延伸到「對齊資料集多樣性」。</p>
+<p>第四段以四點貢獻收束，與 Abstract 的主張對齊但更具體：（1）支援 12+ 種輸入配置的 unified feed-forward 模型，且訓練比 bespoke 模型集合更高效；（2）factored scene representation 能直接輸出 multi-view pixel-wise 幾何與相機，無冗餘也無昂貴後處理；（3）相對於 specialist 模型達到 state-of-the-art；（4）以 Apache 2.0 釋出資料處理、推論、benchmarking、訓練、ablation 程式碼與預訓練模型，定位為 extensible / modular framework。這份貢獻清單同時建立了 §4 benchmarking 將要驗證的承諾，也預告 §5 limitation 必須處理的開放問題（例如非影像輸入的 view、動態場景）。Introduction 最終把讀者帶到「想要一個 universal 3D reconstruction backbone」這個問題框架，為 §2 將與哪些工作劃清界線打下基礎。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(660 words)</p>
+<p>Related Work 把整個多視角 feed-forward 重建的版圖切成三條軸線，每條軸線都收斂回「為什麼 MapAnything 是必要的」。</p>
+<p>第一條軸線是「Towards Universal 3D Reconstruction」。作者先回顧 DeMoN、DeepTAM、DeepV2D 這類早期 CNN 嘗試，指出它們未能匹敵古典專家方法；接著陳述 PF-LRM、RayDiffusion、DUSt3R、VGGSfM、VGGT 等 transformer 路線的突破；隨即批判這些工作仍受限於固定輸入輸出模態、固定或極少視角，或僅在 object-centric 場景表現良好。MapAnything 的差異化在於 geometrically grounded 且 flexible 的架構，能支援異質 input/output 與任意視角數。</p>
+<p>第二條軸線是「Multi-View Feed-forward Reconstruction」，這部分最為密集，因為它直接定義 MapAnything 的技術競爭區。作者先以 DUSt3R/MASt3R 為起點：它們輸出 coupled scene representation（pointmap 內部糾結相機與幾何），需要昂貴後處理與 symmetric inference。後續 Spann3R、CUT3R、MUSt3R 用 latent state memory 取代古典優化，但仍未達 MASt3R + 古典 BA 的水準。接著進入直接多視角推論的工作：MV-DUSt3R+、VGGT、Reloc3r、FASt3R、π3。對 VGGT 與 FASt3R 的批評最關鍵——它們為了多視角預測必須輸出冗餘的 pointmap（global vs local 兩條 head），暗示 coupled representation 是根本限制；π3 雖移除冗餘但仍保留 up-to-scale 設計，作者引用 Table 5a 指出此設計在他們的實驗中是 sub-optimal。藉此鋪陳，MapAnything 的 factored representation（local rays、ray depth、global pose、單一 metric scale）被定位為更乾淨的解：calibration 與 depth-along-ray 是 per-view 的，因此單一 dense head 即可解決。這條軸線同時暗示，過去工作普遍只支援 pinhole camera 與 image-only input，是 MapAnything 主張要打破的另一道門檻。</p>
+<p>第三條軸線是「Geometry as Inputs or Conditioning」。作者整理 ray 與 depth 作為條件輸入的歷史：novel-view synthesis、diffusion-based image generation、video depth、3D shape completion 等都曾使用，但未進入 feed-forward 3D reconstruction 的主流。Taskonomy 與 MultiMAE 探索 multi-task / 多模態 auto-encoder，但不適用於 3D reconstruction。最直接的對手是 Pow3R——首個將已知 prior 注入 feed-forward 重建的工作，但限制嚴重：僅支援兩張 pinhole 影像、單一 focal length、置中 principal point，且建立在 DUSt3R 之上、無法條件於 metric scale。MapAnything 在此被定位為 Pow3R 的多項超集合：任意視角數、彈性輸入參數化、支援 metric scale、支援所有 central projection camera。</p>
+<p>整段 Related Work 的敘事結構是「指出每條軸線的關鍵限制 → MapAnything 在該軸線上提供的解」。這個寫法為 §3 method 鋪好兩條主線索：（a）factored representation 為何優於 coupled pointmap；（b）為何輸入端必須支援 ray、pose、depth、scale 的任意組合。沒有獨立 Preliminaries 小節，但 §3 開頭會立即用 ray、quaternion、translation、ray depth 等記號，因此 Related Work 已實質替讀者熱身完背景符號。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(1100 words)</p>
+<p>§3 開門即拋出 MapAnything 的數學介面：給定 N 張 RGB 影像 $\hat{\mathcal{I}}$ 與三類選擇性幾何輸入——ray directions $\hat{\mathcal{R}}$、quaternion+translation 形式的 pose $(\hat{\mathcal{Q}}, \hat{\mathcal{T}})$、ray depth $\hat{\mathcal{D}}$，每類都允許只在子集 frame 上提供。模型輸出一個 N-view factored metric 3D 結構：global metric scaling factor $m$、per-view local ray directions $R_i$、up-to-scale ray depths $\tilde{D}_i$、以及在 view 1 frame 下的 pose $\tilde{P}_i$。後三者拼出 up-to-scale local pointmap $\tilde{L}_i = R_i \cdot \tilde{D}_i$，再以 rotation matrix $O_i$ 與 up-to-scale translation $\tilde{T}_i$ 合成 world-frame pointmap $\tilde{X}_i = O_i \cdot \tilde{L}_i + \tilde{T}_i$，最後乘上 $m$ 取得 metric 版本 $X^{\text{metric}}_i = m \cdot \tilde{X}_i$。這個鏈條設計解釋了 §2 末段宣告的「factored representation 較 coupled pointmap 乾淨」——重建幾何與 metric scale 的學習被解耦，而 calibration 與 ray depth 又被解耦成 per-view 量。</p>
+<p>§3.1 Encoding Images &amp; Geometric Inputs 的敘事重點是「不同模態如何被映射到同一個 latent space」。Image 採 DINOv2 ViT-G 第 24 層 normalized patch features，作者指出這在收斂速度、下游表現與 generalization 都贏過 CroCov2、DUSt3R encoder、RADIO、random-init linear patchification。對幾何量則先做 factorization：ray depth 拆成 per-view average depth $\hat{z}_{di}$ 與 normalized ray depth；當 translation 提供時，pose scale $\hat{z}_p$ 被定義為各 view translation 範數的平均，並用以正規化所有 input translation。這樣的拆解讓 rotation 與 translation 可獨立輸入（呼應 IMU/GPS 等只給單一量的場景），也讓 depth 與 pose 不必綁在一起。Metric scale 量在編碼前先 log-transform，避免大數值不穩定。Ray 與 normalized ray depth 透過 shallow conv encoder（pixel unshuffle 14）投到與 DINOv2 同維度同空間解析度的 1536-d feature；rotation、translation direction、depth scale、pose scale 等 global 非 pixel-wise 量則透過 4-layer GeLU MLP 編成 1536-d global feature。最後所有 per-view feature 經 LayerNorm、相加、再 LayerNorm，攤平成 token 序列；附加一個 learnable scale token，並對 view 1 加上 reference view embedding，送入 16-layer alternating-attention transformer（24 head、1536 latent、MLP ratio 4），其權重以 DINOv2 ViT-G 後 16 層初始化。作者明確不使用 RoPE，理由是 DINOv2 自帶的 patch positional encoding 已足夠，且 RoPE 在每層 attention 重複施加會引入偏置。</p>
+<p>§3.2 Factored Scene Representation Prediction 描述輸出端。N-view patch token 經單一 DPT head 解出 per-view 的 ray direction $R_i$（unit length）、up-to-scale ray depth $\tilde{D}_i$、ambiguity mask $M_i$、world-frame pointmap confidence $C_i$。Pose 採 average pooling 的 conv pose head，輸出 unit quaternion $Q_i$ 與 up-to-scale translation $\tilde{T}_i$。Scale token 則經 2-layer ReLU MLP 後做 exponential scaling 取得 $m$，作者強調 scale 預測的解耦是達成 universal metric feed-forward 的關鍵（Table 5a）。這個輸出設計直接對應 §3.1 的輸入分解，等於在模型內維持 input/output 對稱的 factored 介面。</p>
+<p>§3.3 Training Universal Metric 3D Reconstruction 接著把訓練目標、資料策略、視角採樣三件事連起來。Loss 部分區分尺度無關量（rays、rotation）與尺度相關量（translation、depth、pointmap、metric scale）。Translation 用 scale-invariant 形式；ray depth、local pointmap、world-frame pointmap、metric scale 全部在 log space 計算（透過 $f_{\log}: x \mapsto (x/\|x\|) \cdot \log(1+\|x\|)$），並對 per-pixel loss 排除前 5% 以抗 outlier。Pointmap loss 採 confidence-weighted 形式並乘以 10、mask loss 乘以 0.1，並對細節加入 normal loss 與 multi-scale gradient matching loss（後兩者只用於合成資料集，因為真實資料的幾何過於粗糙）。所有 regression loss 套上 adaptive robust loss（$c=0.05, \alpha=0.5$）。</p>
+<p>訓練端的另一條線是 input augmentation：整體幾何輸入機率 0.9、ray/depth/pose 各 0.5，當 depth 被選中時 dense 與 90% sparse 各半；per-view 機率 0.95；對 metric ground truth 資料以 0.05 機率不提供 metric scale。這個機率設計直接讓單一模型涵蓋論文宣稱的 12+ input configuration。資料端列出 13 個高品質資料集（Table 1），以 ScanNet++ v2 與 TartanAirV2-WB 切出 held-out test，並開源 MPSD 的 pose/camera metadata。模型釋出兩版：Apache 2.0（6 個資料集）與 CC BY-NC 4.0（13 個資料集）。最後 multi-view sampling 預先計算所有影像對的 covisibility（基於 reprojection error），訓練時以 25% covisibility 門檻做 random walk 抽樣，確保每個 batch 是 single-connected component graph 且具備多樣的覆蓋與 mutual information。整個 §3 的敘事到此完整：輸入端、表示、輸出端、loss、資料、視角抽樣構成一條可被 §4 直接驗證的訓練到推論完整鏈路。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(640 words)</p>
+<p>§4 Benchmarking &amp; Results 的故事邏輯是「在每個 3D vision 子任務都對到專家 baseline，並在所有任務都拿到 SOTA 或可比表現」，藉此印證 §1 提出的「universal 模型 ≥ bespoke 模型」承諾。所有實驗使用固定 seed。</p>
+<p>第一條主線是 Multi-View Dense Reconstruction。在 undistorted ETH3D、ScanNet++ v2、TartanAirV2-WB 的 held-out scene 上，按 covisibility 抽出 single-connected component 的最多 N 視角作為輸入，避免不相連影像導致的人為難度。Figure 4 的關鍵訊息有兩層：（a）只給 image 時，MapAnything 在 N 從 2 跨到 100 都優於 VGGT 等 image-only baseline；（b）給予 calibration、pose、sparse depth 等輔助輸入時，效能進一步顯著提升，並超過同樣設計來吃 prior 的 Pow3R-BA。Figure 3 的 qualitative 比較進一步指出 MapAnything 在大視差變化、季節變化、無紋理表面、水體、大尺度場景皆比 VGGT 穩。</p>
+<p>第二條主線 Two-View Dense Reconstruction（Table 2）覆蓋 image-only 到 image+intrinsics+pose+depth 五種 input 配置，與 DUSt3R、MASt3R、Pow3R、VGGT 對比。MapAnything 在純影像就拿 SOTA，當輸入更豐富時與 image-only baseline 與 Pow3R 的差距持續擴大；這條結果直接驗證 §3.1 的 factored input encoding 在實務中能把更多 prior 變成更高的精度。</p>
+<p>第三條主線 Single-View Calibration（Table 3）特別有說服力：MapAnything 並未針對單張影像訓練，但在 ETH3D、ScanNet++ v2、TartanAirV2 上以隨機 3:1 到 1:2 aspect ratio 的 crop 模擬非置中 principal point，仍以 1.06° 的平均 angular error 超越 VGGT、MoGe-2、AnyCalib，顯示 MapAnything 的 ray prediction head 的確學到 generic central camera model，並具備擴展到 wide-angle/fisheye 的潛力。</p>
+<p>第四條主線 Monocular &amp; Multi-View Depth Estimation（Table 4）使用 RMVD benchmark，並排除 ETH3D（distortion 問題）與 DTU、Tanks and Temples（非 metric）。Single-view metric 設定下 MapAnything 雖未專為單張影像訓練，仍與 Depth Pro、UniDepthV2、Metric3DV2 持平或更好；multi-view metric 用 image-only 即超越 MASt3R-BA 與 MUSt3R；當給予 calibration 與 pose，與 MVSA、MASt3R Tri. 等 task-specific 模型競爭力相當。作者誠實指出 ScanNet 的 metric scale 估計次優，可能來自 benchmark 品質問題，並補充 median 對齊後表現顯著改善。</p>
+<p>最後 §4 收尾於 Table 5 的 ablation。Table 5a 指出 factored representation（rays + depth + pose + metric scale）相對 local pointmap+pose 等替代設計，在純影像與 image+intrinsics+pose 兩個情境都取得最佳重建。Table 5b 則是更具策略意義的證據：以等同於兩個 bespoke 模型的計算量做 universal training（涵蓋 12+ task），效能反而優於三個各自針對特定 input configuration 訓練的 expert 模型，這正是論文「unified 比 specialist 更省更強」這個核心命題的最直接證明。整個實驗章節因此從多視角、雙視角、單視角校正、單/多視角 depth、ablation 五條軸線交叉支援同一個結論：factored representation 加上 input-probability 訓練是 universal feed-forward 重建的可行路徑。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(380 words)</p>
+<p>§5 Limitations 與 §6 Conclusion 共同收束全文，作者刻意把 limitation 放在 conclusion 之前，讓讀者帶著未解問題進入結論段，符合「universal backbone 是過程而非終點」的整體敘事。</p>
+<p>Limitations 列出四個方向。第一，MapAnything 不顯式建模幾何輸入的 noise 或 uncertainty，這在 IMU/GPS/sparse depth 等實務輸入很關鍵。第二，目前架構假設每個 input view 都附帶影像，但 novel view synthesis 等任務只有 target camera 沒有對應影像；作者強調這是架構容易延伸的方向而非根本限制。第三，雖然設計上可做 iterative inference，但 test-time compute 對 3D reconstruction 的 scaling 行為尚未探索，這也與處理輸入噪聲的能力相關連。第四，目前所有模態 feature 在進入 transformer 前先被加總融合，是否有更有效的 token-level 多模態結構仍是開放題。除了多任務面向，作者另指出 scalability 受限於 input pixel 與 output scene representation 的一對一對應——大場景需要更壓縮的 scene memory 與按需解碼機制。最後，目前場景表示無法處理 dynamic motion 或 scene flow，這條路徑被點名為 promising direction（並引用同團隊的 Any4D 為延續工作）。</p>
+<p>Conclusion 則以三段重新定位本文成果。第一段把 MapAnything 定義為「首個從彈性輸入直接 regress metric 3D 幾何與 camera pose 的 universal transformer backbone」，再次強調 single-pass、無需 task-specific tuning。第二段重述 factored representation——depth maps、ray maps、poses、global scale factor——把 local 估計統一到 global metric frame，並列舉支援的任務：uncalibrated SfM、calibrated MVS、monocular depth、camera localization、depth completion 等。第三段預告未來延伸方向：dynamic scene、uncertainty quantification、scene understanding，這些方向恰好對應 Limitations 列出的開放問題，因此 §5 與 §6 不是並列，而是「現在無法做—未來要做」的鏡像。Conclusion 最終以「paving the way toward a truly universal 3D reconstruction backbone」收尾，與 Abstract 的同句首尾呼應，把 MapAnything 從一個多任務模型再次升格為基礎建設的角色定位。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ol><li>提出 factored scene representation,將場景拆解為 ray directions $R_i$、ray depths $\tilde D_i$、camera poses $\tilde P_i$ 與單一 metric scale token $m$,讓每個量可由獨立的 head (DPT、pose head、scale MLP) 預測且能獨立來自輸入端 (page 2–3, Figure 2)。</li><li>在 dense multi-view reconstruction 從 2 到 100 個 views 全段達到 SOTA,於 50 views 平均 points rel ≈ 0.13、pose AUC@5° 顯著高於 VGGT 與 Pow3R-BA (Figure 4, page 7)。</li><li>Two-view 僅用 images 達 points rel = 0.08、$\tau$@1.03% = 57.5%,大幅領先 VGGT (0.20 / 43.2%)、DUSt3R (0.21 / 43.9%) 與 MASt3R (0.25 / 30.2%) (Table 2, page 7)。</li><li>Single-view perspective calibration 平均角度誤差 1.06°,優於 MoGe-2 (1.95°) 與 AnyCalib (2.01°),且本身並未針對單視角訓練 (Table 3, page 7)。</li><li>同一模型可一次訓練支援 $2^6 = 64$ 種輸入組合,Table 5b 顯示 universal training 在 images-only 設定下優於 expert training (rel 0.28 vs 0.29、$\tau$ 40.7 vs 31.8)。</li><li>Ablation 證實兩個工程細節為高 view 數表現之關鍵:無 log-space loss 時 50-view points rel 由 0.29 升至 0.39;改用 &quot;global w/ view PE&quot; attention 升至 0.53 (Table S.2)。</li><li>訓練只見過最多 24 views,卻可推論至 100 甚至 500 views 仍收斂 (Figure S.1, S.2),展現超出訓練分布的視角數泛化能力。</li><li>KITTI single-view metric depth 不需 intrinsics 即達 rel = 9.69、$\tau$ = 17.9%,優於 MoGe-2 (14.21 / 6.8%) (Table 4, page 8)。</li><li>Memory-efficient inference 透過 mini-batched per-view DPT decoding,在 500 views 下 GPU 用量遠低於 VGGT 與 DA3-Nested,而速度幾乎不損失 (Figure S.1)。</li><li>完整開源:Apache 2.0 模型 (6 dataset) + CC BY-NC 4.0 模型 (13 dataset) + 訓練/ablation/evaluation 程式碼 + MPSD 多視角姿態 metadata (Table 1, page 5)。</li></ol>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>(a) 不顯式建模幾何輸入的雜訊或不確定性 (Section 5, page 8)。</li><li>(b) 不支援「target view 沒有對應影像」的情境,例如 NVS 目標視角 (Section 5)。</li><li>(c) 未探索 iterative inference 或 test-time compute 對 3D reconstruction 的效益 (Section 5)。</li><li>(d) Multi-modal 特徵在進入 transformer 前已被 sum-fusion,更有效率的融合方式尚未探索 (Section 5)。</li><li>一對一 pixel-to-output 映射限制了大型場景的可擴展性 (Section 5, end of page 8)。</li><li>不支援 dynamic motion / scene flow (Section 5)。</li><li>ScanNet 上 metric scale 估計被作者承認為「sub-optimal」,並歸因於 benchmark 品質 (Table 4 caption, page 7),但論文未實證此假說。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ol><li>Table 5b 在 Imgs + Intrinsics + Metric Poses 設定下,expert training 的 metric scale rel = 0.03 仍小於 universal training 的 0.05,但作者僅以 images-only 設定強調 universal 「superior」,刻意未量化此 trade-off。</li><li>Table 5a 中 &quot;RDP &amp; Scale (ours)&quot; 與 &quot;LPMP &amp; Scale&quot; 在 Imgs + Intrinsics + Metric Poses 設定下 pointmap rel 同為 0.07,$\tau$ 僅相差 1.9 點 (55.9 → 57.8) 卻被宣稱為「key enabler」,缺統計顯著性檢定或 seed variance 報告。</li><li>ETH3D 是唯一真正 zero-shot 評估 dataset,SN++v2 與 TartanAirV2-WB 都被切了訓練/驗證/測試但訓練集同源,因此論文呈現的「平均」結果其實由 in-distribution 推進;Figure S.7 顯示 ETH3D 上 metric scale rel 反而最差,跨 domain 真實泛化弱於 headline number 暗示。</li><li>訓練 loss 「exclude the top 5% of per-pixel loss values」可能在 textureless 區、occlusion 邊界等 hard 區系統性丟掉梯度;Figure 3 的 in-the-wild 比較沒有 per-pixel error map,讀者無法判斷這個 truncation 對最終誤差的影響。</li><li>作者宣稱「替換 expensive post-processing」,但全文沒有與 COLMAP / MASt3R-SfM / MASt3R-SLAM 在「post-processed 後」的最終端到端比較,因此優勢只成立於 feed-forward only 的限定設定。</li><li>Apache 2.0 釋出版本只訓於 6 個 dataset,Figure S.2 顯示在 dense reconstruction 上落後於 13-dataset 版本,但主文 headline 的數字皆來自後者,商用使用者實際拿到的能力與論文圖表存在落差。</li><li>Metric scale 全部由「單一 scale token + 2-layer MLP」承擔 (page 4),但論文未報告場景尺度 (建築物 vs. 房間 vs. 物件) 對該預測的條件誤差分佈,暗示此 1-D bottleneck 的 capacity 假設未經實證。</li></ol>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>MapAnything 的核心新意是把 scene 完整解耦為「四個獨立 head + 一個 metric scale token」,這項工程設計確實使「彈性異質輸入 + 統一輸出」變得可行,而且 input probability training 是 universal 訓練端真正具普適價值的貢獻。但大部分性能提升仰賴 DINOv2 ViT-G 初始化、log-space loss 與 alternating attention 等 VGGT 已驗證過的元件,並非全新理論突破;Table 5a 對 factored representation 是「key」的支持其實邊際很小。最未解決的核心問題是:在沒有 ground-truth 幾何輸入時,模型仍需要靠 view 之間的 attention 在 latent 中隱式重建 SfM,但此能力在大規模、low-overlap、noisy-prior 場景的可信度,目前的 benchmark suite 並未充分檢驗。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>MapAnything 將「多視角公制三維重建」表述為一個 end-to-end 的 transformer 推論任務:給定 $N$ 張 RGB 影像 $\hat{\mathcal{I}} = (\hat{I}_i)_{i=1}^N$ 與可選的幾何輸入(相機 ray directions、相機姿態、ray depth),模型一次前饋輸出整套 N-view 公制重建(p. 3, eq. 1):</p>
+<p>$$ f_{\text{MapAnything}}(\hat{\mathcal{I}}, [\hat{\mathcal{R}}, \hat{\mathcal{Q}}, \hat{\mathcal{T}}, \hat{\mathcal{D}}]) = \{m, (R_i, \tilde{D}_i, \tilde{P}_i)_{i=1}^N\} $$</p>
+<p>其中 $m \in \mathbb{R}$ 為單一 global metric scaling factor、$R_i \in \mathbb{R}^{3 \times H \times W}$ 為單位長度的 local ray directions、$\tilde{D}_i \in \mathbb{R}^{1 \times H \times W}$ 為 up-to-scale ray depth、$\tilde{P}_i \in \mathbb{R}^{4 \times 4}$ 為相對於第一張影像的 up-to-scale 相機姿態(以 quaternion $Q_i$ 與 up-to-scale translation $\tilde{T}_i$ 表示)。後處理上,local pointmap 為 $\tilde{L}_i = R_i \cdot \tilde{D}_i$,world-frame pointmap 為 $\tilde{X}_i = O_i \cdot \tilde{L}_i + \tilde{T}_i$,最終公制重建為 $X_i^{\text{metric}} = m \cdot \tilde{X}_i$(p. 4)。</p>
+<p>整體 pipeline(Figure 2, p. 3)分三段:<strong>(1) Multi-modal Encoding</strong> 將每張影像與其可選的幾何先驗各自編碼到共同 latent space;每個 view 的 patch features(影像、rays、depth)與 broadcast 後的 global features(translation、rotation、pose scale、per-frame depth scale)經過 LayerNorm 後相加,再經第二次 LayerNorm 得到該 view 的 token 集合 $F_E \in \mathbb{R}^{1536 \times (HW/256)}$。<strong>(2) Multi-View Transformer</strong> 將所有 view 的 patch tokens 與一個額外的 learnable scale token 串接,加入 reference-view embedding 標示第一張影像,再經 16 層 alternating-attention transformer(p. 4)做跨視角資訊融合。<strong>(3) Factored Prediction</strong>:單一 DPT head 將 N-view patch tokens 解碼成每個 view 的 dense outputs($R_i$、$\tilde{D}_i$、masks $M_i$、confidence $C_i$);average-pooling pose head 從 patch tokens 預測 $Q_i$ 與 $\tilde{T}_i$;scale token 經 2-layer MLP + exponential 得到 $m$(p. 4–5)。</p>
+<p>訓練端(p. 5)以多個 scale-invariant 損失監督:ray direction $\mathcal{L}_{\text{rays}}$、quaternion 旋轉 $\mathcal{L}_{\text{rot}}$(處理 $\pm Q$ 的雙重映射)、translation $\mathcal{L}_{\text{translation}}$、log-space ray depth $\mathcal{L}_{\text{depth}}$、log-space local pointmap $\mathcal{L}_{\text{lpm}}$、confidence-weighted log-space global pointmap $\mathcal{L}_{\text{pointmap}}$、metric scale $\mathcal{L}_{\text{scale}}$,以及僅用於合成資料的 normal 與 multi-scale gradient matching loss,加上 mask 的 BCE loss。所有 regression loss 套用 adaptive robust loss($c=0.05$, $\alpha=0.5$)。為支援 64 種輸入組合(影像加 6 種幾何因子的子集),作者以 0.9 的整體幾何輸入機率、各因子 0.5 的個別機率、per-view 0.95 的機率隨機掩蓋輸入,並對 metric ground truth 以 0.05 機率關閉 metric scale 輸入(p. 5)。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<p>以下 batch 維度 $B$ 省略;$N$ 為視角數,$H, W$ 為輸入解析度(最大邊 518,長寬比 3:1–1:2 隨機,p. 9),patch size $P=14$,$h = H/14$、$w = W/14$,latent dim $d = 1536$。</p>
+<pre class="codeblock"><code>Per-view inputs (i = 1..N):
+  Image  Î_i                   [3, H, W]
+  (opt) Rays R̂_i              [3, H, W]
+  (opt) Depth D̂_i             [1, H, W]
+  (opt) Quaternion Q̂_i        [4]
+  (opt) Translation T̂_i       [3]
+  (opt) Pose scale ẑ_p         [1]   (shared across all input poses)
+  (opt) Depth scale ẑ_{d,i}    [1]   (per frame, when depth is metric)
+
+──────────────────────────────────────────────────────────────────────
+1. Multi-Modal Encoding (per view, shared weights)
+
+  Î_i  ──► DINOv2 ViT-G (layer 24, normalized patch features)
+                                       → F_I  [1536, h, w]
+
+  R̂_i ──► shallow conv encoder (pixel-unshuffle ×14)
+                                       → F_R  [1536, h, w]
+
+  D̂_i / ẑ_{d,i} (normalized ray depth)
+       ──► shallow conv encoder (pixel-unshuffle ×14)
+                                       → F_D  [1536, h, w]
+
+  Q̂_i  ──► 4-layer MLP (GeLU)         → F_Q  [1536]
+  T̂_i / ẑ_p (normalized translation)
+       ──► 4-layer MLP (GeLU)         → F_T  [1536]
+  log(ẑ_p)  ──► 4-layer MLP           → F_{ẑ_p}   [1536]
+  log(ẑ_{d,i}) ──► 4-layer MLP        → F_{ẑ_d,i} [1536]
+
+  Per-view fusion (broadcast globals over h×w, sum, LN×2):
+     F_E,i = LN( LN(F_I + F_R + F_D)
+                 + broadcast(F_Q + F_T + F_{ẑ_p} + F_{ẑ_d,i}) )
+                                       → F_E,i [1536, h, w]
+     Flatten to tokens                  → [1536, h·w]   (= [1536, HW/256])
+                                                ↑ note: paper writes HW/256
+                                                  reflecting 14² ≈ 196,
+                                                  rounded — see §5.3.1
+──────────────────────────────────────────────────────────────────────
+2. Multi-View Transformer
+
+  Concatenate N view-token sets and append 1 learnable scale token:
+     Tokens T = [F_E,1; F_E,2; …; F_E,N; t_scale]
+                                       → [1536, N·h·w + 1]
+  Add reference-view embedding to view-1 patch tokens (constant vector).
+  → 16-layer alternating-attention transformer
+       (24 heads, d=1536, MLP ratio 4, init from last 16 layers of
+        DINOv2 ViT-G; no RoPE)
+                                       → T&#x27;  [1536, N·h·w + 1]
+  Split:
+     View patch tokens T&#x27;_view  [1536, N·h·w]   (reshape → N × [1536, h, w])
+     Scale token       t&#x27;_scale [1536]
+──────────────────────────────────────────────────────────────────────
+3. Factored Prediction
+
+  T&#x27;_view ──► single DPT head (shared across N views)
+       → R_i              [3, H, W]   (ray directions, unit-norm)
+       → tilde D_i        [1, H, W]   (up-to-scale ray depth)
+       → M_i              [1, H, W]   (validity / non-ambiguous mask)
+       → C_i              [1, H, W]   (world-frame pointmap confidence)
+
+  T&#x27;_view ──► average-pooled conv pose head
+       → Q_i              [4]         (unit quaternion)
+       → tilde T_i        [3]         (up-to-scale translation in view-1 frame)
+
+  t&#x27;_scale ──► 2-layer MLP (ReLU) + exp
+       → m                [1]         (global metric scaling factor)
+
+──────────────────────────────────────────────────────────────────────
+4. Compose outputs (no learned parameters)
+
+  tilde L_i = R_i * tilde D_i                            [3, H, W]
+  tilde X_i = O_i(Q_i) · tilde L_i + tilde T_i          [3, H, W]
+  X_i^metric = m * tilde X_i                             [3, H, W]</code></pre>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-image-encoder-dinov2-vit-g">5.3.1 Image Encoder (DINOv2 ViT-G)</h4>
+<p><strong>Function:</strong> 將每張 RGB 影像獨立編碼為與其它幾何模態相容的 patch token。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\hat{I}_i$</li><li>Shape: $[3, H, W]$,$\max(H, W) = 518$,長寬比在 3:1–1:2 間隨機(p. 9)</li><li>Source: 原始輸入影像,經 color jitter / Gaussian blur / grayscale 增強(p. 9)</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_I$</li><li>Shape: $[1536, H/14, W/14]$</li><li>Consumer: Per-view fusion(§5.3.4)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>對每張影像獨立呼叫 DINOv2 ViT-G,取第 24 層的 normalized patch features(p. 4)。作者在 CroCov2、DUSt3R encoder、RADIO 與 random-init linear patchification 之間比較後選擇 DINOv2,因其在下游精度、收斂速度與泛化(尤其在小 learning rate fine-tune 時)皆最佳。</p>
+<p><strong>Key Formulas:</strong> 不適用(直接套用 pre-trained backbone,無新公式)。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Backbone: DINOv2 ViT-G,patch size $14 \times 14$,latent dim $1536$,24 層;只取第 24 層 normalized patch features。</li><li>Fine-tune learning rate: $5 \times 10^{-6}$(其餘模組為 $10^{-4}$,p. 9)。</li><li>啟用 mixed precision 與 gradient checkpointing 以節省 GPU memory(p. 9)。</li></ul>
+<h4 id="5-3-2-geometric-input-encoders-rays-depth-pose">5.3.2 Geometric Input Encoders(rays、depth、pose)</h4>
+<p><strong>Function:</strong> 將每個可選的幾何先驗因式化、正規化後編碼到與影像相同的 latent 空間,讓模型在訓練與推論時都能彈性接受任意子集。</p>
+<p><strong>Input:</strong> 任意子集的下列張量(對應 $S_r, S_q, S_t, S_d$,p. 4):</p>
+<ul><li>Ray directions $\hat{R}_i$:$[3, H, W]$,單位向量</li><li>Quaternion $\hat{Q}_i$:$[4]$</li><li>Translation $\hat{T}_i$:$[3]$</li><li>Ray depth $\hat{D}_i$:$[1, H, W]$</li></ul>
+<p><strong>Output(per view):</strong></p>
+<ul><li>Dense:$F_R, F_D \in \mathbb{R}^{1536 \times H/14 \times W/14}$</li><li>Global:$F_Q, F_T, F_{\hat{z}_d}, F_{\hat{z}_p} \in \mathbb{R}^{1536}$</li><li>Consumer: Per-view fusion(§5.3.4)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>(1) <strong>Factorization &amp; normalization</strong>(p. 4):</p>
+<ul><li>當提供 depth 時,先拆成 per-view 平均 ray depth $\hat{z}_{d,i} \in \mathbb{R}_+$ 與 normalized ray depth $\hat{D}_i / \hat{z}_{d,i}$。</li><li>當提供 translations 時,計算共享的 pose scale $\hat{z}_p = \frac{1}{|S_t|} \sum_{i \in S_t} \|\hat{T}_i\|$,並輸出 normalized translation $\hat{T}_i / \hat{z}_p$。</li><li>只有當對應的 pose / depth 是 metric 時才啟用 $\hat{z}_p$、$\hat{z}_{d,i}$;由於 scale 跨場景變化大,先做 log-transform 再編碼。</li><li>depth 與 pose 的 normalization 各自獨立(因為兩者不一定同時提供);訓練 loss 中對 predicted depth 與 pose 的正規化則是 joint 的(以保證 multi-view 一致性)。</li></ul>
+<p>(2) <strong>Encoding</strong>:</p>
+<ul><li>Ray directions 與 normalized ray depth 經 shallow convolutional encoder + pixel-unshuffle(unshuffle factor 14),一次性把空間維度從 $H \times W$ 降到 $H/14 \times W/14$,並投影到 1536-d。</li><li>Rotation(unit quaternion)、normalized translation、depth scale、pose scale 各自經 4-layer MLP + GeLU,投影到 1536-d 全域向量(p. 4)。</li></ul>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \hat{z}_p = \frac{1}{|S_t|} \sum_{i \in S_t} \|\hat{T}_i\|, \qquad \tilde{D}_i^{\text{norm}} = \hat{D}_i / \hat{z}_{d,i}, \qquad \tilde{T}_i^{\text{norm}} = \hat{T}_i / \hat{z}_p $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Pixel-unshuffle factor 14,使輸出的 spatial 與 latent 維度與 DINOv2 patch features 對齊(p. 4)。</li><li>MLP:4 層,GeLU activation,輸出維度 1536。</li><li>Log-space scale encoding 用於 $\hat{z}_p$、$\hat{z}_{d,i}$。</li><li>當對應因子缺席時,該分支不貢獻 token(透過遮罩 / 機率採樣實作,訓練時 per-factor 0.5、per-view 0.95,p. 5)。</li></ul>
+<h4 id="5-3-3-cross-modal-token-fusion-per-view">5.3.3 Cross-Modal Token Fusion(per view)</h4>
+<p><strong>Function:</strong> 將同一視角的影像、dense 幾何與 global 幾何特徵融合成單一 token 集,作為 transformer 的輸入。</p>
+<p><strong>Input(per view):</strong></p>
+<ul><li>$F_I, F_R, F_D \in \mathbb{R}^{1536 \times h \times w}$(缺席分支以 0 / mask 處理)</li><li>$F_Q, F_T, F_{\hat{z}_p}, F_{\hat{z}_d,i} \in \mathbb{R}^{1536}$</li><li>Source: §5.3.1、§5.3.2</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_{E,i}$</li><li>Shape: 先為 $[1536, h, w]$,flatten 後為 $[1536, h \cdot w]$,論文記為 $[1536, HW/256]$(p. 4)</li><li>Consumer: Multi-View Transformer(§5.3.4)</li></ul>
+<p><strong>Processing</strong>(p. 4):</p>
+<ol><li>dense 分支相加後做 LayerNorm:$Z_1 = \text{LN}(F_I + F_R + F_D)$。</li><li>把全域向量(translation、rotation、pose scale 對所有有 pose 輸入的 view 共享、depth scale 為 per-frame)broadcast 到 $h \times w$ 後加上去:$Z_2 = Z_1 + \text{broadcast}(F_Q + F_T + F_{\hat{z}_p} + F_{\hat{z}_d,i})$。</li><li>再做一次 LayerNorm 得 $F_{E,i} = \text{LN}(Z_2)$,並 flatten 成 token 序列。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ F_{E,i} = \text{LN}\Big( \text{LN}(F_I + F_R + F_D) + \text{broadcast}(F_Q + F_T + F_{\hat{z}_p} + F_{\hat{z}_d,i}) \Big) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>兩次 LayerNorm 的順序與位置如上(p. 4)。</li><li>論文寫的 token 數 $HW/256$ 是約略寫法,實際為 $(H/14) \times (W/14) = HW/196$;其在 $H = W = 224$ 時 $hw = 256$,作者沿用此符號。</li><li>缺席模態的處理由 §5.3.6 的隨機輸入機率機制決定(p. 5)。</li></ul>
+<h4 id="5-3-4-multi-view-transformer">5.3.4 Multi-View Transformer</h4>
+<p><strong>Function:</strong> 跨視角融合所有 view tokens 與一個 scale token,讓資訊在視角間傳遞,以便輸出全域一致的 N-view 重建。</p>
+<p><strong>Input:</strong></p>
+<ul><li>$F_{E,i}$ for $i = 1..N$:flatten 後串接成 $[1536, N \cdot h \cdot w]$</li><li>一個 learnable scale token $t_{\text{scale}} \in \mathbb{R}^{1536}$</li><li>對 view 1 的 patch tokens 加上常數 reference view embedding</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>View patch tokens $T&#x27;_{\text{view}}$:$[1536, N \cdot h \cdot w]$</li><li>Scale token $t&#x27;_{\text{scale}}$:$[1536]$</li><li>Consumer: DPT head、Pose head、Scale MLP(§5.3.5)</li></ul>
+<p><strong>Processing</strong>(p. 4):</p>
+<p>16 層 alternating-attention transformer,每層交替執行 frame-wise self-attention 與 global self-attention。模型以 DINOv2 ViT-G 的最後 16 層(共 24 層中的後 16 層)權重初始化,讓 multi-view transformer 一開始就具有強烈的視覺先驗。對 view 1 的所有 patch tokens 加上一個固定的 reference view embedding,以告知模型「世界座標系定義在 view 1」。所有預測的 pose 與 pointmap 都會落在這個座標系。</p>
+<p><strong>Key Formulas:</strong> 標準 transformer block(MHA + MLP + residual + LN);無新公式。</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>16 層、24 heads、latent dim 1536、MLP ratio 4(p. 4)。</li><li>以 DINOv2 ViT-G 的後 16 層初始化(消融顯示:相較於 random-init 的 ViT-B,ViT-G 初始化大幅改善收斂速度與最終精度,Figure S.3,p. 11)。</li><li><strong>不使用 RoPE</strong>:作者實驗發現 DINOv2 自帶的 patch-level positional encoding 已足夠,而 RoPE 在每層都套用會引入不必要的 bias(p. 4)。</li><li>替代設計(消融,Table S.2,p. 12):若改為「Global w/ View PE」(FASt3R 方案),50-view 評估的 metric scale rel 從 0.16 退化到 0.20、pointmap rel 從 0.29 退化到 0.53,顯示 alternating attention 對長序列泛化更佳。</li></ul>
+<h4 id="5-3-5-factored-prediction-heads">5.3.5 Factored Prediction Heads</h4>
+<p><strong>Function:</strong> 將 transformer 的輸出 token 解碼為「彼此解耦」的幾何量(rays、depth、pose、scale),讓每個量都能由最適合的 head 處理,並可獨立來自輸入或輸出。</p>
+<p><strong>Input:</strong></p>
+<ul><li>$T&#x27;_{\text{view}}$:$[1536, N \cdot h \cdot w]$(來自 transformer)</li><li>$t&#x27;_{\text{scale}}$:$[1536]$</li></ul>
+<p><strong>Output(per view, except $m$):</strong></p>
+<ul><li>$R_i \in \mathbb{R}^{3 \times H \times W}$:單位長度 ray directions</li><li>$\tilde{D}_i \in \mathbb{R}^{1 \times H \times W}$:up-to-scale ray depth</li><li>$M_i \in \mathbb{R}^{1 \times H \times W}$:non-ambiguous classes mask</li><li>$C_i \in \mathbb{R}^{1 \times H \times W}$:world-frame pointmap confidence</li><li>$Q_i \in \mathbb{R}^{4}$:unit quaternion(view 1 frame)</li><li>$\tilde{T}_i \in \mathbb{R}^{3}$:up-to-scale translation</li><li>$m \in \mathbb{R}$:global metric scaling factor</li><li>Consumer: 後續 compose 步驟(§5.2 步驟 4)</li></ul>
+<p><strong>Processing</strong>(p. 4–5):</p>
+<ol><li><strong>DPT head</strong>(共享於 N view,沿用 [46] 的 dense prediction transformer):輸入 $T&#x27;_{\text{view}}$ reshape 回 $N$ 個 $[1536, h, w]$,輸出 4 個 dense map($R_i$、$\tilde{D}_i$、$M_i$、$C_i$)。$R_i$ 經 unit-norm,$\tilde{D}_i$ 為非負 up-to-scale 值。</li><li><strong>Pose head</strong>(average-pooling-based convolutional,沿用 [7]):同樣以 $T&#x27;_{\text{view}}$ 為輸入,平均池化後預測 $Q_i$ 與 $\tilde{T}_i$,以 view 1 為座標系。</li><li><strong>Scale MLP</strong>:$t&#x27;_{\text{scale}}$ 經 2-layer MLP + ReLU 後,輸出再經 exponential 得到 $m = \exp(\text{MLP}(t&#x27;_{\text{scale}}))$;以 exp 處理是因場景 metric scale 可能跨數個量級(p. 4)。</li><li><strong>Compose</strong>:$\tilde{L}_i = R_i \cdot \tilde{D}_i$,$\tilde{X}_i = O_i \cdot \tilde{L}_i + \tilde{T}_i$,$X_i^{\text{metric}} = m \cdot \tilde{X}_i$。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ \tilde{L}_i = R_i \cdot \tilde{D}_i, \qquad \tilde{X}_i = O_i(Q_i) \cdot \tilde{L}_i + \tilde{T}_i, \qquad X_i^{\text{metric}} = m \cdot \tilde{X}_i $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>DPT head 為單一 head 共享於 $N$ view;為節省 memory,推論時可改為 mini-batch loop(memory-efficient 變體),速度幾乎無損但 GPU memory 大幅下降(Figure S.1,p. 10)。</li><li>Pose head 採 [7] 的 average-pooling 卷積架構。</li><li>Scale MLP:2 層、ReLU,輸出單一 scalar 後 exp。</li><li>消融(Table 5a,p. 8):scale token 的解耦設計與 RDP(rays + depth + pose)因式化是達到「univeral metric feed-forward」的關鍵 — 移除 scale token(改為 RDP only)在 image-only 設定下 metric scale rel 從 0.16 升到 0.17,pointmap τ@1.03% 從 40.7 掉到 32.6;相對地 LPMP(local pointmap + pose)+ scale 在 image-only 下也只有 38.7,顯示 RDP 解耦為最佳。</li></ul>
+<h4 id="5-3-6-training-objectives-input-sampling">5.3.6 Training Objectives &amp; Input Sampling</h4>
+<p><strong>Function:</strong> 使用 scale-invariant、log-space 損失同時監督 12+ 種任務的 factored 輸出,並透過隨機輸入採樣讓單一模型支援 64 種輸入組合(p. 5)。</p>
+<p><strong>Input:</strong> ground truth $\hat{R}_i$、$\hat{Q}_i$、$\hat{T}_i$、$\hat{D}_i$、$\hat{X}_i$,以及對應的 validity mask $V_i$。</p>
+<p><strong>Output:</strong> 純量 loss $\mathcal{L}$,反向傳播至所有可訓練參數。</p>
+<p><strong>Processing</strong>(p. 5):</p>
+<ol><li><strong>Scale-invariant normalization</strong>:沿 DUSt3R 計算 ground-truth norm $\hat{z} = \|(\hat{X}_i[V_i])_{i=1}^N\| / \sum_{i=1}^N V_i$ 與 prediction norm $\tilde{z} = \|(\tilde{X}_i[V_i])_{i=1}^N\| / \sum_{i=1}^N V_i$。</li><li><strong>Metric scale handling</strong>:用 $z^{\text{metric}} = m \cdot \text{sg}(\tilde{z})$ (其中 sg 為 stop-grad)避免 metric scale loss 的梯度污染幾何分支。</li><li><strong>Per-component losses</strong>:</li></ol>
+<ul><li>$\mathcal{L}_{\text{rays}} = \sum_i \|\hat{R}_i - R_i\|$</li><li>$\mathcal{L}_{\text{rot}} = \sum_i \min(\|\hat{Q}_i - Q_i\|, \|-\hat{Q}_i - Q_i\|)$(處理 quaternion 的雙重映射)</li><li>$\mathcal{L}_{\text{translation}} = \sum_i \|\hat{T}_i / \hat{z} - \tilde{T}_i / \tilde{z}\|$</li><li>$\mathcal{L}_{\text{depth}} = \sum_i \|f_{\log}(\hat{D}_i / \hat{z}) - f_{\log}(\tilde{D}_i / \tilde{z})\|$,其中 $f_{\log}: x \mapsto (x / \|x\|) \cdot \log(1 + \|x\|)$</li><li>$\mathcal{L}_{\text{lpm}} = \sum_i \|f_{\log}(\hat{L}_i / \hat{z}) - f_{\log}(\tilde{L}_i / \tilde{z})\|$</li><li>$\mathcal{L}_{\text{pointmap}} = \sum_i (C_i \|f_{\log}(\hat{X}_i / \hat{z}) - f_{\log}(\tilde{X}_i / \tilde{z})\| - \alpha \log C_i)$</li><li>$\mathcal{L}_{\text{scale}} = \|f_{\log}(\hat{z}) - f_{\log}(z^{\text{metric}})\|$</li><li>合成資料額外加 $\mathcal{L}_{\text{normal}}$(local pointmap normal)與 $\mathcal{L}_{\text{GM}}$(z-depth log-space multi-scale gradient matching)</li><li>$\mathcal{L}_{\text{mask}}$:binary cross-entropy</li></ul>
+<ol><li><strong>Total loss</strong>(eq. 2,p. 5):</li></ol>
+<p>$$ \mathcal{L} = 10 \cdot \mathcal{L}_{\text{pointmap}} + \mathcal{L}_{\text{rays}} + \mathcal{L}_{\text{rot}} + \mathcal{L}_{\text{translation}} + \mathcal{L}_{\text{depth}} + \mathcal{L}_{\text{lpm}} + \mathcal{L}_{\text{scale}} + \mathcal{L}_{\text{normal}} + \mathcal{L}_{\text{GM}} + 0.1 \cdot \mathcal{L}_{\text{mask}} $$</p>
+<ol><li><strong>Input sampling</strong>:整體幾何輸入機率 0.9,內部 rays / depth / pose 各因子 per-sample 機率 0.5;選 depth 時 dense 與 90% 隨機 sparsified depth 各 0.5 機率;per-view 機率 0.95(讓部分 view 缺幾何輸入);metric ground truth 場景以 0.05 機率不提供 metric scale 輸入。pointmap loss 排除最大的 5% per-pixel 值以抗 outlier;regression loss 套用 adaptive robust loss [4](c=0.05, α=0.5)。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ f_{\log}(x) = \frac{x}{\|x\|} \cdot \log(1 + \|x\|), \qquad z^{\text{metric}} = m \cdot \text{sg}(\tilde{z}) $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>Optimizer: AdamW,peak LR $10^{-4}$(其餘)/ $5 \times 10^{-6}$(DINOv2 encoder),weight decay 0.05,$\beta_1 = 0.9$,$\beta_2 = 0.95$,gradient norm clip = 1(p. 9)。</li><li>Schedule: 10% linear warmup + half-cycle cosine 至 1/100 peak。</li><li>Two-stage curriculum(420K steps total,p. 9):(1) 6 天 × 64 H200-140GB GPUs,effective batch 768–1536(view 數 4→2);(2) 4 天 × 64 H200-140GB GPUs,peak LR 縮 10×,effective batch 128–1536(view 數 24→2)。</li><li>13 個訓練資料集(Table 1,p. 5),涵蓋室內、戶外、in-the-wild;非公制資料集(BlendedMVS、DL3DV-10K、MegaDepth)只貢獻 up-to-scale 監督,藉由 factored loss 自然吸收。</li><li>消融(Table 5a / 5b,p. 8 與 Table S.2,p. 12):移除 log-space loss 在 50-view 評估下 pointmap rel 從 0.29 升到 0.39、τ@1.03% 從 31.8 掉到 27.3;Universal training 與 Expert training 在 image-only 與 image+intrinsics+poses 設定下精度幾乎相同甚至更佳,印證單一模型可吸收 12+ 任務。</li></ul>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>BlendedMVS</td><td>多視角重建（up-to-scale）</td><td>493 scenes</td><td>train/val</td></tr><tr><td>Mapillary Planet-Scale Depth (MPSD)</td><td>多視角 metric depth/重建</td><td>71,428 scenes</td><td>train/val（本文補上 pose 與 camera metadata）</td></tr><tr><td>ScanNet++ v2</td><td>室內多視角 metric 重建</td><td>926 scenes</td><td>train/val/test（30 scenes 為 held-out）</td></tr><tr><td>Spring</td><td>高解析度多視角 metric</td><td>37 scenes</td><td>train/val</td></tr><tr><td>TartanAirV2-WB</td><td>Wide-baseline 合成多視角</td><td>49 scenes</td><td>train/val/test（5 scenes 為 held-out）</td></tr><tr><td>UnrealStereo4K</td><td>合成立體重建</td><td>9 scenes</td><td>train/val</td></tr><tr><td>Aria Synthetic Environments</td><td>室內合成 metric</td><td>103,890 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>DL3DV-10K</td><td>多視角場景（up-to-scale）</td><td>10,109 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>Dynamic Replica</td><td>合成立體 metric</td><td>523 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>MegaDepth</td><td>戶外多視角（up-to-scale）</td><td>269 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>MVS-Synth</td><td>合成 MVS metric</td><td>120 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>ParallelDomain-4D</td><td>合成 driving metric</td><td>1,528 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>SAIL-VOS 3D</td><td>合成影片 metric</td><td>171 scenes</td><td>train/val（CC BY-NC variant）</td></tr><tr><td>ETH3D</td><td>多視角重建測試</td><td>13 scenes</td><td>test only（held-out）</td></tr><tr><td>KITTI / ScanNet (Robust-MVD)</td><td>metric depth 評測</td><td>—</td><td>test only（zero-shot 對比）</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>Points rel</td><td>Pointmap 絕對相對誤差</td><td>yes</td></tr><tr><td>Points Inliers @ 1.03% ($\tau$)</td><td>Pointmap 在 1.03% 相對閾值下的 inlier 比例</td><td>yes</td></tr><tr><td>Pose ATE RMSE</td><td>對齊後相機軌跡誤差</td><td>yes</td></tr><tr><td>Pose AUC @ 5°</td><td>旋轉/平移誤差曲線在 5° 下的 AUC</td><td>yes</td></tr><tr><td>Depth rel</td><td>Ray-depth 絕對相對誤差</td><td>yes</td></tr><tr><td>Depth Inliers @ 1.03%</td><td>Depth 在 1.03% 閾值下的 inlier 比例</td><td>yes</td></tr><tr><td>Rays err°</td><td>Ray direction 平均角度誤差（°）</td><td>yes</td></tr><tr><td>Metric Scale rel</td><td>Metric scaling factor 的相對誤差</td><td>yes</td></tr><tr><td>Normal loss / GM loss（訓練用）</td><td>細節監督，不作為主要評估</td><td>no</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li>Optimizer：AdamW，weight decay 0.05，$\beta_1=0.9$、$\beta_2=0.95$（附錄 B）。</li><li>Learning rate：DINOv2 encoder peak LR $5\times 10^{-6}$，其他模組 $10^{-4}$；10% linear warmup 後 half-cycle cosine 衰減至 1/100。</li><li>Training schedule：兩階段 curriculum 共 420K steps。Stage 1 在 64 顆 H200-140GB 上跑 6 天，effective batch size 介於 768~1536（views 4→2）；Stage 2 再跑 4 天，peak LR 降為 1/10，effective batch size 介於 128~1536（views 24→2）。</li><li>Mixed precision、gradient checkpointing（DINOv2 encoder）、gradient norm clipping (threshold 1)、dynamic batching by view count。</li><li>輸入：影像最大邊 resize 至 518 px，aspect ratio 隨機 3:1~1:2；color jitter、Gaussian blur、grayscale 等增強。</li><li>Multi-view sampling：以 25% covisibility threshold 進行隨機遊走採樣，確保 single-connected component。</li><li>Geometric input augmentation：整體輸入機率 0.9，rays/depth/pose 各 0.5；depth 為輸入時 50% 機率採用 90% sparsified depth；per-view 提供率 0.95；metric scale 5% 機率被遮蔽以強迫模型自行回歸。</li><li>Inference：在 H200-140GB 上以 autocast 推論；提供 memory-efficient 變體，將 dense head 以 mini-batch loop 處理（mini-batch size = 1）以降低顯存佔用。</li><li>Ablation 採用相同設定，但 effective batch size 為主訓練的 1/8。</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>Two-View Dense Reconstruction（ETH3D / SN++v2 / TAv2 平均，僅影像輸入）：</p>
+<table><thead><tr><th>Method</th><th>Points rel ↓</th><th>Points $\tau$ ↑</th><th>Pose AUC@5 ↑</th><th>Depth rel ↓</th><th>Rays err° ↓</th><th>Notes</th></tr></thead><tbody><tr><td>DUSt3R</td><td>0.21</td><td>43.9</td><td>35.5</td><td>0.17</td><td>2.55</td><td>image-only baseline</td></tr><tr><td>MASt3R</td><td>0.25</td><td>30.2</td><td>37.3</td><td>0.19</td><td>7.03</td><td>metric variant</td></tr><tr><td>Pow3R</td><td>0.22</td><td>43.1</td><td>36.9</td><td>0.19</td><td>2.06</td><td>兩視角 prior-aware</td></tr><tr><td>VGGT</td><td>0.20</td><td>43.2</td><td>34.2</td><td>0.13</td><td>2.34</td><td>多視角 SoTA</td></tr><tr><td><strong>MapAnything</strong></td><td><strong>0.08</strong></td><td><strong>57.5</strong></td><td><strong>56.0</strong></td><td><strong>0.07</strong></td><td><strong>0.85</strong></td><td>影像輸入即 SoTA</td></tr></tbody></table>
+<p>Single-Image Calibration（Rays err°）：</p>
+<table><thead><tr><th>Method</th><th>Avg ↓</th><th>ETH3D</th><th>SN++v2</th><th>TAV2</th></tr></thead><tbody><tr><td>VGGT</td><td>4.00</td><td>2.83</td><td>5.21</td><td>3.95</td></tr><tr><td>MoGe-2</td><td>1.95</td><td>1.89</td><td>1.56</td><td>2.40</td></tr><tr><td>AnyCalib</td><td>2.01</td><td>1.52</td><td>2.41</td><td>2.10</td></tr><tr><td><strong>MapAnything</strong></td><td><strong>1.06</strong></td><td><strong>1.33</strong></td><td><strong>0.39</strong></td><td><strong>1.47</strong></td></tr></tbody></table>
+<p>Multi-View Metric Depth（Robust-MVD，僅影像輸入）：</p>
+<table><thead><tr><th>Method</th><th>KITTI rel ↓</th><th>KITTI $\tau$ ↑</th><th>ScanNet rel ↓</th><th>ScanNet $\tau$ ↑</th></tr></thead><tbody><tr><td>MASt3R</td><td>61.40</td><td>0.4</td><td>12.80</td><td>19.4</td></tr><tr><td>MUSt3R</td><td>19.76</td><td>7.3</td><td>7.66</td><td>35.7</td></tr><tr><td><strong>MapAnything</strong></td><td><strong>5.45</strong></td><td><strong>45.7</strong></td><td>22.23</td><td>10.6</td></tr></tbody></table>
+<p>論文指出 ScanNet metric scale 偏弱應與 benchmark 標註品質有關；當改採 median scale alignment 時 MapAnything 在 ScanNet 為 4.95 rel / 55.6 $\tau$，與 SoTA 競爭。Multi-view dense reconstruction（2~100 views）由 Figure 4 呈現，MapAnything 在所有 view counts 與三種 input configuration 下皆優於 VGGT 與 Pow3R-BA。</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<ul><li><strong>Scene representation（Table 5a）</strong>：比較 Local PM + Pose、RDP、LPMP &amp; Scale、RDP &amp; Scale。在「images only」下 RDP &amp; Scale 取得 Points $\tau$ 40.7（vs. RDP 32.6、Local PM + Pose 33.2）；在「images + intrinsics + metric poses」下 RDP &amp; Scale 達 57.8。此 ablation 直接驗證了 factored representation + 解耦 metric scale 的核心主張，屬診斷型。</li><li><strong>Expert vs Universal training（Table 5b）</strong>：universal 訓練（含全部 12+ 任務）與多個專家模型在三種輸入配置下對照，universal 在 images only 為 40.7 $\tau$（vs. expert 31.8），其餘配置接近或略勝。直接回答「多任務聯訓是否拖累單任務」。</li><li><strong>Loss scheme（Table S.2a）</strong>：去除 log-space loss 會讓 Points rel 從 0.29 升到 0.39、$\tau$ 從 31.8 掉到 27.3。屬於診斷 log-loss 的關鍵性。</li><li><strong>Attention scheme（Table S.2b）</strong>：alternating attention 對比 global-with-view-PE，後者 Points rel 由 0.29 退化為 0.53、$\tau$ 由 31.8 跌到 19.7。直接驗證為何選擇 alternating。</li><li><strong>Encoder &amp; multi-view transformer 初始化（Figure S.3）</strong>：對比 latest（DINOv2 ViT-G 1536-dim）與 previous（DINOv2 ViT-L encoder + random-init ViT-B transformer），展示 DINOv2 初始化對收斂與最終效能的差距。</li><li><strong>Variant comparison（Figure S.2）</strong>：MapAnything-4V（僅 stage-1，最多 4 views）與 Apache（6 datasets）對照完整模型，凸顯 covisibility-based sampling 的泛化能力。較偏 sanity check，並非診斷單一模組。</li><li><strong>Input configuration sweep（Table S.1）</strong>：列出 12 種代表性輸入組合（共 64 種可能），確認加入更多 modality 時 Points rel/$\tau$/scale 漸進改善。屬功能驗證而非診斷。</li></ul>
+<p>整體而言，scene representation、expert vs universal、log-loss、attention 四項屬於診斷核心設計；input configuration sweep 與 variant 比較較像功能展示而非診斷實驗。</p>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline — 與 VGGT、$\pi^3$、DA3-Nested、MASt3R、Pow3R、MUSt3R 等近期 SoTA 全面對比（Tables 2–4、Figures 4、S.6–S.8）。</li><li>[covered] Has cross-task / cross-dataset evaluation — 同時涵蓋多視角重建、兩視角重建、單張校正、單視角／多視角 metric depth，跨 ETH3D、ScanNet++ v2、TAv2、KITTI、ScanNet（§4、Tables 2–4）。</li><li>[covered] Has ablations that diagnose the new components — Table 5a/b、Table S.2 分別針對 factored representation、universal training、log-loss、alternating attention 這些核心宣稱進行對照。</li><li>[partial] Has a scaling study — Figure 4 與 Figure S.2 涵蓋 2~100 views 的視角數擴展曲線，且 Figure S.1 量到 500 views，但缺少模型參數量或資料量上的 scaling law。</li><li>[covered] Has an efficiency / wall-clock comparison — Figure S.1 提供 inference frequency (Hz) 與 peak GPU memory 對 VGGT、DA3-Nested、$\pi^3$ 等的對比，包含 memory-efficient 變體。</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — 論文僅聲明「all experiments with a constant seed」，未提供多 seed 變異或標準差。</li><li>[covered] Releases code / weights / data sufficient for reproducibility — Apache 2.0 模型 + CC BY-NC 模型、訓練/評測/ablation 程式碼、MPSD metadata 全數釋出（§1 contributions、§3.3 datasets）。</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<p><strong>Contribution 1: Unified feed-forward model supporting 12+ task configurations</strong> Supported in part. Table S.1 列出 12 種代表組合且 Figure 4 / Table 2 / Table 4 涵蓋多任務,但「more efficient than naive set of bespoke models」這項主張,Table 5b 只用 3 組 input configuration 對照 expert training,並非完整的 12+ 任務對齊,效率宣稱缺直接證據。</p>
+<p><strong>Contribution 2: Factored scene representation enabling decoupled inputs</strong> Supported on the input side, weakly supported on the output side。Table 5a 顯示 RDP &amp; Scale 在 images-only 條件下 $\tau$ 由 33.2% 提升到 40.7%,output-side decoupling 確有效益;input-side flexibility 由 Table S.1 上多種輸入組合單調改善 (e.g. images-only $\tau$ = 58.6% → all-priors $\tau$ = 94.9%) 強烈支持。但 RDP 在「Imgs + Intrinsics + Metric Poses」下表現不如 LPMP &amp; Scale (rel 0.06 vs 0.06,$\tau$ 57.8 vs 55.9 差距僅 1.9 點),代表 factorization 未必在所有輸入配置下絕對優於耦合表示。</p>
+<p><strong>Contribution 3: SOTA vs feed-forward, matching/surpassing experts</strong> Mostly supported, partial overclaim. Multi-view 與 two-view dense reconstruction 確為 SOTA (Figure 4, Table 2);single-view calibration 在三個資料集上全勝 (Table 3)。但 Table 4 ScanNet 多視角 metric (rel = 22.23 不對齊) 落後於 MUSt3R (7.66) 與 MASt3R-Tri/MVSA expert,作者僅以「benchmark 品質」帶過,主文標題「matching/surpassing」對 indoor metric depth 並不成立。</p>
+<p><strong>Contribution 4: Open source release under permissive licenses</strong> Supported with caveat。Apache 2.0 模型只訓於 6 個 dataset,Figure S.2 顯示其相對 13-dataset 版本在 points rel、pose ATE、metric scale rel 上都有可見退步;商業使用者拿到的並非 headline number 對應的模型。</p>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p><strong>1. 一對一 pixel-to-output 結構固化了 dense head 的計算與記憶體足跡。</strong> 作者在 Section 5 也指出 &quot;scalability is currently limited by the one-to-one mapping&quot;。即使 Figure S.1 透過 mini-batched DPT decoding 緩解 memory 峰值,本質上 N views × $H/14 \times W/14$ patch 的密集解碼仍是線性增長;當 view 數推到 500+ 或 resolution 超過 518 像素,無論如何 batching 都得遇到 GPU 上限,這不是工程優化能拆除的結構限制。</p>
+<p><strong>2. 模型對輸入幾何沒有 uncertainty channel。</strong> Section 3.1 描述 ray、depth、pose 經 encoder 編碼後直接 sum 到 image patch latent。當 IMU 給出帶 bias 的 pose、或 SLAM 估出 noisy sparse depth 時,模型無法區分「強先驗」與「壞先驗」,只能整段吞下。Robotics / AR 是論文反覆強調的應用情境,但此情境下 prior 必然帶噪聲,卻沒有 gating 或 confidence 加權機制。</p>
+<p><strong>3. Metric scale 只由單一 token 承擔。</strong> 全場景的 metric anchor 被壓縮成一個純量 $m$ 由 2-layer MLP 從 patch features 全 pool 而得。當輸入完全沒有 metric 訊號時,$m$ 必須單從 image prior 推斷 — Table 4 ScanNet 結果顯示這條路徑在 indoor 高噪聲深度資料集上幾乎崩潰 (rel = 27.77 不對齊;rel = 4.95 對齊後),而 alignment 後性能恢復強烈暗示 scale prediction 才是 bottleneck,不是 geometry。</p>
+<p><strong>4. Alternating attention 預設 covisibility,disjoint sets 缺顯式建模。</strong> Table S.2 顯示 alternating attention 在 50 views 顯著優於 global w/ view PE,但 alternating 機制本質上假設 view 之間有合理 covisibility 結構;Figure 3 雖展示 &quot;Disjoint Images&quot; 的定性比較,卻沒有針對 disjoint 設定的數值評估。當輸入是「同物體不同次拍攝」或「不同房間」時,attention 缺乏 explicit cross-set anchoring 機制,可能 silently 退化。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>VGGT [67] (Wang et al., CVPR 2025)</strong>: MapAnything 直接沿用其 alternating attention 與 16-layer transformer 設計;理解 VGGT 是讀懂本論文 ablation (Table 5a, Table S.2) 的前提。</li><li><strong>π3 [74] (Wang et al., 2025)</strong>: 同期工作,decouple local pointmap 與 global pose 但被 Table 5a 宣稱 sub-optimal;對照看誰的 decoupling 更接近正確答案,有助於判斷 factorization 設計的決勝點。</li><li><strong>Pow3R [23] (Jang et al., CVPR 2025)</strong>: 唯一其他用 geometric prior 作為 input 的 feed-forward 方法,雖被 outperform 但其兩視角 + pinhole-only 的設計選擇值得反向理解 conditioning 的失敗模式。</li><li><strong>MoGe-2 [71] (Wang et al., NeurIPS 2025)</strong>: 在 single-view metric depth 是主要 baseline 且 ScanNet 上勝過 MapAnything;理解其 training supervision 有助於回答「metric prior 從何而來」這個 Phyra 認為核心未解的問題。</li><li><strong>DUSt3R [72] (Wang et al., CVPR 2024)</strong>: pointmap-based feed-forward reconstruction 路線的奠基論文,對其 symmetric inference 與 post-processing 的成本理解,是判斷本論文「替換 expensive post-processing」是否成立的基準。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] ScanNet metric scale「sub-optimal」是否真為 benchmark 品質問題?以 ScanNet++ v2 重做同 protocol 是否復現 rel ≈ 27 的退化?</li><li>[ ] 當部分 view 的幾何輸入帶可控雜訊 (5% / 10% / 20% pose error 或 depth noise) 時,模型輸出降級曲線為何?目前 Section 5(a) 只承認 limitation,沒有量化。</li><li>[ ] 對完全 disjoint 的 N image sets,alternating attention 是否仍能恢復一致 metric scale,還是會 hallucinate 出單一 frame?Figure 3 缺數值評估。</li><li>[ ] 訓練最多 24 views,推論到 100~500 views 時 latent token 數線性膨脹;是否觀察到 attention 飽和或 metric scale token 對遠端 view 失去敏感度的訊號?</li><li>[ ] 把 &quot;exclude top 5% loss&quot; 改為 outlier-aware downweight (Huber / robust loss) 在 textureless 與邊界區是否有顯著差異?</li><li>[ ] 13-dataset CC BY-NC 版本相對 6-dataset Apache 版本的 gain 主要來自哪些 dataset?Aria Synthetic 還是 DL3DV-10K 還是 MegaDepth 是 dominant?</li><li>[ ] 單一純量 metric scale token 是否足以承載 100m+ 戶外場景的 scale prior?Spring / TartanAir 中真實大場景的條件誤差分佈尚未報告。</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<p>排序由可行至挑戰性高:</p>
+<ol><li><strong>(Low-cost) Confidence channel for geometric inputs.</strong> 把 input geometry 加入 per-quantity confidence channel,允許模型 attenuate 來自 noisy IMU/SLAM 的 prior。只需擴 encoder 的 channel 維度,訓練資料可由人工 perturb 真實標註生成。基礎是 Section 5(a) 的 limitation 與 Phyra 觀察的 sum-fusion 結構問題。</li></ol>
+<ol><li><strong>(Medium-cost) Indoor fine-tuning to test &quot;benchmark quality&quot; 假說.</strong> 在 ScanNet 與 indoor metric 上做 in-domain fine-tune,驗證 ScanNet metric scale 退化是否真是 benchmark 而非 model 問題。若 fine-tune 後 rel 仍 &gt; 10,則作者假說被否決,需要重新審視 metric token 的 inductive bias。</li></ol>
+<ol><li><strong>(Medium-cost) Per-cluster metric scale tokens.</strong> 將 metric scale 由 single token 升級為 N-view-graph 上的 per-cluster scale token,允許不同 sub-graph 有不同 anchor,然後以 graph attention 聚合。基礎是 Section 5 對 &quot;scene representation in memory&quot; 的 explicit 點名與 §7.2 第 3 點的 capacity bottleneck 觀察。</li></ol>
+<ol><li><strong>(High-cost) Factor-aware attention.</strong> 替換 alternating attention 為「factor-aware attention」:讓 ray、depth、pose token 彼此 cross-attend 但不被 sum 入單一 patch token,直接測試 Section 5(d) 的 fusion 假說。需要重訓 backbone,但若成功,Table 5a 中 LPMP 與 RDP 的差距會被進一步拉開,並可能消除 Imgs+K+Poses 設定下 RDP 不勝 LPMP 的反例。</li></ol>
+<ol><li><strong>(High-cost) Iterative test-time refinement.</strong> 把 iterative inference 引入 (作者於 Section 5(c) 留作 future):對 dense reconstruction 加 few-step latent refinement,以 covisibility-conditioned mask 為 prior,測試 50 views 下 points rel 是否能自 0.13 降至 sub-0.10,同時讓 noisy prior 的 robustness 透過 refinement steps 自我糾正。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>

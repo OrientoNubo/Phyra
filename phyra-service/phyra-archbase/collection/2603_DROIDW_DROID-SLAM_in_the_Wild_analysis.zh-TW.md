@@ -1,0 +1,590 @@
+<!-- type: paper-read-notes | generated: 2026-05-09 | lang: zh-TW -->
+
+# DROID-W — DROID-SLAM in the Wild
+
+## 1. Basic Information
+
+| Item | Content |
+|------|---------|
+| Paper short name | DROID-W |
+| Paper full title | DROID-SLAM in the Wild |
+| arXiv ID | 2603.19076 |
+| Release date | 2026-03-19 |
+| Conference/Journal | CVPR 2026 |
+| Paper link (abs) | https://arxiv.org/abs/2603.19076 |
+| PDF link | https://arxiv.org/pdf/2603.19076v1 |
+| Code link | https://github.com/MoyangLi00/DROID-W.git |
+| Project page | — |
+
+### 1.1 Author Information
+
+| Author Name | Affiliation | Homepage | Role |
+|------|------|------|------|
+| Moyang Li | ETH Zurich | https://moyangli00.github.io/ | co-first author |
+| Zihan Zhu | ETH Zurich | https://zzh2000.github.io/ | co-first author |
+| Marc Pollefeys | ETH Zurich; Microsoft | https://people.inf.ethz.ch/marc.pollefeys/ | advisor |
+| Daniel Barath | ETH Zurich | https://cvg.ethz.ch/team/Dr-Daniel-Bela-Barath | corresponding author / advisor |
+
+### 1.2 Keywords
+
+Visual SLAM, Dynamic Scene, Bundle Adjustment, Uncertainty Estimation, DINOv2 Features, Multi-view Consistency, Real-time
+
+### 1.3 Related Lineage
+
+| Key | Relation | Brief |
+|------|------|------|
+| DROID-SLAM (Teed & Deng, 2021) [48] | base model | 深度視覺 SLAM 基底，提供 differentiable BA 層；DROID-W 在其上加入 uncertainty 模組 |
+| WildGS-SLAM [66] | baseline | 以 DINOv2 特徵與 3DGS 地圖估計 per-pixel 動態 uncertainty 的最直接競品 |
+| UP-SLAM [67] | baseline | 將高維視覺特徵嵌入 3DGS feature space，使用相似度損失監督 uncertainty |
+| DynaSLAM [4] | baseline | 建構於 ORB-SLAM2 之上，用語意分割遮罩動態物體的代表性傳統動態 SLAM |
+| MonST3R [62] | baseline | 將 DUSt3R 擴展至動態場景的 feed-forward 法，論文用作動態遮罩與內參估計比較 |
+| NICE-SLAM [70] | influence | 代表性的 neural implicit SLAM，作者在文獻脈絡中作為靜態場景假設的對照基準 |
+| Metric3D [17] | influence | 提供度量單眼深度作為 BA 的正則化先驗，強化高動態場景下的初始化穩健性 |
+
+## 2. Research Overview
+
+### 2.1 Research Topic
+
+本論文聚焦於「真實世界 in-the-wild 動態場景下的單目 RGB 視覺 SLAM」。傳統 SLAM 多假設靜態環境，使動態物體破壞 rigid-motion 假設並造成 tracking 失準；近期以語意分割或運動先驗處理動態的方法則無法泛化至未知物件類別與雜亂戶外場景。論文以 DROID-SLAM 為骨幹，提出 DROID-W，將「per-pixel 動態 uncertainty」整合進 differentiable bundle adjustment，藉由跨視角 DINOv2 特徵相似度而非地圖渲染殘差來估計動態權重，達成不依賴 NeRF/3DGS 地圖品質的動態判斷。系統可即時 (~10 FPS) 同時優化相機軌跡、深度與動態 uncertainty，並推出涵蓋戶外與 YouTube 影片的 DROID-W 資料集，於 Bonn、TUM、DyCheck 與自有資料上達到 SOTA tracking 與重建。
+
+### 2.2 Domain Tags
+
+- Computer Vision
+- 3D Reconstruction
+- SLAM
+- Robotics
+
+### 2.3 Core Architectures Used
+
+- **DROID-SLAM**：本論文的視覺 SLAM 骨幹，提供 differentiable Bundle Adjustment 層、ConvGRU update operator、frame-graph 維護、以及 keyframe 化的 pose-disparity 迭代優化機制；DROID-W 在此之上嵌入 uncertainty 通道。
+- **Uncertainty-aware Bundle Adjustment (UBA)**：本論文提出的核心新模組，於 dense BA 的 Mahalanobis 殘差中加入 per-pixel 動態 uncertainty $u$ 作為加權項 $\Sigma^{\text{uncer}}_{ij} = \mathrm{diag}(w_{ij} \cdot 1/u'_i)$，以下調動態像素對 Gauss-Newton 系統的影響。
+- **DINOv2 / FiT3D 特徵抽取器**：作為 frozen 特徵提取網路，用以計算跨視角 cosine similarity，作為 multi-view inconsistency 的訊號源，取代依賴地圖渲染殘差的 uncertainty 監督方式。
+- **局部仿射映射 + Softplus 解碼**：以 $u = \mathrm{Softplus}(\theta \cdot F)$ 將 DINOv2 特徵映射至 uncertainty，扮演 sliding-window 內的局部正則器，避免逐像素優化的空間不一致與雜訊過擬合。
+- **Metric3D 單眼度量深度**：作為 frozen 先驗網路，提供 disparity regularization 項 $\sum_i \lVert d'_i - D_i \rVert^2$，以在高動態場景中穩定 BA 的初始化與深度尺度。
+- **交錯式優化框架 (Interleaved Optimization)**：在 pose-depth 的 Gauss-Newton 更新與 uncertainty 的 Gradient Descent (含 weight decay) 之間交替迭代，繞開聯合優化大型 Hessian 反演的成本，同時維持系統實時性 (~10 FPS)。
+
+### 2.4 Core Argument
+
+作者識別到目前動態 SLAM 兩條主流路線各有結構性缺陷：第一類依賴語意分割或物體偵測的方法，必須事先定義動態類別，遇到未見過的物體 (例如戶外行人之外的雜物、動物、特殊車輛) 即失效；第二類近期 NeRF/3DGS 系的 uncertainty-aware 方法 (WildGS-SLAM、UP-SLAM 等) 雖然可學習動態 uncertainty，但其 uncertainty MLP 是在「已建構穩定靜態地圖」的前提下被光度與深度損失監督——一旦場景複雜、雜亂或動態比例高，地圖本身就無法穩定，uncertainty 也跟著失準，造成 tracking 在低動態場景反倒比 DROID-SLAM 更差。作者由此推論：要在 in-the-wild 中真正穩健，動態判斷必須與 dense 幾何地圖的品質「解耦」。其解法因此邏輯上是必要的：將 uncertainty 直接綁進 differentiable BA 層，作為加權 reprojection 殘差的 confidence；並改以「跨視角 DINOv2 特徵 cosine 相似度」作為 multi-view inconsistency 的度量——特徵對外觀變化穩健且帶語意，比依賴地圖渲染的光度/深度殘差更可靠。為避免聯合 Gauss-Newton 過於昂貴與 trivial 解，作者採用交錯式優化 (pose-depth GN ↔ uncertainty 梯度下降)、log prior、以及由 DINOv2 特徵到 uncertainty 的局部仿射映射作為正則化，並引入 Metric3D 單眼深度作為 BA disparity regularization。整體論點即：唯有將 uncertainty 的訊號源從「地圖渲染」轉為「跨視角特徵一致性」，並讓 uncertainty 與 BA 互為條件迭代，才能在不依賴動態先驗、不依賴高品質地圖的情況下，於真實世界雜亂場景達成穩健即時的動態 SLAM。
+
+## 3. Section Walkthrough
+
+### 3.1 Title and Abstract
+
+(150 words)
+
+標題「DROID-SLAM in the Wild」直接定位本文的論述核心：把既有的深度視覺 SLAM 系統 DROID-SLAM 從靜態假設拓展到「in-the-wild」的真實動態環境。Abstract 以三段式邏輯鋪陳：先指出傳統 SLAM 假設靜態場景而在動態環境中失效，再批評近期動態 SLAM 方法的兩個主要路線（依賴 predefined dynamic priors 的 segmentation/detection 路線，以及依賴 neural implicit 或 Gaussian Splatting map 的 uncertainty-aware 路線）在「unknown dynamic objects」與「highly cluttered scenes」中皆會崩壞，最後提出本文的差異化主張：以 differentiable Uncertainty-aware Bundle Adjustment 結合 multi-view visual feature inconsistency 來估計 per-pixel uncertainty，避開了「需要可靠幾何 mapping」這個前提。
+
+Abstract 的關鍵承諾有四點，會逐一在後續章節兌現：(1) state-of-the-art camera pose；(2) state-of-the-art scene geometry；(3) cluttered dynamic 場景下仍可運作；(4) 約 10 FPS 的 real-time 表現。同時點名 code 與 dataset 公開，暗示後續會引入新 benchmark。這層鋪陳直接設定了 §3.2 Introduction 要展開的「為何現有方法不夠」與「我們的 uncertainty 為何不需要 mapping」兩條主軸。
+
+### 3.2 Introduction
+
+(380 words)
+
+Introduction 採三步論證。第一步建立任務重要性：SLAM 是 autonomous driving、robotics、embodied intelligence 的基礎，但 dynamic and non-rigid objects 是阻礙真實世界部署的主要瓶頸。第二步分類現有失敗模式：(a) 仍假設靜態場景的傳統 SLAM（如 ORB-SLAM2、DROID-SLAM 本身），(b) 依靠 detection/segmentation 把動態區域 mask 掉的方法（DynaSLAM 等），其限制是「rely heavily on prior knowledge of dynamic objects」，無法處理 unknown classes。第三步聚焦最相近的競爭路線：uncertainty-aware methods（WildGS-SLAM、UP-SLAM 等）以 shallow MLP 從 DINO 特徵預測 per-pixel uncertainty，並透過 online update 學習。作者點出此路線的隱性致命假設——這些方法必須先建出「perfectly static neural implicit 或 Gaussian Splatting map」才能監督 uncertainty，因此一旦場景 cluttered、mapping 不穩，uncertainty 也跟著崩。
+
+定位完缺口後，作者提出 DROID-W 的核心 insight：把 uncertainty 直接嵌進 differentiable bundle adjustment 層，與 camera poses、scene geometry 一起被 iteratively 更新；且 uncertainty 的監督訊號不來自 rendering loss，而來自 multi-view visual feature similarity。這條設計直接迴避了「需要高品質 map 才能算 uncertainty」的循環依賴。Introduction 同時前置宣告兩個資料貢獻：自採的 DROID-W outdoor dataset（搭載 Livox Mid-360 LiDAR，提供 RTK 或 FAST-LIVO2 ground truth）以及 YouTube clips，藉此挑戰過去 dynamic SLAM 在 saturated indoor benchmark 上飽和的問題。
+
+最後一段則把承諾收束為三個可驗證指標：robust uncertainty estimation、state-of-the-art tracking 與 reconstruction、real-time at ~10 FPS。這三點精準對應後續 §4 將呈現的 Tables 1–4（tracking）、Fig. 3 與 Fig. 4（uncertainty 與 reconstruction quality）、以及 Table 5（runtime）。Introduction 的論證結構，因此自然把讀者推向 §2 Related Work 的更細譜系比較，再進入 §3 提出的具體公式化方案。
+
+### 3.3 Related Work / Preliminaries
+
+(800 words)
+
+§2 Related Works 將文獻切成三條軸線，刻意對應 Introduction 已點名的三類失敗模式，並把 Preliminaries（§3.1）所需的 DROID-SLAM 知識前置到讀者腦中。第一軸 Traditional Visual SLAM 從靜態假設的 LSD-SLAM、DSO、ORB-SLAM、DROID-SLAM 出發，再過渡到隱式處理動態的方法（透過懲罰大 frame-to-frame residual，如 Kerl 系列；frame-to-model alignment 的 StaticFusion、ReFusion）。接著切到顯式 detection/segmentation 路線：DynaSLAM、DS-SLAM、Detect-SLAM、Co-Fusion、MaskFusion、FlowFusion，作者用一句話打死整路線——皆依賴 prior knowledge of dynamic objects，無法處理 unseen classes。
+
+第二軸 NeRF- and GS-based SLAM 是本文最主要的競爭面。作者先按時序展示路線演進：iMAP→NICE-SLAM→Point-SLAM/ESLAM/Co-SLAM/GO-SLAM/Vox-Fusion 等補強，再到 3DGS 帶起的 SplaTAM、GS-SLAM、Gaussian Splatting SLAM、CG-SLAM、Splat-SLAM。接著切到動態版：RoDyn-SLAM、DG-SLAM、DDN-SLAM、DynaMoN、ADD-SLAM 等仍仰賴 segmentation 或 warping mask。最關鍵的是把 WildGS-SLAM 與 UP-SLAM 抽出來作正面對手——兩者皆以 shallow MLP 從 DINOv2 features 預測 per-pixel motion uncertainty，並用 photometric/depth loss 對 rendered images 做監督。作者在此打出最尖銳的差異化句：「the optimization of uncertainty in these methods remains tightly coupled with scene representation, leading to performance degradation in complex environments where mapping struggles.」這句話直接設定了 §3 之後 method 的對立面：本文的 uncertainty 改用「frame-to-frame visual feature similarity」，與 mapping 解耦。
+
+第三軸 Feed-forward Approaches 涵蓋 DUSt3R、VGGT、MonST3R、Easi3R、CUT3R、TTT3R。作者承認這些方法 visually convincing，但定下兩個結構性弱點：短序列限制與「purely feed-forward 難以恢復精確 camera trajectory 與 metrically consistent structure」。這為 §4 中將 MonST3R 與 TTT3R 排在 SLAM-style 方法之下、tracking error 顯著較高的結果提供解釋骨架。
+
+§3.1 Preliminaries 緊接著把 DROID-SLAM 的數學機制拉到讀者面前，作為後續貢獻的對照基底。它定義 state variables（camera pose $G_t \in SE(3)$、inverse depth $d_t$）、frame-graph $(V, E)$、以及 differentiable bundle adjustment 層所操作的 image pair $(I_i, I_j)$。核心方程式是 rigid-motion correspondence
+
+$$p_{ij} = \Pi_c\!\left(G'_{ij} \circ \Pi_c^{-1}(p_i, d'_i)\right),$$
+
+以及以 confidence map $w_{ij}$ 加權的 Mahalanobis 殘差能量函數，最後寫出 Gauss-Newton 線性系統的舒爾補解法 $\Delta\xi = [B - EC^{-1}E^T]^{-1}(v - EC^{-1}w)$。這段鋪陳的功能是讓讀者明確看到一個事實：原本的 BA 殘差只用 confidence map $w_{ij}$ 加權，並未考慮動態物件破壞 rigid-motion 假設的問題。換句話說，§2 已經把競爭路線的缺口指出，§3.1 則精確標出本文要插入「uncertainty 項」的數學位置。這種「先掃文獻、再建符號、再插入新項」的安排，把後續 §3.2 Uncertainty-aware Bundle Adjustment 的提案變得幾乎是必然的修補動作，論述上自然完成過渡。
+
+### 3.4 Method (overview narrative)
+
+(700 words)
+
+§3 Proposed Method 採「動機－符號－兩個更新模組－系統整合」四段結構。作者先重申論文層級的 thesis：將 DROID-SLAM 的 differentiable BA 層擴充為 Uncertainty-aware Bundle Adjustment（UBA），讓 per-pixel dynamic uncertainty 與 camera pose、depth 一起被聯合優化，藉此在 cluttered real-world 序列中達到 robust tracking 與 accurate geometry。整節以 Fig. 2 的 system overview 串接：input frames 經 DROID feature extractor 與 DINOv2/FiT3D 雙路徑分別餵入 BA update flow 與 uncertainty update flow，並透過 Metric3D 提供 monocular depth 作為 BA 的正則化來源。
+
+第一個模組 §3.2 Uncertainty-aware Bundle Adjustment 直接接續 §3.1 的符號。作者引入 per-pixel uncertainty $u_t$，把它放進 Mahalanobis 加權項：
+
+$$\Sigma^{\text{uncer}}_{ij} = \mathrm{diag}(w_{ij} \cdot 1/u'_i),$$
+
+讓動態像素自動因 high $u$ 被 downweight。這裡作者明確說明設計取捨：jointly 用 Gauss-Newton 同時優化 pose、depth、uncertainty「computationally prohibitive」，因此採 interleaved optimization——pose-depth 仍以 Newton 解，uncertainty 改走 gradient-based 路線。
+
+第二個模組 §3.3 Uncertainty Optimization 是本文最具差異化的設計。關鍵抉擇：uncertainty 的監督訊號不取自 reprojection residual，而取自 DINOv2/FiT3D 特徵在 image pair 之間的 cosine similarity。理由是「reprojection error can become unreliable under large dynamic motion」，而 visual feature similarity「more stable and semantically meaningful」。作者寫下 similarity loss
+
+$$E_{\text{sim}}(u') = \sum_{(i,j)\in E} \frac{1 - \frac{F_i \cdot F_{ij}}{\|F_i\|_2\|F_{ij}\|_2}}{u'_i \cdot u'_{ij}},$$
+
+並以對數先驗 $E_{\text{prior}}(u') = \sum_i \log(u'_i + 1.0)$ 阻止 trivial solution $u' \to +\infty$。為避免逐像素 uncertainty 出現空間不一致與 noise overfit，作者進一步引入 local affine mapping 加 Softplus，亦即 $u = \mathrm{Softplus}(\theta \cdot F)$；這個設計被刻意定位為 regularization，而非 prior works 中的 decoder。優化策略採 Gradient Descent 加 weight decay，Jacobian 的 CUDA 實作確保效率，最後將 $\theta$ 的更新規則寫為 $\theta_t = \theta_{t-1} - \lambda g_t - \eta \theta_{t-1}$。
+
+第三個模組 §3.4 SLAM System 把上述兩塊整合進 DROID-SLAM 的整體 pipeline。系統累積 12 keyframes 才啟動，並改良一個原本的弱點：DROID-SLAM 將 disparity 初始為常數 1，在 high-dynamic 場景下會導致追蹤崩壞。作者改以 Metric3D 的 metric monocular depth $D_t$ 作為 disparity 的 penalty，得到帶 depth regularization 的 BA 能量函數
+
+$$E_+(G', d') = \sum_{(i,j)\in E} \|p^*_{ij} - p_{ij}\|^2_{\Sigma^{\text{uncer}}_{ij}} + \gamma_d \sum_i \|d'_i - D_i\|^2.$$
+
+初始化後採 incremental 形式：新增 keyframe 時於 sliding window 內做 local BA 並啟用 depth regularization；frontend tracking 同時優化 pose、disparity、uncertainty。Global BA 階段刻意凍結 affine mapping 的參數，因為作者把這個 mapping 定位為「local within sliding window」，全域使用會破壞語意一致性。整個 §3 的敘事邏輯，因此把核心對手（WildGS-SLAM/UP-SLAM 必須依賴 mapping）逐步逼到死角，並讓讀者看到一條替代路徑：uncertainty 從 mapping 解耦、改與 BA 共同迭代，自然轉向 §4 的實驗驗證。
+
+### 3.5 Experiments (overview narrative)
+
+(380 words)
+
+§4 Experiments 採「資料與基線設定→定量比較→定性比較→runtime→ablation」五段結構，目的在把 §3 的三大承諾（robust uncertainty、state-of-the-art tracking、real-time）逐項驗證。作者先設置四個 benchmark：Bonn RGB-D Dynamic、TUM RGB-D、DyCheck，以及自製 outdoor 大型序列 DROID-W（7 條 Downtown，1200×1600 RGB，配 RTK 或 FAST-LIVO2 GT），再加 6 條 YouTube 真實野外序列以測試「truly in-the-wild」。Baselines 被刻意分成四群：Classic SLAM、Classic dynamic SLAM、static NeRF/GS-based SLAM、dynamic NeRF/GS-based SLAM，再加上 feed-forward 路線（MonST3R、TTT3R），以利對應 §2 三軸文獻分類。
+
+定量結果分散在 Tables 1–4，作者用「全 dataset 平均最佳」串成一條主線：Bonn 上 DROID-W 取得 2.30 cm 平均 ATE（勝過 WildGS-SLAM 2.52）；TUM 上以 1.36 cm 平均擊敗 WildGS-SLAM 與 DROID-SLAM；DyCheck 上 0.034 平均（normalized）優於所有對手；DROID-W 自家 dataset 上更以 0.230 m 與 WildGS-SLAM 0.637 m、DROID-SLAM 1.460 m 拉開明顯差距。作者刻意誠實揭露單一失敗案例（DyCheck haru：dog 占據視野，背景特徵不足），用以說明 uncertainty 機制的物理解釋是合理的而非偶然。Runtime 結果（Table 5）顯示約 10 FPS，相對 WildGS-SLAM 的 0.22 FPS 是 ~40× 加速，正面兌現 real-time 承諾。
+
+定性比較分為兩條：Fig. 3 比 uncertainty estimation，呈現 WildGS-SLAM 在 cluttered/低品質影像上 uncertainty map 崩壞，而 DROID-W 的 uncertainty 則 spatially coherent；Fig. 4 比 3D reconstruction（YouTube），凸顯 DROID-SLAM 因未處理動態而出現 scale drift（St. Moritz 1）、erroneous geometry（St. Moritz 3）、noisy distractors（Tokyo Walking 2 & 3），WildGS-SLAM 則直接 mapping 失敗。Ablation（Table 6）以五個切除設定（w/o UBA、w/o monocular depth、w/o uncertainty decouple、w/o affine mapping、w/o weight decay）證明每個元件的邊際貢獻，全配置 2.30 cm 為最佳。整節敘事形成一個閉環：uncertainty 準確（Fig. 3）→tracking 領先（Tables 1–4）→reconstruction 一致（Fig. 4）→效率達標（Table 5）→各模組必要（Table 6），自然把讀者帶向 §5 Conclusion 對侷限與後續工作的收束。
+
+### 3.6 Conclusion / Limitations / Future Work
+
+(110 words)
+
+§5 Conclusion 採極簡收束策略，把 §1–§4 的論證壓縮成三句核心宣告：本文提出一套單目動態 SLAM 系統；其核心是在 differentiable bundle adjustment 框架內以 multi-view feature similarity 優化 dynamic uncertainty；廣泛實驗顯示在 prior methods 普遍失敗的真實世界場景中仍能達成 robust tracking 與 accurate geometry。作者特別強調 code 將公開，呼應 Abstract 的開源承諾與 §4 的 DROID-W dataset 貢獻，使整篇論文以「方法＋資料＋代碼」三件套作結。
+
+Limitations 段則僅留一段、刻意指向系統最脆弱的環節：本文的 uncertainty 優化建立在 frame-to-frame alignment 之上，因此在 SLAM 初始化階段——pose 估計尚未穩定時——uncertainty 估計可能不準。作者把這個觀察直接導向具體的 future work 提案：引入 reconstruction priors 來改善 initialization 階段的 robustness。這段坦白同時對外回應了 §3.4 中 system 必須累積 12 keyframes 才啟動的設計合理性——它本質上是一個容忍 cold-start 不穩的工程選擇。
+
+值得注意的是，論文未在主文中討論 Gaussian Splatting 路線可能帶來的高品質 dense map 是否能被回頭整合，也未涉及 multi-camera 或 IMU 融合的拓展。這意味著作者把研究線索留給後續：Initialization-stage prior、與 mapping 模組的可選整合、以及將 uncertainty 機制泛化至其它 SLAM backbone（不限於 DROID-SLAM）的可能性，皆可作為延伸研究的自然方向。整體 §5 篇幅雖短，但成功把實驗成功的論調與一個可信的 limitation 並置，避免過度宣稱，並為讀者留下清楚可接續的研究議程。
+
+## 4. Critical Profile
+
+### 4.1 Highlights
+
+- 在 Bonn RGB-D Dynamic 上達到 ATE RMSE 2.30 cm，超越所有 RGB-only 與多數 RGB-D baseline，包括 DynaSLAM (6.45 cm) 與 WildGS-SLAM (2.52 cm)（Table 1, p.6）。
+- 在 TUM RGB-D 上平均 1.36 cm，於 9 條序列中 6 條取得最佳或次佳，特別在高動態 f3/wr 取得 3.1 cm（DROID-SLAM 為 4.0 cm，Table 2, p.6）。
+- 在 DyCheck 上平均 0.034，較 DROID-SLAM (0.044) 與 WildGS-SLAM (0.056) 顯著領先（Table 3, p.7）。
+- 自建 DROID-W 戶外資料集上，平均 0.230 m，較 WildGS-SLAM (0.637 m) 約低 2.8 倍（Table 4, p.7）。
+- 即時運行於 ~10 FPS，較 WildGS-SLAM (~0.22 FPS) 快約 40 倍，僅略慢於 DROID-SLAM 之 19.89 FPS（Table 5, p.7）。
+- 提出將 per-pixel uncertainty $u$ 直接編入 differentiable BA 之 Mahalanobis weight $\Sigma^{\text{uncer}}_{ij}=\text{diag}(w_{ij}\cdot 1/u'_i)$（Eq. 4, p.4），並以交錯式 pose-depth GN 與 uncertainty gradient descent 解決聯合優化的計算成本。
+- 改以跨視角 DINOv2 特徵 cosine similarity（Eq. 6, p.4）取代 NeRF/3DGS-based 方法常用的 photometric/depth rendering residual 作為 uncertainty 監督訊號，使 uncertainty 與地圖品質解耦。
+- 引入 Metric3D monocular depth 作為 BA disparity 正則化項 $\gamma_d\sum_i\|d'_i-D_i\|^2$（Sec. 3.4, p.4），改善高動態場景下的初始化穩健性。
+- Ablation 顯示每個元件均必要：移除 uncertainty-aware BA 使誤差由 2.30 升至 5.13 cm，移除 monocular depth 升至 3.30 cm（Table 6, p.7）。
+- 同時釋出 DROID-W 戶外資料集（7 條 Downtown 序列、含 RTK 與同步 IMU/LiDAR）與 6 段 YouTube in-the-wild 影片，補足過往 dynamic SLAM benchmark 偏室內的缺口（Sec. 4 & Sec. 7, p.5, p.12）。
+
+### 4.2 Weaknesses
+
+#### 4.2.1 Author-acknowledged
+
+- 作者於 Sec. 5 (p.8) 明確承認：uncertainty 之優化依賴 frame-to-frame alignment，當 SLAM 初始化階段 pose 仍不可靠時，uncertainty 估計可能不準確；建議未來引入 reconstruction prior 強化初始化穩健性。
+- 作者於 DyCheck haru 序列分析 (p.6) 自承：當動態狗佔據視野主體時，正確的 uncertainty 反而會抑制過多像素，導致可用 background feature 不足而 tracking 變差，是「正確 uncertainty」與「可追蹤性」之間的內在衝突。
+- 作者於 Sec. 4 Datasets (p.5) 指出：超過 5 分鐘的影片必須切成 5 分鐘 non-overlapping segment，因為單 GPU 記憶體限制無法持續 SLAM。
+
+#### 4.2.2 Phyra-inferred
+
+- YouTube 影片之 camera intrinsics 由 baseline MonST3R 從前 20 frames 估計（p.5），形成「以待比較對象提供關鍵輸入」的循環依賴；若 MonST3R intrinsic 偏誤，所有方法皆會被同樣誤導，但對 reprojection-based 的 DROID-W 影響可能比對 feed-forward 的 MonST3R 更大，論文未做 sensitivity 分析。
+- DROID-W 自建資料集 Downtown 1–2 之 ground truth 來自 FAST-LIVO2 而非 RTK，Table 8 顯示 FAST-LIVO2 自身在 Downtown 3–7 上平均誤差 0.071 m，而本方法在這幾條的平均誤差是 0.242 m，亦即 GT 誤差佔評估誤差近 30 %，論文未對此做 error budget 分解。
+- Ablation c (w/o uncertainty decouple) 僅將誤差由 2.30 cm 改善至 2.57 cm（Table 6, p.7），意即「雙向 $u'_i\cdot u'_{ij}$ 解耦」的邊際貢獻僅 0.27 cm，論文以「驗證每個元件的有效性」帶過，未討論這個小幅差距是否在隨機性誤差範圍內。
+- 論文僅評估 tracking ATE 與 qualitative reconstruction，從未量化動態物件本身的重建品質（例如 dynamic point cloud 的 chamfer distance），但 Fig. 4、9、10 都把 dynamic point cloud 當賣點展示，造成「視覺化展示」與「量化驗證」的不對稱。
+- haru 失敗被論文形容為「accurate uncertainty 反倒讓 background feature 不足」(p.6)，這個解釋將失敗合理化，但若同樣邏輯套用，任何「動態占主體」的場景都會失效；論文未給出失敗閾值（例如動態像素佔比超過多少時會崩潰）。
+- 從 DINOv2 feature 到 uncertainty 的 affine mapping 是 local sliding-window only（p.4 末段強調 global BA 時要 freeze 此 mapping），意即同一個 DINOv2 feature 在不同 window 可被映射到截然不同的 uncertainty，論文承認這是「locality 設計」但未討論其對 loop closure 與 re-visit 一致性的影響。
+- View-dependent 效應（鏡面、反射）被本方法判為高 uncertainty（Supp. Fig. 5、Fig. 7），論文當成 feature 展示；但鏡面在幾何上其實是靜態 surface，將其權重壓低相當於丟棄了一個有效的 tracking constraint，這是 method-formulation level 的偏差，非 bug。
+
+### 4.3 Phyra's Judgment (summary)
+
+真正具新意的部分只有一個核心 insight：把 uncertainty 的監督訊號從「需要先有穩定地圖才能算的 photometric/depth rendering residual」換成「不需要地圖、只要相機 pose 與 depth 即可算的 cross-view DINOv2 cosine similarity」，從而把 uncertainty 與地圖品質解耦。其餘多為工程整合：把這個訊號塞進既有 DROID-SLAM 的 differentiable BA、用 Metric3D 補強 disparity、用 affine mapping 做正則化、出一個戶外資料集。最關鍵且尚未解決的問題是：當場景的「靜態錨點」消失時（haru 已經是預兆），這套以 weighted reprojection residual 為核心的框架本質上沒有 fallback——這是 BA 範式的限制，不是 uncertainty design 的限制。
+
+## 5. Methodology Deep Dive
+
+### 5.1 Method Overview
+
+DROID-W 是建立在 DROID-SLAM 之上的單目動態場景 RGB SLAM 系統，輸入為 RGB 影像序列、輸出為相機軌跡與 dense 場景幾何，目標是將動態物件對 rigid-motion 假設的破壞「從幾何 mapping 解耦」之後再用以加權 BA 殘差。整個系統由四個耦合模組組成：(a) DROID-SLAM backbone 的影像特徵抽取與 ConvGRU update module，輸出每對 keyframe 的 dense correspondence $p^*_{ij}$ 與 confidence map $w_{ij}$；(b) FiT3D-refined DINOv2 feature extractor，對每一幀產生 2D visual feature $F_t$，作為跨視角一致性的訊號源；(c) Metric3D 度量單眼深度估計，提供 BA 的 disparity 正則化先驗 $D_t$；(d) 由可微分 Uncertainty-aware Bundle Adjustment (UBA) 與 uncertainty optimization 組成的交錯求解器，分別更新 $\{G_t, d_t\}$ 與 $\{u_t\}$。
+
+UBA 的核心是將每一像素的動態 uncertainty $u_t$ 引入 Mahalanobis residual 的 covariance：在原本由 confidence map $w_{ij}$ 加權的 reprojection 殘差上再除以 $u'_i$，使動態區域的殘差貢獻被自動下調（式 4–5）。求解時不採用聯合 Gauss-Newton（避免大型 Hessian 與 trivial 解），而是採用「pose-depth 用 Gauss-Newton、uncertainty 用 gradient descent + weight decay」的交錯式策略，且兩者所用的訊號源不同：pose-depth 由 reprojection residual 驅動，uncertainty 由跨視角 DINOv2 feature 的 cosine 不相似度（式 6）加上對數先驗（式 7）驅動。Uncertainty 並非 per-pixel 自由變量，而是經由「DINOv2 feature → 局部仿射映射 + Softplus」產生 $u = \text{Softplus}(\theta \cdot F)$，使 $\theta$ 在 sliding window 範圍內成為唯一的學習量，達到空間平滑化與抗雜訊的正則效果。
+
+系統層面，DROID-W 累積 12 個有足夠運動的 keyframes 後初始化，並引入 Metric3D depth 作為 disparity 正則化以解決 DROID-SLAM 將 disparity 初始化為常數 1 在高動態場景下的不穩定性（式 $E_+$）。Frontend tracking 階段在 sliding window 上進行 local BA 並同時更新 pose / disparity / uncertainty；Frontend 結束後對所有 keyframes 進行 global BA，但 freeze 仿射映射參數 $\theta$，因為仿射映射的設計初衷是 sliding window 內的局部正則，不適合做全域 scale 的 uncertainty 估計。所有 backpropagation 以 CUDA 實作以維持 ~10 FPS。
+
+### 5.2 Pipeline Diagram with Tensor Shapes
+
+```
+Input: monocular RGB sequence  {I_t}_{t=0..N}
+   I_t ∈ [H, W, 3]               (H, W：論文未明確；YouTube 影像由 MonST3R 估內參)
+   │
+   ├─────────────────────────────────────────────┐
+   │                                             │
+   ▼                                             ▼
+[DROID Feature Extractor]                  [DINO Feature Extractor (FiT3D)]
+   per-frame image feature F_t                  per-frame visual feature F_t^{DINO}
+   F_t ∈ [H/8, W/8, ?]                          F_t^{DINO} ∈ [H/?, W/?, D_{dino}]
+                                                (空間/通道維度論文未指定)
+   │                                             │
+   │  ┌─ Keyframe Pairs (i,j) ∈ E (frame-graph) │
+   │  ▼                                          │
+[ConvGRU Update Module]                          │
+   每次 iteration 輸出：                          │
+     correspondence  p*_{ij} ∈ [H/8, W/8, 2]     │
+     confidence      w_{ij}  ∈ [H/8, W/8, 2]     │
+     pixel grid      p_i     ∈ [H/8, W/8, 2]     │
+   │                                             │
+   ▼                                             │
+============================================================
+ (Frontend, sliding window 內)：交錯式優化
+============================================================
+   ▼                                             ▼
+[Uncertainty-aware BA]  ◀──── u'_i ──── [Uncertainty Optimization]
+   殘差： ‖p*_{ij} − p_{ij}(G', d')‖^2            cost: E_uncer = E_sim + γ_prior · E_prior
+   covariance: Σ^{uncer}_{ij} = diag(w_{ij}·1/u'_i)  similarity 由 cosine(F_i, F_{ij})
+                                                  uncertainty 由仿射 + Softplus 產生
+   Gauss-Newton on (ξ, d)                          u = Softplus(θ · F),  θ ∈ [?, D_{dino}]
+     (Eq. 2–3)                                     gradient descent + weight decay
+     更新： Δξ ∈ R^6, Δd ∈ R^{H/8·W/8/keyframe}      (Eq. 9, CUDA backprop)
+                                                   u_t ∈ [H/8, W/8]
+   │
+   │  + Disparity Regularization (Metric3D)
+   │      D_t ∈ [H/8, W/8]
+   │      γ_d · Σ_i ‖d'_i − D_i‖^2  (Eq. E_+)
+   ▼
+   Updated state per keyframe：
+     G_t ∈ SE(3)        (pose)
+     d_t ∈ [H/8, W/8]   (inverse depth / disparity)
+     u_t ∈ [H/8, W/8]   (uncertainty)
+   │
+   │   ⟲ 反覆 iterate，直到 sliding window 收斂
+   ▼
+============================================================
+ Initialization：累積 12 個有足夠運動的 keyframes 後啟動
+ Frontend：sliding window local BA（更新 G, d, u）
+ Backend (Global BA)：對所有 keyframes 同時優化 G, d
+                     凍結 affine mapping parameters θ
+============================================================
+   │
+   ▼
+Output:
+   Camera poses {G_t}            ∈ SE(3) per keyframe
+   Inverse depths {d_t}          ∈ [H/8, W/8] per keyframe
+   Uncertainties {u_t}           ∈ [H/8, W/8] per keyframe
+   Dense point clouds            由 (G_t, d_t) 與相機投影反演得到
+   Non-keyframe poses            由 SE(3) interpolation + pose-graph update 取得
+```
+
+### 5.3 Per-Module Breakdown
+
+#### 5.3.1 DROID-SLAM Backbone (Feature Extractor + ConvGRU Update Module)
+
+**Function:** 沿用 DROID-SLAM 的影像特徵抽取與 iterative ConvGRU update module，預測 keyframe pair $(I_i, I_j)$ 的 dense 2D correspondence $p^*_{ij}$ 與 confidence map $w_{ij}$，作為 BA 殘差與其加權的來源。
+
+**Input:**
+- Name: keyframe pair $(I_i, I_j)$，frame-graph 邊集 $\mathcal{E}$
+- Shape: $I_t \in \mathbb{R}^{H \times W \times 3}$
+- Source: 原始 RGB 影像序列 + 系統維護的 frame-graph $(\mathcal{V}, \mathcal{E})$
+
+**Output:**
+- Name: dense correspondence $p^*_{ij}$ 與 confidence map $w_{ij}$，pixel grid $p_i$
+- Shape: $p^*_{ij}, w_{ij}, p_i \in \mathbb{R}^{H/8 \times W/8 \times 2}$
+- Consumer: §5.3.4 Uncertainty-aware Bundle Adjustment
+
+**Processing:**
+
+1. 對每幀以 DROID-SLAM 的 feature extractor 抽取 dense feature map（以 stride 8 下採樣，因此空間解析度為 $H/8 \times W/8$）。
+2. ConvGRU update module 以 iterative 方式預測 rigid-motion correspondence 的修正量，每步更新後輸出新的 $p^*_{ij}$ 與 $w_{ij}$。
+3. 由式 (1) 透過當前估計的 $G'_{ij}, d'_i$ 計算 rigid-motion 預測 $p_{ij}$，與 $p^*_{ij}$ 相減即為 reprojection residual。
+
+**Key Formulas:**
+
+$$
+p_{ij} = \Pi_c\!\left(G'_{ij} \circ \Pi_c^{-1}(p_i,\, d'_i)\right) \quad\text{(Eq. 1)}
+$$
+
+**Implementation Details:**
+
+- DROID-SLAM 的特徵維度（channel $D_F$）論文未明確指定。
+- ConvGRU 的 iteration 數、特徵 strides、weight 是否與原 DROID-SLAM 完全共用，論文僅以「沿用 DROID-SLAM」帶過。
+- $\Pi_c$ 與 $\Pi_c^{-1}$ 為相機投影與反投影；對 YouTube 影片，內參由 MonST3R 用前 20 frames 估計。
+
+#### 5.3.2 DINOv2 Feature Extractor (FiT3D-refined)
+
+**Function:** 對每一輸入 frame 抽取對外觀變化穩健、帶語意的 2D visual feature，作為跨視角一致性度量的訊號源；論文選 FiT3D refined 版本以強化幾何一致性。
+
+**Input:**
+- Name: input frame $I_t$
+- Shape: $I_t \in \mathbb{R}^{H \times W \times 3}$
+- Source: 原始 RGB 影像（與 DROID backbone 共享輸入）
+
+**Output:**
+- Name: per-frame DINOv2 feature $F_t$（與 §5.3.4 中的 $F_i, F_j$）
+- Shape: 論文未明確指定空間與通道維度；後續以 bilinear interpolation 取得 $F_{ij}$，因此 spatially 必定能對齊到 $H/8 \times W/8$ 的像素格點。
+- Consumer: §5.3.5 Uncertainty Optimization（cosine similarity 與 affine mapping）
+
+**Processing:**
+
+1. 將 $I_t$ 餵入 frozen FiT3D（refined DINOv2）抽取 dense visual feature $F_t$。
+2. 對 keyframe pair $(I_i, I_j)$，先用當前 $G'_{ij}, d'_i$ 由式 (1) 求 $p_{ij}$，再以 bilinear interpolation 從 $F_j$ 取出對應位置的 feature $F_{ij}$ 與 uncertainty $u_{ij}$。
+
+**Key Formulas:**
+
+$$
+F_{ij}(u) = \mathrm{bilinear}\!\left(F_j,\, p_{ij}(u)\right) \quad\text{(implicit in Eq. 6)}
+$$
+
+**Implementation Details:**
+
+- 使用 FiT3D（Yue et al., 2024）以 3D-aware fine-tuning 增強的 DINOv2，作為 frozen feature backbone。
+- DINOv2 / FiT3D 的具體變體（ViT-S/B/L）、patch size、輸出通道數論文正文未指定。
+- DINOv2 features 在系統中為 frozen，不參與梯度反向傳播。
+
+#### 5.3.3 Metric3D Monocular Depth Prior
+
+**Function:** 提供 metric monocular depth 作為 BA 的 disparity regularization，避免 DROID-SLAM 將 disparity 初始化為常數 1 在高動態場景下造成不準確 tracking。
+
+**Input:**
+- Name: 單張 keyframe $I_t$
+- Shape: $I_t \in \mathbb{R}^{H \times W \times 3}$
+- Source: 原始 RGB 影像
+
+**Output:**
+- Name: metric monocular depth $D_t$
+- Shape: $D_t \in \mathbb{R}^{H/8 \times W/8}$（與 disparity 解析度對齊）
+- Consumer: §5.3.4 UBA 之 disparity 正則化項（式 $E_+$）
+
+**Processing:**
+
+1. 對每張 keyframe $I_t$ 由 frozen Metric3D（v2）預測度量單眼深度。
+2. 結果在 BA 階段以二次懲罰形式拉攏優化中的 disparity $d'_i$ 向 $D_i$ 收斂。
+
+**Key Formulas:**
+
+$$
+E_+(G', d') = \sum_{(i,j) \in \mathcal{E}} \left\lVert p^*_{ij} - p_{ij} \right\rVert^2_{\Sigma^{uncer}_{ij}} + \gamma_d \sum_i \left\lVert d'_i - D_i \right\rVert^2 \quad\text{(Eq. for } E_+\text{)}
+$$
+
+**Implementation Details:**
+
+- Metric3D 為 frozen network，不參與系統內優化。
+- $\gamma_d$（disparity 正則權重）論文未明確指定數值。
+- $D_t$ 是 metric depth 還是 inverse depth、是否與 $d_t$ 在同一座標系下直接比較，論文僅以「penalize the disparity」描述，公式中以 $d'_i$ 與 $D_i$ 同形比較。
+
+#### 5.3.4 Uncertainty-aware Differentiable Bundle Adjustment (UBA)
+
+**Function:** 在 DROID-SLAM 的可微分 BA 之上引入 per-pixel dynamic uncertainty $u_t$，以 Gauss-Newton 同時優化所有 keyframe 的 pose $G'$ 與 inverse depth $d'$，並在高動態場景中以 Metric3D depth 正則化。
+
+**Input:**
+- Name: $\{p^*_{ij}, w_{ij}\}_{(i,j)\in\mathcal{E}}$，當前 $\{G'_t, d'_t\}$，當前 $\{u'_t\}$，以及 $\{D_t\}$
+- Shape: $p^*_{ij}, w_{ij} \in \mathbb{R}^{H/8 \times W/8 \times 2}$；$d'_t, u'_t, D_t \in \mathbb{R}^{H/8 \times W/8}$；$G'_t \in \mathrm{SE}(3)$
+- Source: §5.3.1（$p^*_{ij}, w_{ij}$）、§5.3.5（$u'_t$）、§5.3.3（$D_t$）
+
+**Output:**
+- Name: pose / disparity update $(\Delta\xi, \Delta d)$，更新後的 $\{G_t, d_t\}$
+- Shape: $\Delta\xi \in \mathbb{R}^{6 \cdot |\mathcal{V}|}$，$\Delta d$ 為每 keyframe 的 disparity 增量 $\in \mathbb{R}^{H/8 \times W/8}$
+- Consumer: §5.3.5（提供新的 $\{G_t, d_t\}$ 給 uncertainty 重新評估）；系統最終輸出
+
+**Processing:**
+
+1. 將 confidence map 與 inverse uncertainty 結合，定義 uncertainty-aware Mahalanobis 權重 $\Sigma^{uncer}_{ij} = \mathrm{diag}(w_{ij} \cdot 1/u'_i)$（式 4），使動態像素自動被下權。
+2. 對 frame-graph 上每條邊 $(i,j) \in \mathcal{E}$ 計算 reprojection residual $p^*_{ij} - p_{ij}$，組成 uncertainty-aware energy $\hat{E}(G', d')$（式 5）。
+3. 高動態場景額外加上 Metric3D 正則項，得到完整能量 $E_+(G', d')$。
+4. 對 $(G', d')$ 解 Gauss-Newton（式 2–3），其中 $\mathbf{C}$ 為對角矩陣（每 disparity 項僅依賴一個深度值），可由 $\mathbf{C}^{-1} = 1/\mathbf{C}$ 直接求逆，避免大型 Hessian 反演。
+
+**Key Formulas:**
+
+$$
+\Sigma^{uncer}_{ij} = \mathrm{diag}\!\left(w_{ij} \cdot \tfrac{1}{u'_i}\right) \quad\text{(Eq. 4)}
+$$
+
+$$
+\hat{E}(G', d') = \sum_{(i,j) \in \mathcal{E}} \left\lVert p^*_{ij} - p_{ij} \right\rVert^2_{\Sigma^{uncer}_{ij}} \quad\text{(Eq. 5)}
+$$
+
+$$
+\begin{bmatrix} \mathbf{B} & \mathbf{E} \\ \mathbf{E}^\top & \mathbf{C} \end{bmatrix} \begin{bmatrix} \Delta\xi \\ \Delta d \end{bmatrix} = \begin{bmatrix} \mathbf{v} \\ \mathbf{w} \end{bmatrix}, \quad \Delta\xi = [\mathbf{B} - \mathbf{E}\mathbf{C}^{-1}\mathbf{E}^\top]^{-1}(\mathbf{v} - \mathbf{E}\mathbf{C}^{-1}\mathbf{w}) \quad\text{(Eq. 2–3)}
+$$
+
+**Implementation Details:**
+
+- Pose-depth 與 uncertainty 採用交錯式優化（pose-depth 用 Gauss-Newton；uncertainty 用 gradient descent，見 §5.3.5），避免聯合 Gauss-Newton 的大型 Hessian 與 trivial 解。
+- 在 frontend tracking 與初始化階段，$G, d, u$ 三者皆被優化；在 global BA 中只優化 $G, d$ 並 freeze 仿射映射參數。
+- $\gamma_d$、Gauss-Newton 的 iteration 數、收斂條件，論文未明確指定。
+
+#### 5.3.5 Uncertainty Optimization with Local Affine Mapping
+
+**Function:** 以「跨視角 DINOv2 feature cosine 不相似度」為訊號驅動 uncertainty 估計；不直接以 pixel 為自由變量，而是學習從 DINOv2 feature 到 uncertainty 的局部仿射映射 + Softplus，達到空間平滑與防止過擬合。
+
+**Input:**
+- Name: $\{F_t\}$、當前 $\{G'_t, d'_t\}$、frame-graph 邊集 $\mathcal{E}$
+- Shape: $F_t$ 形狀論文未明確；$G'_t \in \mathrm{SE}(3)$、$d'_t \in \mathbb{R}^{H/8 \times W/8}$
+- Source: §5.3.2 與 §5.3.4 提供的當前估計
+
+**Output:**
+- Name: per-frame uncertainty $u_t$，仿射映射參數 $\theta$
+- Shape: $u_t \in \mathbb{R}^{H/8 \times W/8}$；$\theta$ 維度與 DINOv2 feature 通道對齊（論文未明確）
+- Consumer: §5.3.4（作為下一輪 BA 的 covariance 因子）
+
+**Processing:**
+
+1. 對 keyframe pair $(i,j) \in \mathcal{E}$，用當前 $G'_{ij}, d'_i$ 由式 (1) 求 $p_{ij}$，再以 bilinear interpolation 從 $F_j, u'_j$ 取出 $F_{ij}, u_{ij}$。
+2. 由 cosine similarity 量測 $F_i$ 與 $F_{ij}$ 的不相似度，組成 similarity loss $E_{sim}(u')$（式 6），其中分母為 $u'_i \cdot u'_{ij}$，使動態（不一致）區域自然偏向大 uncertainty。
+3. 加上 logarithmic prior $E_{prior}(u') = \sum_i \log(u'_i + 1.0)$（式 7）以避免 trivial 解 $u' \to +\infty$；總 cost 為 $E_{uncer}(u') = E_{sim}(u') + \gamma_{prior} E_{prior}(u')$（式 8）。
+4. uncertainty 不是 free variable，而是 $u_i = \mathrm{Softplus}(\theta \cdot F_i)$ 的局部仿射 + Softplus 結果，僅在 sliding window 內以 gradient descent + weight decay 學 $\theta$（式 9）。
+5. 所有 backprop 以 CUDA 實作以維持 ~10 FPS。
+
+**Key Formulas:**
+
+$$
+E_{sim}(u') = \sum_{(i,j) \in \mathcal{E}} \frac{1 - \tfrac{F_i \cdot F_{ij}}{\lVert F_i \rVert_2 \lVert F_{ij} \rVert_2}}{u'_i \cdot u'_{ij}} \quad\text{(Eq. 6)}
+$$
+
+$$
+E_{prior}(u') = \sum_i \log(u'_i + 1.0), \qquad E_{uncer}(u') = E_{sim}(u') + \gamma_{prior} E_{prior}(u') \quad\text{(Eq. 7, 8)}
+$$
+
+$$
+u_i = \mathrm{Softplus}(\theta \cdot F_i), \qquad g_t = \sum_{i=0}^{N} \frac{\partial E_{uncer}}{\partial u'_i} \cdot \frac{1}{1+\exp(-\theta_{t-1} \cdot F_i)} \cdot F_i, \qquad \theta_t = \theta_{t-1} - \lambda g_t - \eta \theta_{t-1} \quad\text{(Eq. 9)}
+$$
+
+**Implementation Details:**
+
+- Uncertainty 採用 gradient descent + weight decay 而非 Newton，以避免大型 Hessian 反演。
+- learning rate $\lambda$、weight decay $\eta$、$\gamma_{prior}$ 的具體數值論文未明確指定。
+- 仿射映射 $\theta$ 視為「sliding window 內的 local regularizer」，與 WildGS-SLAM / NeRF on-the-go 等工作中的 decoder 不同；其作用範圍是局部，不適合 global 對齊。
+- 對雙向 uncertainty $u'_i, u'_{ij}$ 同時納入分母，是為了 decouple inter-frame dynamics（兩幀都可能含動態物件）。
+
+#### 5.3.6 SLAM System Pipeline (Initialization, Frontend, Global BA)
+
+**Function:** 將上述模組組織為線上 SLAM pipeline，包括 keyframe 初始化、sliding-window local BA、以及 frontend 結束後的 global BA；非 keyframe 的 pose 由 SE(3) interpolation + pose graph update 重建。
+
+**Input:**
+- Name: 連續輸入的 RGB frame stream
+- Shape: $I_t \in \mathbb{R}^{H \times W \times 3}$
+- Source: 原始影片或影像序列
+
+**Output:**
+- Name: 全部 keyframe / 非 keyframe 的 pose 與 dense geometry，以及 per-pixel uncertainty
+- Shape: $\{G_t\} \in \mathrm{SE}(3)$、$\{d_t\}, \{u_t\} \in \mathbb{R}^{H/8 \times W/8}$
+- Consumer: 最終輸出（軌跡、point cloud、uncertainty map）
+
+**Processing:**
+
+1. **Initialization**：累積 12 個有足夠運動的 keyframes 後啟動系統；使用 Metric3D depth $D_t$ 作為 disparity 初始化的正則化先驗（取代 DROID-SLAM 將 disparity 初始化為 1 的策略），對所有三變量 $G, d, u$ 同時優化。
+2. **Frontend tracking**：對每個新進 keyframe，以 sliding window 上的 local BA 同時更新 $G, d, u$，並使用 disparity regularization。
+3. **Global BA**：frontend 結束後對所有 keyframes 進行 global BA，但 freeze 仿射映射參數 $\theta$（理由：仿射映射是 sliding window 內的局部 regularizer，不適用於 global scale）。
+4. **Trajectory recovery**：由於系統只對 keyframe 做優化，非 keyframe 的 pose 透過 SE(3) interpolation + pose graph update 補回，以便進行 full-trajectory ATE 評估；最後與 GT 軌跡以 Sim(3) Umeyama alignment 對齊。
+
+**Key Formulas:**
+
+$$
+E_+(G', d') = \sum_{(i,j) \in \mathcal{E}} \left\lVert p^*_{ij} - p_{ij} \right\rVert^2_{\Sigma^{uncer}_{ij}} + \gamma_d \sum_i \left\lVert d'_i - D_i \right\rVert^2 \quad\text{(BA cost with depth regularization)}
+$$
+
+**Implementation Details:**
+
+- 初始化所需的 keyframe 數固定為 12（沿用 DROID-SLAM）。
+- Sliding window 大小、keyframe selection criterion 的具體閾值論文未明確指定。
+- Global BA 期間 frozen $\theta$ 的設計顯示作者明確區分「local uncertainty regularization」與「global geometry refinement」的分工。
+- 所有 backpropagation 在 CUDA 中實作，整體系統在 RTX 3090 + 16-core CPU 上達 ~10 FPS（比 WildGS-SLAM 快約 40 倍，僅略慢於 DROID-SLAM，差距來自額外的 monocular depth 與 DINOv2 feature 抽取）。
+
+## 6. Experiments
+
+### 6.1 Datasets
+
+| Dataset | Task | Scale | Usage (train/val/test) |
+|---|---|---|---|
+| Bonn RGB-D Dynamic [38] | Dynamic SLAM camera tracking | 8 sequences (Balloon, Balloon2, Crowd, Crowd2, Person, Person2, Moving, Moving2) | test |
+| TUM RGB-D [46] | Dynamic SLAM camera tracking | 9 sequences (f2/dp, f3/ss, f3/sx, f3/sr, f3/shs, f3/ws, f3/wx, f3/wr, f3/whs) | test |
+| DyCheck [11] | Monocular dynamic camera tracking, indoor + outdoor | 12 sequences (apple, backpack, block, creeper, handwavy, haru, mochi, paper, pillow, spin, sriracha, teddy) | test |
+| DROID-W (proposed) | Outdoor in-the-wild dynamic SLAM | 7 sequences (Downtown 1–7), RGB 1200×1600 @ 20 FPS, trajectories 62.33–129.93 m, total 1427–2200 frames per seq, RTK ground truth (Downtown 3–7) and FAST-LIVO2 [65] pseudo-GT (Downtown 1–2) | test |
+| YouTube clips (proposed) | In-the-wild dynamic SLAM, 連續 8 秒至 30 分鐘 | 6 影片（含 Elephant Herd、Giraffe、Taylor、Tomyum 1/2、St. Moritz、Tokyo Walking 1/2/3），FPS 24–60，解析度 1280×720 或 1920×1080，超過 5 分鐘的影片切成 5 分鐘不重疊片段 | test (intrinsics 由 MonST3R [62] 以前 20 frames 估出) |
+
+### 6.2 Evaluation Metrics
+
+| Metric | Description | Primary? |
+|---|---|---|
+| ATE RMSE | Absolute Trajectory Error 之 RMSE，與 ground truth 經 Sim(3) Umeyama [50] 對齊；非 keyframe pose 以 SE(3) interpolation 加 pose graph update 補齊；DyCheck 依 MegaSaM [28] 將 GT 軌跡 normalize 至單位長度 | yes |
+| Average FPS | 平均 run-time，以 input frame 總數除以總耗時計算 | yes (efficiency 主張) |
+
+### 6.3 Training and Inference Settings
+
+DROID-W 為 inference-only 系統，directly 使用 DROID-SLAM [48] 預訓練權重以及 frozen 的 Metric3D [17] monocular depth network 與 FiT3D [61]（refined DINOv2 [37]）feature extractor，本論文未報告任何重新訓練流程。SLAM 系統累積 12 個具有足夠 motion 的 keyframes 進行 initialization，之後以 incremental 方式接收新的 keyframes，於 sliding window 內執行 local BA，最後對所有 keyframes 執行 global BA；於 initialization 與 frontend tracking 階段同時優化 pose、disparity、uncertainty，於 global BA 凍結 affine mapping 的 uncertainty parameters。Uncertainty optimization 採用 Gradient Descent with weight decay（見論文 Eq. (9)），所有 backpropagation 以 CUDA 實作。Run-time 評估硬體為 RTX 3090 GPU 搭配 16-core CPU（Table 5）。Loss 中的 $\gamma_{\text{prior}}$、$\gamma_d$、affine mapping 的 learning rate $\lambda$ 與 weight decay $\eta$ 等具體數值，the paper does not specify in the main text；batch size、optimizer hyperparameters 等亦 the paper does not specify。
+
+### 6.4 Main Results
+
+Bonn RGB-D Dynamic [38]（ATE RMSE ↓ [cm]，平均欄位）：
+
+| Method | Bonn Avg. | TUM Avg. | DyCheck Avg. | DROID-W Avg. [m] | Notes |
+|---|---|---|---|---|---|
+| DROID-SLAM [48] | 4.91 | 1.62 | 0.044 | 1.460 | RGB-only static-scene baseline |
+| WildGS-SLAM [66] | 2.52 | 1.51 | 0.056 | 0.637 | 最強 RGB-only dynamic baseline |
+| DynaMoN (MS) [44] | 4.02 | 1.63 | – | – | RGB-only motion-mask baseline |
+| DynaMoN (MS&SS) [44] | 4.10 | 1.63 | – | – | RGB-only |
+| Splat-SLAM [43] | N/A (含 F) | 1.71 | 0.068 | 1.597 | RGB-only GS-based |
+| MonST3R [62] | 7.85 | 19.45 | 0.400 | – | feed-forward |
+| TTT3R [7] | 22.55 | 24.33 | 0.350 | 7.309 | feed-forward |
+| DSO [10] | 14.98 | 11.15 | – | – | classic RGB |
+| DynaSLAM (N+G) [4] | 6.45 | 1.69 | N/A (含 F) | – | RGB-D，semantic-mask |
+| DDN-SLAM (RGB-D) [26] | 2.91 | – | – | – | RGB-D |
+| ADD-SLAM [55] | N/A | N/A | – | – | RGB-D |
+| **DROID-W (Ours)** | **2.30** | **1.36** | **0.034** | **0.230** | RGB-only；四個 benchmark 平均皆最佳 |
+
+Run-time（Table 5，average FPS ↑，RTX 3090 + 16-core CPU）：DROID-SLAM 在 Bonn / TUM / DyCheck 為 19.89 / 26.97 / 17.50（不處理 dynamic）；WildGS-SLAM 為 0.22 / 0.32 / 0.18；**DROID-W (Ours)** 為 **10.57 / 14.92 / 11.06**，即相對 WildGS-SLAM 約 40× speedup，並在三個 benchmark 上皆維持約 10 FPS 之 real-time 表現；相較 DROID-SLAM 的些微減速來自 Metric3D 與 DINOv2 feature extraction。
+
+質性結果方面，Fig. 3 顯示 DROID-W 在 DyCheck Haru、Bonn Crowd、TUM f3/wr、DROID-W Downtown 5、YouTube Elephant Herd、YouTube Tomyum 1 等序列上產生比 WildGS-SLAM 與 MonST3R 更銳利、空間一致的 dynamic uncertainty；Fig. 4 在 St. Moritz 1/3、Tokyo Walking 2/3 上顯示 DROID-SLAM 出現 scale drift、erroneous geometry 與 noisy distractors，WildGS-SLAM 幾乎全面失敗，而 DROID-W 之 point cloud 保持幾何一致與時序穩定。
+
+### 6.5 Ablation Studies
+
+於 Bonn RGB-D Dynamic 上以 ATE RMSE [cm] 評估（Table 6，Full = 2.30）：
+
+- a. **w/o Uncertainty-aware BA**：關閉 uncertainty update，只用 confidence map 加權 reprojection term，誤差由 2.30 → **5.13**（+2.83 cm，+123%）。直接驗證了 UBA 是 dynamic 場景下 tracking 提升的核心元件 — 是診斷性 ablation。
+- b. **w/o monocular depth**：移除 Metric3D regularization 項 $\gamma_d \sum_i \|d'_i - D_i\|^2$，誤差升至 **3.30**（+1.00 cm）。診斷 depth prior 對高 dynamic 場景下 BA 穩定性的貢獻 — 屬診斷性 ablation。
+- c. **w/o uncertainty decouple**：將 $E_{\text{sim}}$ 中分母由 $u'_i \cdot u'_{ij}$ 改為 $(u'_i)^2$（Eq. (10)），即不對 image pair 的兩端 uncertainty 解耦，誤差升至 **2.57**（+0.27 cm）。直接檢驗 bidirectional uncertainty 設計，屬診斷性 ablation。
+- d. **w/o affine mapping**：直接以 pixel-wise uncertainty 為優化變數，誤差升至 **2.47**（+0.17 cm）。診斷 affine regularization 對空間/時序一致性的影響，屬診斷性 ablation。
+- e. **w/o weight decay**：移除 affine mapping 的 weight decay $\eta$，誤差升至 **2.34**（+0.04 cm）。改善幅度極小，較接近 sanity check 而非強診斷實驗。
+- (補充於 Table 10) **w/o prior term**：移除 $E_{\text{prior}} = \sum_i \log(u'_i + 1.0)$ 後誤差升至 **5.18**，與 a. 設定接近，因 uncertainty 退化為 trivial $u' \to \infty$ 解。屬診斷性 ablation，能說明 prior 對避免 collapse 的關鍵性。
+
+整體 ablation 涵蓋了主要新元件（UBA、depth prior、bidirectional uncertainty、affine mapping、prior term），多數為 diagnostic 而非 sanity check；唯獨 e. weight decay 改善幅度過小，是否真的 generalize 到其他 benchmark 並未驗證。
+
+### 6.6 Phyra Experiment Assessment
+
+- [covered] Has at least one strong baseline (a current SoTA on the chosen task) — 同時對比 WildGS-SLAM [66]、UP-SLAM [67]、ADD-SLAM [55]、DynaMoN [44] 等近期 dynamic SLAM SoTA 與 feed-forward TTT3R [7]、MonST3R [62]，於 Bonn/TUM/DyCheck/DROID-W 平均皆最佳。
+- [covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — 在 Bonn、TUM、DyCheck、自建 DROID-W 共四個 benchmark 加上 6 段 YouTube in-the-wild 影片進行 tracking 與 reconstruction 雙重評估。
+- [covered] Has ablations that diagnose the new components (not just sanity checks) — Table 6 與 Table 10 共六個 ablation 對應 UBA、depth prior、bidirectional uncertainty、affine mapping、weight decay、prior term；除 weight decay 改善幅度極小外，其餘均為 diagnostic ablation。
+- [missing] Has a scaling study (size, length, or compute) — 論文未做關於 keyframe 數、序列長度（除提到 5 分鐘切片是 GPU 資源限制外）或 BA iteration 次數的系統性 scaling 分析。
+- [covered] Has an efficiency / wall-clock comparison — Table 5 在 RTX 3090 上比較 DROID-SLAM、WildGS-SLAM 與本方法的平均 FPS，宣稱相對 WildGS-SLAM 約 40× 加速、約 10 FPS real-time。
+- [missing] Reports variance / standard deviation / multiple seeds where relevant — 所有 ATE RMSE 數值僅報告單次結果，未報告多 seed 的均值/標準差，且 SLAM 結果通常具不可忽略的 run-to-run 隨機性。
+- [partial] Releases code / weights / data sufficient for reproducibility — Abstract 指出 code 與 datasets 將釋出於 https://github.com/MoyangLi00/DROID-W.git ，但具體訓練/推論 hyperparameters（$\gamma_{\text{prior}}$、$\gamma_d$、$\lambda$、$\eta$ 等）於正文與附錄中均未明示，需仰賴 release 後的 repository 才能完整重現。
+
+## 7. Phyra's Judgment
+
+### 7.1 Claimed vs. Supported Contributions
+
+- **Claim 1：將 per-pixel uncertainty 整合進 differentiable BA layer** — **SUPPORTED**。Ablation a (Table 6, p.7) 顯示移除此項使 ATE 由 2.30 升至 5.13 cm，是所有元件中最大的單項貢獻，且 Eq. 4–5 給出明確且可微的 Mahalanobis weight 定義。
+- **Claim 2：以 multi-view DINOv2 feature similarity 取代 map-rendering residual，使 uncertainty 與地圖品質解耦** — **SUPPORTED**。Table 2 上 WildGS-SLAM 在低動態 f3/sr (2.4) 與 f3/shs (2.0) 反而劣於 DROID-SLAM (2.2 / 1.4)，符合作者對 mapping-coupled uncertainty 的批評；本方法在這兩條序列為 2.1 / 1.4，等同於 DROID-SLAM 而未退化。Fig. 3 也顯示在 cluttered scene 上 WildGS-SLAM uncertainty 失真而本方法穩定。
+- **Claim 3：~10 FPS 即時、較 WildGS-SLAM 快 40 倍** — **SUPPORTED**。Table 5 顯示 Bonn 10.57 / TUM 14.92 / DyCheck 11.06 FPS，較 WildGS-SLAM 的 0.22 / 0.32 / 0.18 FPS 確有 30–80 倍 speedup，平均約 40 倍。
+- **Claim 4：在 in-the-wild 戶外場景達 SOTA tracking 與重建** — **PARTIALLY SUPPORTED**。Tracking 部分由 Table 4 (DROID-W dataset, 0.230 m vs. WildGS 0.637 m) 與 YouTube qualitative (Fig. 4) 支持；但「重建 SOTA」僅有 qualitative 比較，無 chamfer / F-score / RPE 等量化指標，為 overclaim。
+- **Claim 5：DROID-W 資料集與 YouTube clip 提供更具挑戰性的 dynamic SLAM benchmark** — **SUPPORTED but caveated**。資料集確實涵蓋過往 benchmark 缺乏的戶外、長軌跡、強動態與過曝場景（Table 7, p.12），但 Downtown 1–2 之 GT 為 FAST-LIVO2 估計而非 RTK 量測，作為 benchmark 的權威性受限。
+
+### 7.2 Fundamental Limitations of the Method
+
+**靜態錨點依賴 (static-anchor dependence)。** 本方法的 uncertainty 是 BA 中 reprojection residual 的權重，當場景中可信靜態區域佔比不足時，正確估計的 uncertainty 會把絕大多數像素降權，使 BA 系統的有效約束數量崩潰。論文中 DyCheck haru 失敗已是徵兆 (p.6)，作者將其形容為「uncertainty 太準的副作用」，但這其實是 weighted-BA 範式的結構性極限：再好的 uncertainty 訊號都無法在「沒有可靠錨點」的場景中救回 tracking。任何沿用 reprojection-residual-with-confidence 框架的後續工作都無法繞過這個限制。
+
+**初始化階段的 chicken-and-egg。** Uncertainty 計算需要 rigid-motion correspondence $p_{ij}$（Eq. 1），而此 correspondence 由當前 pose 與 depth 估計推出；初始化時 pose 仍不可靠，導致取樣到的 $F_{ij}$ 位置錯誤、cosine similarity 也錯誤，uncertainty 因此失準，反過來又讓下一輪 BA 的 weight 失準。作者於 Sec. 5 自承並建議引入 reconstruction prior，但本方法的當前 formulation 無法在不外接 prior 的情況下解決此問題——亦即整個 system 的穩健性以「前 12 個 keyframe 的 pose 大致正確」為前提。
+
+**Local affine mapping 與 DINOv2 全域語意的張力。** 從 DINOv2 feature 到 uncertainty 的 affine mapping $u=\text{Softplus}(\theta\cdot F)$ 之 $\theta$ 在 sliding window 內 online 學習、global BA 時 freeze (Sec. 3.4, p.4)。這代表同一語意物件（例如「人」）在不同時段可能被映射到不同的 uncertainty，破壞長期軌跡上 uncertainty 的時序一致性，並使 loop closure / re-visit 場景下的行為難以預期。論文未對此做時序一致性實驗。
+
+**不存在「動態先驗」的回退。** 本方法刻意拒絕語意分割與物件先驗，純以 multi-view inconsistency 判動態，這在訓練分佈內表現良好；但「視角依賴效應」（鏡面、反射、強高光）在幾何上是靜態 surface 卻會被判為高 uncertainty (Supp. Fig. 7)。論文視此為「能正確處理 view-dependent 區域」的賣點，但反過來說，當場景中靜態 feature 主要分佈在反射/光澤表面時（例如室內裝潢、車體），方法會主動丟棄 tracking 最該依賴的 constraint。混合「multi-view inconsistency + 弱語意先驗」的 fallback 路徑在當前 formulation 中不存在。
+
+### 7.3 Citations Worth Tracking
+
+- **WildGS-SLAM [66] (Zheng et al., CVPR 2025)** — DROID-W 直接競品與最重要對照組；要理解本論文「為何要解耦 uncertainty 與地圖」，必須先理解 WildGS-SLAM 之 uncertainty MLP 是如何在 3DGS 地圖上以 photometric+depth loss 監督，以及為何此設計在 cluttered scene 中崩潰。
+- **DROID-SLAM [48] (Teed & Deng, NeurIPS 2021)** — 本論文的 base architecture，differentiable BA layer 的數學形式 (Eq. 2–3)、frame-graph 維護、ConvGRU update operator 全部沿用；不熟悉 DROID-SLAM 的讀者無法判斷本論文新增的 $\Sigma^{\text{uncer}}_{ij}$ 是否真的是 minimal-invasive 的修改。
+- **DINOv2 [37] (Oquab et al., 2023) 與 FiT3D [61] (Yue et al., ECCV 2024)** — 本方法的 uncertainty 訊號完全建立於 FiT3D-refined DINOv2 之 cross-view cosine similarity，但論文未做 backbone ablation；要評估「是 DINOv2 的特性使方法 work」還是「任何強 self-supervised feature 都行」，必須直接讀 DINOv2 與 FiT3D 的設計動機。
+- **Metric3D v2 [17] (Hu et al., 2024)** — 作為 BA disparity regularization 的 monocular depth 來源，移除後 ATE 由 2.30 升至 3.30 cm（Table 6），是除 uncertainty-aware BA 外的次大貢獻；想理解該正則化在哪些場景會失效，需理解 Metric3D 的 zero-shot metric depth 訓練範圍。
+- **MonST3R [62] (Zhang et al., 2024)** — 既是 baseline 也是 YouTube 影片 intrinsic 估計來源；它代表 feed-forward 動態重建路線，與本論文 SLAM-style optimization 路線形成對比，且其 pretrained pointmap 與 motion mask 假設值得單獨研讀。
+
+## 8. Open Questions and Improvement Ideas
+
+### 8.1 Outstanding Questions
+
+- [ ] 將 FiT3D-refined DINOv2 換為原版 DINOv2、CLIP 或 SigLIP 後，cosine-similarity-based uncertainty 還能保持多少準確度？論文無 backbone ablation。
+- [ ] 當場景動態像素佔比超過某個閾值（例如 70 %）時，本方法的失敗模式是 graceful degradation 還是 catastrophic failure？除了 haru 之外缺乏系統性壓力測試。
+- [ ] Metric3D 預測之 monocular depth 在強動態或非常規場景（雪地、水面、夜景）失準時，BA 的 disparity regularization 會把整體軌跡帶歪多少？
+- [ ] Frame graph 之 co-visibility 判斷在動態場景下如何避免「兩 frame 共享的 overlap 全是同一個動態物件」的退化情境？
+- [ ] YouTube 影片之 camera intrinsics 由 MonST3R 估計，若改用真實 GT intrinsic 或刻意加入 ±5 % 誤差，本方法 vs. baseline 的 ATE 排序會否改變？
+- [ ] Affine mapping 的 sliding window 大小如何設定？太短 uncertainty 不穩定、太長則違反「locality」前提，論文未給出敏感度曲線。
+- [ ] Global BA 階段 freeze affine-mapping 參數，是否會在 long-term re-visit / loop closure 中造成 uncertainty 與當前 frame 視覺特徵分布不一致？
+
+### 8.2 Improvement Directions
+
+1. **以 feed-forward prior 引導前 12 個 keyframe 的初始化**（高可行性）— 直接呼叫 CUT3R 或 MonST3R 對前 N frame 估出粗糙 pose 與 depth，再交給 DROID-W 接手 BA。論證基礎：作者於 Sec. 5 自承初始化是當前最大弱點，且這類 prior 與 DROID-W 的 reprojection-based 後端互補，整合成本低。
+2. **加入 uncertainty 的時序平滑項**（中高可行性）— 在 sliding window 內加入 $\sum_t\|u_t-u_{t-1}\|^2$ 之軟限制。論證基礎：Supp. Fig. 6–7 的 keyframe 序列展示 uncertainty 在物件由靜轉動之間的跳變，時序平滑可避免 affine-mapping 重新訓練造成的階躍，並對 loop closure 一致性有利。
+3. **將 camera intrinsic 加入 BA 變數**（中可行性）— 與 pose、disparity、uncertainty 共同被 differentiable BA 優化。論證基礎：YouTube 場景之 intrinsic 來自 baseline，本方法事實上把 intrinsic 視為已知；把它變成可優化變數可消除對 MonST3R 的循環依賴，並在 in-the-wild 場景更實用。
+4. **混合式 uncertainty 訊號**（中可行性）— 在 multi-view feature similarity 之外加入 optical flow consistency 作為第二訊號，以 confidence-weighted 方式融合。論證基礎：論文已論證 photometric/depth rendering residual 不可靠，但 optical flow（如 RAFT）並不依賴地圖，可在動態邊界上提供互補訊號，並在 view-dependent 反射區域避免將靜態 surface 誤判為高 uncertainty。
+5. **以 globally-shared、context-conditioned mapping 取代 local affine mapping**（較低可行性，但對長序列價值高）— 改用 feature-wise modulation（如 FiLM）由 sliding-window context 對全域 uncertainty head 做條件化。論證基礎：可同時保留 global 一致性與 local 適應性，並使 global BA 不再需要 freeze，理論上可改善 long-trajectory drift。
+6. **動態占比過高時的 fallback 路徑**（較低可行性）— 偵測 keyframe 平均 uncertainty 高於門檻時，臨時引入弱語意先驗（例如預訓練之 panoptic segmentation）作為 background-feature recovery，避免 haru 類失敗。論證基礎：作者明確拒絕 semantic prior，但 haru 等 corner case 顯示「無 prior」並非全域最佳；條件式 fallback 可保留主架構優勢，僅在系統判斷瀕臨崩潰時啟動。

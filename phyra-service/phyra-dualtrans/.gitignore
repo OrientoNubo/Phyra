@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Runtime job working dirs (translated PDFs, slice meta, child logs)
+jobs/
+
+# Local secrets / settings written by the WebUI settings form
+.env
+config.json
+
+# OS
+.DS_Store

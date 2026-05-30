@@ -1,0 +1,27 @@
+{
+  "2604_Lyra2_Lyra_2.0__Explorable_Generative_3D_Worlds": [
+    "World Model"
+  ],
+  "2605_VGGT-Omega": [
+    "Geometry Foundation Model"
+  ],
+  "2604_LingBot-Map_Geometric_Context_Transformer_for_Streaming_3D_Reconstruction": [
+    "Geometry Foundation Model",
+    "Streaming Model"
+  ],
+  "2507_VGGT-Long_Chunk_it,_Loop_it,_Align_it,_Pushing_VGGT's_Limits_on_Kilometer-scale_Long_RGB_Sequences": [
+    "Geometry Foundation Model"
+  ],
+  "2604_VGGT-SLAM_VGGT-SLAM++": [
+    "SLAM"
+  ],
+  "2603_DROIDW_DROID-SLAM_in_the_Wild": [
+    "SLAM"
+  ],
+  "2505_VGGT-SLAM_Dense_RGB_SLAM_Optimized_on_the_SL(4)_Manifold": [
+    "SLAM"
+  ],
+  "2605_Spark3R_Asymmetric_Token_Reduction_Makes_Fast_Feed-Forward_3D_Reconstruction": [
+    "Geometry Foundation Model"
+  ]
+}

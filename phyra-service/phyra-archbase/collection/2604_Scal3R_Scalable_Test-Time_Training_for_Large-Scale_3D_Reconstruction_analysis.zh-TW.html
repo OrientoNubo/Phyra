@@ -1,0 +1,492 @@
+        <!DOCTYPE html>
+        <html lang="zh-Hant">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Scal3R — Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+        <style>
+:root {
+  --p-primary: #DDE5C8;
+  --p-light: #F1F5E5;
+  --p-accent: #7B9750;
+  --p-dark: #3E5424;
+  --p-text: #1C1C1C;
+  --p-bg-card: #FFFFFF;
+  --p-formula-bg: rgba(0,0,0,0.03);
+  --p-border: rgba(0,0,0,0.10);
+  --p-bold-highlight: rgba(123,151,80,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family:
+  "Noto Sans TC", "Source Han Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--p-text);
+  background: linear-gradient(180deg, var(--p-light) 0%, var(--p-primary) 100%);
+  background-attachment: fixed; min-height: 100vh; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+          max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px 24px; }
+.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px);
+       overflow: auto; padding: 16px; background: var(--p-bg-card);
+       border: 1px solid var(--p-border); border-radius: 8px; font-size: 0.9rem; }
+.toc h3 { margin: 0 0 12px 0; color: var(--p-dark); font-size: 1rem;
+          border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 4px 0; }
+.toc-l2 { font-weight: 600; }
+.toc-l3 { padding-left: 12px; font-size: 0.85rem; }
+.toc a { color: var(--p-text); text-decoration: none; }
+.toc a:hover { color: var(--p-accent); }
+main { background: var(--p-bg-card); border: 1px solid var(--p-border);
+       border-radius: 8px; padding: 40px 48px; }
+h1 { font-size: 1.9rem; margin: 0 0 24px 0; color: var(--p-dark);
+     border-bottom: 3px solid var(--p-accent); padding-bottom: 12px; }
+h2 { font-size: 1.4rem; margin: 36px 0 16px 0; color: var(--p-dark);
+     border-bottom: 2px solid var(--p-accent); padding-bottom: 6px; }
+h3 { font-size: 1.15rem; margin: 24px 0 10px 0; color: var(--p-dark); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px 0; color: var(--p-dark); }
+p { margin: 8px 0 14px 0; }
+strong { background: var(--p-bold-highlight); padding: 1px 4px; border-radius: 3px;
+         font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 4px;
+       font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+       font-size: 0.92em; }
+pre.codeblock { background: rgba(0,0,0,0.04); border: 1px solid var(--p-border);
+                border-radius: 6px; padding: 14px 18px; overflow-x: auto;
+                font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+                font-size: 0.85rem; line-height: 1.55; white-space: pre; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0;
+        font-size: 0.95rem; }
+th { background: var(--p-accent); color: #FFF; padding: 10px 12px; text-align: left; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--p-border); }
+tr:hover td { background: rgba(0,0,0,0.03); }
+ul, ol { margin: 8px 0 14px 24px; padding: 0; }
+li { margin: 4px 0; }
+.katex-display { background: var(--p-formula-bg); border: 1px solid var(--p-border);
+                 border-radius: 6px; padding: 8px 12px; margin: 12px 0; }
+@media print {
+  body { background: #FFF; }
+  .layout { display: block; max-width: 100%; padding: 0; }
+  .toc { display: none; }
+  main { box-shadow: none; border: 0; padding: 0; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; }
+}
+</style>
+        <style>
+:root {
+  --p-primary: #f8f8f6;
+  --p-light: #f8f8f6;
+  --p-accent: #c96c49;
+  --p-dark: #373734;
+  --p-text: #0b0b0b;
+  --p-bg-card: #ebebe6;
+  --p-formula-bg: #f4f4f1;
+  --p-border: #d7d7d5;
+  --p-bold-highlight: rgba(201,108,73,0.16);
+  --p-muted: #898781;
+  --p-shadow: rgba(31,30,29,0.08);
+  --p-toggle-bg: rgba(0,0,0,0.04);
+  --p-toggle-active: #ffffff;
+}
+[data-theme="dark"] {
+  --p-primary: #1f1f1e;
+  --p-light: #1f1f1e;
+  --p-accent: #c96c49;
+  --p-dark: #c2c2c2;
+  --p-text: #ffffff;
+  --p-bg-card: #171717;
+  --p-formula-bg: #171717;
+  --p-border: #292929;
+  --p-bold-highlight: rgba(201,108,73,0.30);
+  --p-muted: #c2c2b7;
+  --p-shadow: rgba(0,0,0,0.4);
+  --p-toggle-bg: rgba(255,255,255,0.04);
+  --p-toggle-active: #2c2c2b;
+}
+/* dark patches for the few non-variable colours baked into the base CSS */
+[data-theme="dark"] code,
+[data-theme="dark"] pre.codeblock,
+[data-theme="dark"] .codeblock { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .bottom-bar { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .bottom-bar .progress { background: rgba(255,255,255,0.10); }
+/* fixed-position appearance switcher — additive, never reflows content */
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--p-toggle-bg); border: 1px solid var(--p-border);
+  border-radius: 8px; backdrop-filter: blur(6px);
+}
+.theme-toggle button {
+  width: 28px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0; border: 0; background: transparent;
+  color: var(--p-muted); cursor: pointer; border-radius: 5px;
+  transition: background .12s, color .12s;
+}
+.theme-toggle button:hover { color: var(--p-text); }
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--p-toggle-active); color: var(--p-text);
+  box-shadow: 0 1px 2px var(--p-shadow);
+}
+.theme-toggle svg {
+  width: 15px; height: 15px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .theme-toggle { display: none; } }
+</style>
+<script>
+(function () {
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  var prefersDark = window.matchMedia
+    && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+  document.documentElement.setAttribute("data-theme", actual);
+})();
+</script>
+</head>
+        <body>
+
+<div class="theme-toggle" role="group" aria-label="Appearance">
+  <button type="button" data-mode="system" title="System" aria-label="System">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  </button>
+  <button type="button" data-mode="light" title="Light" aria-label="Light">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+  <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</div>
+
+        <div class="layout">
+        <nav class="toc"><h3>目錄 / Table of Contents</h3><ul>
+<li class="toc-l2"><a href="#1-basic-information">1. Basic Information</a></li>
+<li class="toc-l3"><a href="#1-1-author-information">1.1 Author Information</a></li>
+<li class="toc-l3"><a href="#1-2-keywords">1.2 Keywords</a></li>
+<li class="toc-l3"><a href="#1-3-related-lineage">1.3 Related Lineage</a></li>
+<li class="toc-l2"><a href="#2-research-overview">2. Research Overview</a></li>
+<li class="toc-l3"><a href="#2-1-research-topic">2.1 Research Topic</a></li>
+<li class="toc-l3"><a href="#2-2-domain-tags">2.2 Domain Tags</a></li>
+<li class="toc-l3"><a href="#2-3-core-architectures-used">2.3 Core Architectures Used</a></li>
+<li class="toc-l3"><a href="#2-4-core-argument">2.4 Core Argument</a></li>
+<li class="toc-l2"><a href="#3-section-walkthrough">3. Section Walkthrough</a></li>
+<li class="toc-l3"><a href="#3-1-title-and-abstract">3.1 Title and Abstract</a></li>
+<li class="toc-l3"><a href="#3-2-introduction">3.2 Introduction</a></li>
+<li class="toc-l3"><a href="#3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</a></li>
+<li class="toc-l3"><a href="#3-4-method-overview-narrative">3.4 Method (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</a></li>
+<li class="toc-l3"><a href="#3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</a></li>
+<li class="toc-l2"><a href="#4-critical-profile">4. Critical Profile</a></li>
+<li class="toc-l3"><a href="#4-1-highlights">4.1 Highlights</a></li>
+<li class="toc-l3"><a href="#4-2-weaknesses">4.2 Weaknesses</a></li>
+<li class="toc-l3"><a href="#4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</a></li>
+<li class="toc-l2"><a href="#5-methodology-deep-dive">5. Methodology Deep Dive</a></li>
+<li class="toc-l3"><a href="#5-1-method-overview">5.1 Method Overview</a></li>
+<li class="toc-l3"><a href="#5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</a></li>
+<li class="toc-l3"><a href="#5-3-per-module-breakdown">5.3 Per-Module Breakdown</a></li>
+<li class="toc-l2"><a href="#6-experiments">6. Experiments</a></li>
+<li class="toc-l3"><a href="#6-1-datasets">6.1 Datasets</a></li>
+<li class="toc-l3"><a href="#6-2-evaluation-metrics">6.2 Evaluation Metrics</a></li>
+<li class="toc-l3"><a href="#6-3-training-and-inference-settings">6.3 Training and Inference Settings</a></li>
+<li class="toc-l3"><a href="#6-4-main-results">6.4 Main Results</a></li>
+<li class="toc-l3"><a href="#6-5-ablation-studies">6.5 Ablation Studies</a></li>
+<li class="toc-l3"><a href="#6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</a></li>
+<li class="toc-l2"><a href="#7-phyra-s-judgment">7. Phyra&#x27;s Judgment</a></li>
+<li class="toc-l3"><a href="#7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</a></li>
+<li class="toc-l3"><a href="#7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</a></li>
+<li class="toc-l3"><a href="#7-3-citations-worth-tracking">7.3 Citations Worth Tracking</a></li>
+<li class="toc-l2"><a href="#8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</a></li>
+<li class="toc-l3"><a href="#8-1-outstanding-questions">8.1 Outstanding Questions</a></li>
+<li class="toc-l3"><a href="#8-2-improvement-directions">8.2 Improvement Directions</a></li>
+</ul></nav>
+        <main>
+        <p>&lt;!-- type: paper-read-notes | generated: 2026-05-02 | lang: zh-TW --&gt;</p>
+<h1 id="scal3r-scal3r-scalable-test-time-training-for-large-scale-3d-reconstruction">Scal3R — Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction</h1>
+<h2 id="1-basic-information">1. Basic Information</h2>
+<table><thead><tr><th>Item</th><th>Content</th></tr></thead><tbody><tr><td>Paper short name</td><td>Scal3R</td></tr><tr><td>Paper full title</td><td>Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction</td></tr><tr><td>arXiv ID</td><td>2604.08542</td></tr><tr><td>Release date</td><td>2026-04-09</td></tr><tr><td>Conference/Journal</td><td>arXiv preprint (CVPR 2026 Highlight)</td></tr><tr><td>Paper link (abs)</td><td>https://arxiv.org/abs/2604.08542</td></tr><tr><td>PDF link</td><td>https://arxiv.org/pdf/2604.08542</td></tr><tr><td>Code link</td><td>https://zju3dv.github.io/scal3r</td></tr><tr><td>Project page</td><td>https://zju3dv.github.io/scal3r</td></tr></tbody></table>
+<h3 id="1-1-author-information">1.1 Author Information</h3>
+<table><thead><tr><th>Author Name</th><th>Affiliation</th><th>Homepage</th><th>Role</th></tr></thead><tbody><tr><td>Tao Xie</td><td>Zhejiang University; Horizon Robotics</td><td>https://github.com/xbillowy</td><td>first author</td></tr><tr><td>Peishan Yang</td><td>Zhejiang University</td><td>https://github.com/PeiPei233/</td><td>co-author</td></tr><tr><td>Yudong Jin</td><td>Zhejiang University</td><td>https://github.com/krahets</td><td>co-author</td></tr><tr><td>Yingfeng Cai</td><td>Horizon Robotics</td><td>—</td><td>co-author</td></tr><tr><td>Wei Yin</td><td>Horizon Robotics</td><td>https://yvanyin.xyz/</td><td>co-author</td></tr><tr><td>Weiqiang Ren</td><td>Horizon Robotics</td><td>—</td><td>co-author</td></tr><tr><td>Qian Zhang</td><td>Horizon Robotics</td><td>—</td><td>co-author</td></tr><tr><td>Wei Hua</td><td>Zhejiang Lab</td><td>—</td><td>co-author</td></tr><tr><td>Sida Peng</td><td>Zhejiang University</td><td>https://pengsida.net/</td><td>co-author</td></tr><tr><td>Xiaoyang Guo</td><td>Horizon Robotics</td><td>https://xy-guo.github.io/</td><td>co-corresponding author</td></tr><tr><td>Xiaowei Zhou</td><td>Zhejiang University (State Key Lab of CAD&amp;CG)</td><td>https://xzhou.me/</td><td>co-corresponding author</td></tr></tbody></table>
+<h3 id="1-2-keywords">1.2 Keywords</h3>
+<p>large-scale 3D reconstruction, feed-forward reconstruction, test-time training, global context memory, VGGT, RGB-only SLAM, long-sequence modeling, kilometer-scale scenes</p>
+<h3 id="1-3-related-lineage">1.3 Related Lineage</h3>
+<table><thead><tr><th>Key</th><th>Relation</th><th>Brief</th></tr></thead><tbody><tr><td>VGGT (Wang et al.)</td><td>base model</td><td>Unified Transformer feed-forward model for camera/depth/pointmap; Scal3R builds directly on its backbone.</td></tr><tr><td>VGGT-Long</td><td>predecessor</td><td>Divide-and-conquer chunk-wise extension of VGGT; Scal3R adopts its chunking and alignment but adds global context.</td></tr><tr><td>FastVGGT</td><td>baseline</td><td>Token-merging acceleration of VGGT; compared as a scalability baseline that loses fine spatial cues.</td></tr><tr><td>DUSt3R / MASt3R</td><td>influence</td><td>Pioneer two-view feed-forward pointmap regression; motivates uncalibrated multi-view geometry pipeline.</td></tr><tr><td>TTT3R</td><td>baseline</td><td>Casts memory update as test-time learning with fixed token set; Scal3R replaces it with scalable neural memory.</td></tr><tr><td>LaCT</td><td>influence</td><td>Large-chunk test-time training for parallel GPU updates; inspires Scal3R&#x27;s chunk-as-update-unit GCM design.</td></tr><tr><td>CUT3R / StreamVGGT / STream3R</td><td>baseline</td><td>Online/streaming feed-forward variants with memory tokens or causal Transformers; compared on long-sequence pose.</td></tr></tbody></table>
+<h2 id="2-research-overview">2. Research Overview</h2>
+<h3 id="2-1-research-topic">2.1 Research Topic</h3>
+<p>本論文聚焦於從長序 RGB 影片進行公里級大規模 3D 場景重建。近期 feed-forward 模型(如 VGGT)能直接從多視角影像回歸幾何,但其注意力的二次方計算量與固定記憶體容量,使其難以擴展至上千張影像、長軌跡的城市或戶外場景。現有改良如 FastVGGT 透過 token merging 壓縮代價、VGGT-Long 採分塊重建後對齊,皆會損失全域脈絡或對局部誤差過度敏感。作者提出 Scal3R,在 VGGT backbone 中嵌入「神經全域脈絡記憶」(GCM)與「全域脈絡同步」(GCS)機制,以輕量子網路在推論時透過自監督快速更新,壓縮並保留長距資訊;搭配 GPU 間梯度 all-reduce 的 context parallelism,使各 chunk 能共享整段序列的全域脈絡,在 KITTI Odometry、Virtual KITTI、Oxford Spires 等基準上達成 SOTA 的位姿與重建精度,並維持高效率。</p>
+<h3 id="2-2-domain-tags">2.2 Domain Tags</h3>
+<ul><li>computer vision</li><li>3D reconstruction</li><li>SLAM / SfM</li><li>feed-forward geometry models</li><li>test-time training</li><li>large-scale scene understanding</li></ul>
+<h3 id="2-3-core-architectures-used">2.3 Core Architectures Used</h3>
+<ul><li><strong>VGGT backbone</strong>:作為 Scal3R 的基底 feed-forward 模型,以 DINOv2 encoder 加 24 層 frame-wise 與 global self-attention 交替的 Transformer,直接回歸 camera parameters、depth maps、point clouds 與 tracking feature grid。</li><li><strong>Global Context Memory (GCM)</strong>:作者提出的核心模組,接在每個 global attention layer 之後(共 4 個),以可學習 gate 向量 $\alpha$ 將 GCM 輸出與原始 token 殘差融合,負責壓縮並保留長距脈絡。</li><li><strong>Adaptive Memory Unit (AMU)</strong>:GCM 內部的輕量 MLP 子網路,以快權重 $W$ 形式存放上下文,在推論時透過 self-supervised dot-product loss 被線上更新,等同於 TTT 的 fast weights。</li><li><strong>Test-Time Training (TTT) with large chunks</strong>:沿用並改造 LaCT,將整個 chunk 視為單一更新單位,以提升 GPU 平行度與長序列下的可擴展性。</li><li><strong>Global Context Synchronization (GCS) via context parallelism</strong>:將分散在多 GPU 上的 chunk 視為 context parallelism 切分,藉由 PyTorch all-reduce 對 AMU 的梯度求和並廣播,實現跨 chunk、跨 GPU 的全域脈絡共享。</li><li><strong>Chunk-wise alignment &amp; pose-graph refinement</strong>:沿用 VGGT-Long 的重疊區域 Sim(3) 對齊與 retrieval-based loop closure + pose-graph refinement,將各 chunk 預測融合為最終公里級重建。</li></ul>
+<h3 id="2-4-core-argument">2.4 Core Argument</h3>
+<p>作者主張:大規模 feed-forward 3D 重建的核心瓶頸並非單純的計算量,而是「全域脈絡的遺失」。在分塊處理(VGGT-Long)中,每個 chunk 獨立推論,缺乏跨段資訊使局部誤差被放大;在 token merging(FastVGGT)中,過度壓縮會破壞細粒度空間線索與長距依賴;傳統 RNN/線性注意力雖具次二次方複雜度,但其固定大小的隱狀態無法承載公里級場景的豐富脈絡。也就是說,問題的根源在於「記憶體容量」與「全域共享機制」同時不足。基於此,作者主張解法必須同時滿足兩個條件:(1) 記憶體本身要有足夠表達力以容納長距資訊,(2) 必須有跨 chunk、跨 GPU 的同步機制讓全域脈絡真正參與每段局部重建。Test-Time Training (TTT) 自然滿足條件 (1)——以一個可在推論時被自監督更新的非線性子網路取代固定隱狀態,將「脈絡」視為一份線上資料集寫入快權重 W;而將大塊 (whole chunk) 視為單一更新單位 (受 LaCT 啟發) 進一步改善 GPU 利用率與可擴展性。為滿足條件 (2),作者把分散到多 GPU 的 chunk 計算視為 context parallelism,藉由 all-reduce 將各 GPU 的 W 梯度求和並廣播,等價於在整段序列上做一次全域更新。如此一來,GCM 提供「容量」、GCS 提供「共享」,兩者結合在保留 VGGT 強幾何推理能力的前提下,使每個 chunk 的局部預測都能享有全域先驗,從而合理地解決長序列下精度與一致性同時退化的問題。</p>
+<h2 id="3-section-walkthrough">3. Section Walkthrough</h2>
+<h3 id="3-1-title-and-abstract">3.1 Title and Abstract</h3>
+<p>(約 220 words)</p>
+<p>論文標題「Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction」直接點出三個關鍵字：scalability、test-time training (TTT)、large-scale 3D reconstruction，把方法手段（TTT）與目標（kilometre-scale 重建）綁在一起，暗示這不是另一個 small-scene feed-forward 改進，而是要處理 long sequence 的「容量」問題。</p>
+<p>Abstract 採取「問題—觀察—方法—結果」的標準四段式骨架。第一段先界定任務：從 long video sequence 做大規模 3D scene reconstruction。第二段點出近期 feed-forward reconstruction model（直指 VGGT 一脈）的限制：long sequence 下 memory capacity 不足、無法捕捉 global contextual cues，使 accuracy 與 consistency 退化。第三段提出 motivation 類比：人類會用 global understanding 反過來指導 local perception，從而引出論文核心提案——一個 neural global context representation，能有效壓縮並保留長程 scene information。具體實作是「lightweight neural sub-networks」於 test time 透過 self-supervised objective 快速 adapt，宣稱可顯著放大 memory capacity 而不增加大量 compute overhead。第四段交代實驗範圍與訊號：KITTI Odometry 與 Oxford Spires 等 large-scale benchmark 上達到 leading pose accuracy 與 SOTA 3D reconstruction accuracy，並維持 efficiency，公開 code。</p>
+<p>Abstract 的設定為後文鋪了三條伏筆：（1）「memory capacity」與 long-range context 將被形式化為 GCM／AMU 的容量設計；（2）「self-supervised online adaptation」對應到 §3.2 的 TTT 與 §4.2 的 chunk-wise update；（3）「kilometre-scale」與「efficiency」共同要求 chunk + 多 GPU 平行化的 inference pipeline，預告 §4.4。讀者進入 Introduction 時已經知道：論文要在 VGGT-style backbone 上加一個可在 test time 學習的 global memory 模組。</p>
+<h3 id="3-2-introduction">3.2 Introduction</h3>
+<p>(約 700 words)</p>
+<p>Introduction 走「動機—現有方法的痛點—關鍵問題—我們的答案—貢獻」結構，把 abstract 的口號落到具體技術論述。</p>
+<p>第一段先把 large-scale 3D reconstruction 放到應用脈絡（autonomous driving、robotics mapping、digital twin），並指出與 object-centric 重建的差異：跨 kilometre 場景需對齊 thousands of viewpoints、處理 depth 與 lighting 的劇烈變化、同時保留 global consistency 與 fine local detail。然後批評傳統路線：要麼假設 known intrinsics、要麼依賴 IMU/LiDAR 等 auxiliary sensor 與多階段 pipeline，flexibility 受限。</p>
+<p>第二段把焦點切到 feed-forward 路線，特別點名 VGGT：用統一 Transformer 一次預測 camera、depth、point cloud，accuracy 高、cost 低、scaling 強。但隨即點出致命瓶頸——attention 的 quadratic complexity 在 ultra-long sequence 下不可行。第三段比較兩個既有改良：FastVGGT 用 token merging 砍冗餘，但 aggressive compression 丟失 fine-grained spatial cue 與 long-range dependency；VGGT-Long 採 divide-and-conquer，把序列切 overlapping chunks 分別重建再對齊，但每個 chunk 缺 global context，alignment 對 local accuracy 過度敏感，遇到大場景或 sparse 觀測就退化。</p>
+<p>第四段提出本文的關鍵問題：3D foundation model 該如何像人類一樣 efficiently retain and leverage long-term contextual cues？答案分兩半：（a）一個能 compress and store long-term context 的 global context representation；（b）一個 efficient aggregation and sharing mechanism，把 context 在 reconstruction 時 exploit 出來。</p>
+<p>第五段把上述抽象構想落為 Scal3R：以 VGGT 為骨幹，用 chunk-wise 處理解決 quadratic cost；同時插入一組 online-adapted、lightweight sub-networks，借鑑 subquadratic sequence modeling 的 TTT 路線，在 inference 時透過 self-supervised objective 聚合長程 context。作者強調這個 representation 比 fixed-size hidden state 容量更大，可緩解 over-compression 帶來的 long-range dependency degradation。</p>
+<p>第六段補上「光有 store 不夠」的論點，引出 context aggregation mechanism：在 test time 協調多個 sub-networks 的 self-supervised online adaptation，讓 global cue 跨整個 sequence 共享，使 local reconstruction 不再對 sparse、ambiguous view 敏感，並維持 VGGT 的 scalability，使大規模多資料集訓練成為可能。</p>
+<p>最後兩段交代實驗範圍與貢獻列表：在 Virtual KITTI 上訓練、在 KITTI 與 Oxford Spires 上做 zero-shot pose estimation 與 3D reconstruction 評估，宣稱 SOTA。三點 contribution 分別對應：（1）Scal3R 框架本身、（2）global context representation + aggregation 的設計、（3）跨 large-scale dataset 的實驗驗證。</p>
+<p>Introduction 的鋪陳直接決定了 §3 與 §4 的結構：§3 要先把 VGGT 與 TTT 兩個 building block 講清楚；§4 才能把 GCM 與 GCS 拼上去。</p>
+<h3 id="3-3-related-work-preliminaries">3.3 Related Work / Preliminaries</h3>
+<p>(約 1100 words)</p>
+<p>Related Work 切成三條線索，每條線索都收斂到「為什麼現有方法不夠」。第一條 SfM/SLAM：經典 SfM 靠 feature matching、triangulation、bundle adjustment，準但在 textureless 或 repetitive pattern 下退化；學習式擴展提升 robustness 但仍依賴 expensive global optimization；end-to-end 的 differentiable BA 雖去掉 explicit matching，仍受限於 scalability 與 efficiency；視覺 SLAM 雖能 real-time，但多假設 known intrinsic 或 auxiliary sensor，遇 reflective scene 易失效。第二條 feed-forward reconstruction：DUSt3R/MASt3R 開創 RGB-only 直接 regress pointmap，但兩視圖難以 scale；VGGT 為 multi-view SOTA，但 quadratic attention 限制長序列；CUT3R、StreamVGGT、STream3R 等 online variant 引入 memory state token 或 causal Transformer，但 fixed memory size 與有限 causal horizon 仍會 drift；TTT3R 進一步把 memory update 視為 test-time learning，但仍綁在 fixed-size token set。論文在此處明確定位自身：用 scalable global context representation 提供更大的 memory capacity 來處理 long-range dependency。第三條 memory mechanism：Mamba、RWKV、DeltaNet 等 linear-attention RNN 雖效率好，但把全部歷史壓進有限 hidden state，限制了 long-range 模能；TTT 與其後續（Titans、LaCT 等）改成把 recurrent state 換成 online-adapted non-linear network，顯著放大記憶容量；另一支則用 explicit cache/memory bank 顯式儲存歷史 feature，但又面臨 memory growth 與 compute overhead 的工程難題。整段把 Scal3R 放在 TTT-as-memory 路線上的「為大規模 3D」特化版。</p>
+<p>Preliminary 接著補齊兩塊基礎。§3.1 VGGT：給定 RGB 序列 $\{I_i\}_{i=1}^N$，$f$ 一次輸出 camera parameter $c_i \in \mathbb{R}^9$、depth $D_i$、point cloud $P_i$、tracking feature grid $T_i$；架構由 DINOv2 encoder 切 patch、24 層交替的 frame-wise 與 global self-attention、以及多個 task head 組成，這個交替設計讓 intra-frame detail 與 inter-frame geometry 都能建模。</p>
+<p>§3.2 Test-Time Training：先回顧 RNN 把 context 壓進固定大小 hidden state $h_t$，再以 $h_t = \sigma(\theta_{ss} h_{t-1} + \theta_{sx} x_t)$ 形式化更新規則，並指出固定容量在 long sequence 下會資訊退化。TTT 的解法是引入 fast weights $W$，在 inner loop 用 self-supervised objective 動態存 context，外層主網路參數則做 stable generalization。每個 token 投影成 $q, k, v$，由 outer loop 學；fast weights $W$ 在 inner loop 透過 update 與 apply 兩動作運作：</p>
+<p>$\textbf{update}: W \leftarrow W - \eta \nabla_W \mathcal{L}(f_W(k), v),$ $\textbf{apply}: o = f_W(q).$</p>
+<p>這把 context 視為 unlabeled dataset、把 hidden state 視為一個小模型權重，因此容量遠超 fixed-size vector，又保有 scalability。這兩塊正好對應 §4.1 的 backbone 與 §4.2 的 GCM；讀者讀完 §3 已能預期 Scal3R = VGGT backbone × TTT-style memory，並準備好接受 chunk-level 平行化與 cross-GPU 同步的工程設計。</p>
+<h3 id="3-4-method-overview-narrative">3.4 Method (overview narrative)</h3>
+<p>(約 1100 words)</p>
+<p>Method 的論述邏輯是：先說「為什麼要切 chunk」，再說「切完之後怎麼把 global 找回來」，最後交代「怎麼訓練、怎麼推論」。整體框架預告（§4 開頭與 Figure 2）寫得很清楚：在 VGGT 之上嵌入一個 TTT-based context aggregation mechanism，既保留 VGGT 的 geometric reasoning，又可處理 thousands of input image。</p>
+<p>§4.1 Model Overview 先複述 quadratic attention 的不可行，並對 VGGT-Long 的 chunk-only 策略下診斷——chunk 獨立處理就丟了 long-range context，對 local 不一致極為敏感。接著提出總體設計：把整段序列切成 $K$ 個 overlapping chunk $\{I_k\}$，chunk size $M$、overlap $O$，把 chunk 散佈到不同 GPU 平行處理，得到各 chunk 的 $c_k, D_k, P_k$。在 backbone 結構上，沿用 DINOv2 encoder + 交替 attention + 多 head 的 VGGT 架構，但在 global attention layer 之後插入 Global Context Memory (GCM) 模組，全模型共掛 4 個 GCM（後續 supplementary 指出在第 4、11、17、24 層）。每個 GCM 的「記憶體」由若干 Adaptive Memory Unit (AMU) 實作，AMU 是 lightweight neural sub-network，於 inference 時透過 self-supervised update 快速 adapt。GCM 對第 $i$ 個 global attention 輸出 token $\mathcal{X}_k^i$ 採用 gated residual：</p>
+<p>$$\text{gate}(\mathrm{GCM}, \mathcal{X}_k^i; \alpha) = \alpha \otimes \mathrm{GCM}(\mathcal{X}_k^i) + \mathcal{X}_k^i,$$</p>
+<p>其中 $\alpha \in \mathbb{R}^d$ 為可學習 gate vector，平衡 GCM 輸出與原 token；最終的 alternating attention 整合為 $\bar{\mathcal{X}}_k^i = \text{gate}(\mathrm{GCM}, \text{gattn}(\text{fattn}(\mathcal{X}_k^i)); \alpha) + \mathcal{X}_k^i$，再餵入各 task head。這段的論證重點：簡單的 gated insertion 既不改 VGGT 的 geometric prior，又把 long-range memory 接進去。</p>
+<p>§4.2 Test-Time Training as Memory 處理 TTT 在 long context 的 efficiency 痛點：傳統小 batch update 對 GPU utilization 不友善。受 LaCT 啟發，作者把整個 chunk 的 token 視為一次 update unit，做 chunk-wise update，提升 throughput 與 memory capacity。GCM 內部由 Q/K/V projection、做 AMU 用的 compact MLP、以及 output projection 組成；給定 chunk token $\mathcal{X}_k$，先得 $K, V \in \mathbb{R}^{M \times d}$，按照式 (8) 一次性更新 AMU $W$，token-wise learning rate $\eta_i$ 由輸入預測，self-supervised loss 採 dot-product 形式 $\mathcal{L}(f_W(K), V) = \sum_i -f_W(k_i)^\top v_i$（式 9）。更新完後再用 $W$ 對 query $Q$ 做 $f_W(Q)$ 產出 token。這一段把 GCM 跟 TTT 嚴謹地黏起來。</p>
+<p>接著的 Global Context Synchronization (GCS) 是把 chunk-local memory 升級為 sequence-wide memory 的關鍵：每張 GPU 處理一個 chunk、各自算自己的 AMU 梯度，再用 all-reduce 把梯度加總、廣播回每張 GPU，所以全 GPU 的 AMU 共享同一份「整段序列」的更新。形式上 $g = \sum_{j=1}^K \nabla_W \sum_{i=1}^M \eta_i \mathcal{L}_i$，把 chunk 平行視為 context parallelism。論文強調這利用 PyTorch 原生 all-reduce primitive，幾乎不增加 communication overhead，卻同時得到 local accuracy、cross-chunk consistency 與 overall reconstruction 三方面的提升。</p>
+<p>§4.3 Training 列出 18 個訓練 dataset，覆蓋 indoor/outdoor、synthetic/real、不同尺度；sequential dataset 連抽整段、unordered dataset 抽同場景多視角再 shuffle。Loss 沿用 VGGT 的多任務組合 $\mathcal{L} = \lambda \mathcal{L}_{cam} + \mathcal{L}_{dpt} + \mathcal{L}_{xyz}$。實作上 GCM 與 backbone 端到端聯訓，AdamW、peak lr $1\times 10^{-4}$（GCM）／$1\times 10^{-5}$（backbone）、cosine decay + 2k warm-up、grad clip 1.0、32 張 A800 跑 60k iter ≈ 3 天。為提升 length generalization，每個 iteration 隨機把 32 GPU 分組，組內做 GCS，使有效序列長度在 1–32 chunk 間波動。</p>
+<p>§4.4 Inference 把 §4.1–4.3 的設計整理成 pipeline：序列切 overlapping chunk，多 GPU 平行做 forward，GCS 跨裝置同步 context；得到各 chunk 的 3D 結果後，沿用 VGGT-Long 的 overlap 對齊：在重疊區估 similarity transform 做 point-cloud alignment，再融合成 kilometre-scale 重建；對含 revisit 的軌跡，再加 retrieval-based loop candidate 與 pose-graph refinement 以壓 global drift。論文也說明可在單 GPU 序列處理，僅犧牲 inference time。這段把抽象 mechanism 收斂為 reproducible 的工程流程，順勢過渡到實驗章節。</p>
+<h3 id="3-5-experiments-overview-narrative">3.5 Experiments (overview narrative)</h3>
+<p>(約 1300 words)</p>
+<p>Experiment 章節以三條軸線檢驗論文主張：pose accuracy、3D geometry accuracy 與 ablation；其底層問題是「GCM + GCS 是否真的在 long, large-scale 序列上帶來顯著且可重現的提升，且不犧牲效率？」</p>
+<p>§5.1 Pose Accuracy 是論文的火力主場。Dataset 涵蓋 in-domain synthetic Virtual KITTI v2.0.3、out-of-domain real KITTI Odometry（11 段、271–4661 frame、長達 5 km）與 Oxford Spires（6 段、含 challenging loop closure 與 indoor/outdoor 混合）。指標採 Sim(3) 對齊後的 ATE、RRE（°/100m）、RTE（m/100m），同時補充在 ScanNet++、TUM-RGBD、Waymo 上的延伸比較（放在附錄 Table 4）。Baseline 涵蓋三類：VGGT-Long、FastVGGT 等同源改良；CUT3R、STream3R、StreamVGGT、TTT3R 等帶 memory 的 foundation model；MASt3R-SLAM、VGGT-SLAM 等 learning-based SLAM；以及假設 known intrinsic 的傳統 SfM/SLAM（COLMAP、MASt3R-SfM、DROID-SLAM、DPVO++）。</p>
+<p>論文用 Table 1 + Figure 3 共同支撐主結論。Table 1 顯示 Scal3R 在 VKITTI2、KITTI、Oxford Spires 三個 dataset 上幾乎橫掃 feed-forward 與 streaming baseline；在最考驗 long-sequence 行為的 KITTI 上，ATE 由 VGGT-Long 的 25.94 大幅降到 14.55，RTE 由 9.67 降到 4.61；Oxford Spires 上 RRE/RTE/ATE 全面領先（7.87/6.55/4.45 vs VGGT-Long 30.91/20.79/15.46）。論述上點名幾個失敗 mode：MASt3R-SLAM、VGGT-SLAM 在 long sequence 直接 tracking failure；FastVGGT 出現 OOM；TTT3R 雖比 CUT3R 進步，仍受 fixed-size memory 拖累；連最強 baseline VGGT-Long 在 KITTI 之外也明顯落後。對傳統路線給出 fair concession：COLMAP 在 Oxford Spires 上很強，因為 feature matching 與 global optimization 條件好，但在更長更大規模的 video benchmark 上退化、且極慢。這形成「我們對 feed-forward 路線是 SOTA，並在合適情境下追上甚至超越古典 SfM」的論述。</p>
+<p>Resource comparison 強化「scalable」這個賣點：在 KITTI 03/04/10（avg. 758 frame）上比較 peak GPU memory、總 inference time、FPS，所有方法在 RTX 4090 上跑，僅 FastVGGT 改用 A800。Scal3R 在單 GPU 上可行、memory 控在合理範圍，避開 long-context model 的 memory 爆炸。雖然 DPVO++、CUT3R 等 lightweight online 系統 throughput 較高，但 long sequence 的 accuracy 顯著輸給 Scal3R；COLMAP 比 Scal3R 慢逾 20×。runtime 隨 sequence 長度的擴展與 RPE 穩定性放在 supplementary。</p>
+<p>§5.2 Geometry Accuracy 把焦點從 trajectory 移到 point cloud。Dataset 為 ETH3D（11 scene）、Virtual KITTI（50 scene）、Oxford Spires（6 scene），涵蓋 indoor/outdoor、不同 scale；指標為 Chamfer Distance 與 F1，先用 Umeyama 對齊到 ground truth。Table 2 顯示 Scal3R 在三個 dataset 都拿 best：ETH3D CD 0.11/F1 0.91，Oxford Spires 0.96/0.96，VKITTI2 0.40/0.91，相對 VGGT-Long 都有顯著提升。論文補充：tracking failure、OOM、large pose deviation 通常會直接拖垮重建，所以 pose 領先在這裡形成複利。ETH3D 的好結果還做了 transferability 論述——在較短的 indoor 序列也很穩。Figure 4 給定性比較，強調 Scal3R 在大尺度 outdoor 與 indoor local geometry 都更一致。</p>
+<p>§5.3 Ablation Study 鎖定兩個設計選擇。第一是 sub-network 的 state size：1M → 2M → 4M，ATE/RTE/RRE 單調改善（4M 達到 0.85/0.84/0.87），佐證「更大 memory capacity → 更好 long-range context」的核心 hypothesis。第二是 global context 機制本身：w/o GCM（去掉 memory）與 w/o GCS（去掉跨 chunk 同步）兩個 ablation 對照 full model；w/o GCM 退化最大（ATE 19.00 vs full 13.70），w/o GCS 次之（15.80），表示 GCM 承擔主要 long-range context 責任，GCS 則負責讓它跨 chunk 傳播。值得注意，左右兩個 block 訓練設定不同，作者明確聲明「兩塊不可直接比較」，避免讀者誤讀數字差異。</p>
+<p>整體實驗章節的論述策略是「先打 pose、再打 geometry、最後拆模型」：以 long, large-scale benchmark 作主戰場，用大量強 baseline 排除 foundation model 與 SLAM 兩條路線的競爭，再用 resource 與 ablation 收緊 efficiency 與設計必要性，使 §6 結論能直接宣稱 SOTA pose 與 geometry。</p>
+<h3 id="3-6-conclusion-limitations-future-work">3.6 Conclusion / Limitations / Future Work</h3>
+<p>(約 80 words)</p>
+<p>Conclusion 段非常精簡，把 Scal3R 收束為一個 scalable framework：以 neural global context 結合 online-adapted lightweight sub-networks 與 context aggregation，在 long RGB sequence 上維持 long-range dependency；並重申實驗已驗證 SOTA pose 與 3D geometry。論文沒有獨立的 Limitations 與 Future Work 子節，這部分 the paper does not specify。Acknowledgment 列出資金與致謝對象（含 LaCT 一作 Tianyuan Zhang 的討論），補強與 TTT/LaCT 路線的學術連結，但屬於致謝範疇而非研究展望。</p>
+<h2 id="4-critical-profile">4. Critical Profile</h2>
+<h3 id="4-1-highlights">4.1 Highlights</h3>
+<ul><li>在 KITTI Odometry(平均 758 frames)達到 ATE 14.55m,大幅領先次佳的 VGGT-Long(25.94m),且 RRE/RTE 也同步降低(Table 1, p. 6)。</li><li>在 Oxford Spires 重建 F1 score 達 0.96、Chamfer Distance 0.96,相對 VGGT-Long(F1 0.80、CD 3.41)為一個量級的提升(Table 2, p. 7)。</li><li>在 ETH3D(室內短序)與 Virtual KITTI2 同樣拿到 F1 0.91,顯示方法不僅適用於公里級場景,也能 transfer 到較短序列(Table 2, p. 7)。</li><li>單張 RTX 4090 即可推論 KITTI 758-frame 子集,peak memory 10.32GB,而 FastVGGT 需 A800 才能執行(Table 1, p. 6)。</li><li>Runtime 隨 sequence length 近似線性成長:150 frames 51.19s、990 frames 382.80s,FPS 穩定維持在 2.59–2.93(Table 5, p. 16)。</li><li>較 COLMAP 在相同 KITTI 子集上快約 22 倍(300.76s vs 6614.73s),同時在 KITTI/VKITTI2 的 ATE 顯著更優(Table 1, p. 6)。</li><li>額外引入的 GCM module 僅 75.55M 參數(0.076B),掛載於 VGGT 的第 4、11、17、24 層 global attention 之後,屬輕量改造(Section A, p. 13)。</li><li>Ablation 證實 GCM 為主要長距記憶來源:移除 GCM 使 ATE 由 13.70 退化至 19.00,移除 GCS 退化至 15.80(Table 3, p. 8)。</li><li>AMU state size 由 1M 增至 4M 帶來一致改善(RRE 1.01→0.87、ATE 0.99→0.85),支持「容量越大、長距資訊保存越好」的設計直覺(Table 3, p. 8)。</li><li>在較密集的 ScanNet++(ATE 0.08)與 TUM-RGBD(ATE 0.07)亦達到最佳,顯示 global context 機制在 dense video regime 也仍然有效(Table 4, p. 16)。</li></ul>
+<h3 id="4-2-weaknesses">4.2 Weaknesses</h3>
+<h4 id="4-2-1-author-acknowledged">4.2.1 Author-acknowledged</h4>
+<ul><li>在序列內出現劇烈光照或顏色變化時,跨 chunk 的對應會失效,GCS 無法可靠對齊(Section C.3, Figure 7, p. 16)。</li><li>在極端 view sparsity(數十張影像橫跨數百公尺至公里級)下,即使 local 預測也會因幾何約束不足而崩壞(Section C.3, p. 16)。</li><li>單 GPU 順序執行模式雖可行,但會顯著增加 inference time(Section 4.4, p. 6)。</li><li>當 feature matching 與 global optimization 條件良好時,COLMAP 仍可在較短序列上具競爭力,Scal3R 在 Oxford Spires 的絕對 ATE 並不勝過 COLMAP(Section 5.1; Table 1, p. 6)。</li></ul>
+<h4 id="4-2-2-phyra-inferred">4.2.2 Phyra-inferred</h4>
+<ul><li>Resource 比較(Table 1, p. 6)只在單張 4090 上跑 758-frame KITTI 子集,論文卻自我定位為公里級、上千 frames 的方法;真正大尺度設定(如 KITTI 00 的 4542 frames)的 peak memory 與 wall-clock 從未量測。</li><li>State-size ablation(Table 3 左, p. 8)只掃了 1M/2M/4M 三個點,且 RRE 絕對差 0.14、ATE 差 0.14,樣本太少且差距太小,難以支撐「容量越大越好」作為一條 scaling law。</li><li>雖以效率為賣點,Scal3R 在 KITTI 子集上實際比 VGGT-Long 慢 1.78×(300.76s vs 168.83s, Table 1, p. 6);論文對「精度提升換取吞吐下降」這個 trade-off 沒有正面討論。</li><li>GCS 在每個包含 GCM 的 layer 都對 AMU 梯度做一次跨 GPU all-reduce,但通訊量、頻寬依賴、以及跨節點(non-co-located)情境下的延遲完全未量化。</li><li>AMU 結構為 $f_W(x) = W_2\bigl(\mathrm{SiLU}(W_1 x) \circ (W_3 x)\bigr)$,本質上是 SwiGLU MLP;論文未提供「相同架構但不做 inner-loop 更新、改為純前向學習」的對照,使「test-time training 帶來的增益」與「單純多塞參數」無法分離(Section A, p. 13)。</li><li>在 Oxford Spires 的絕對 pose 上 COLMAP ATE 0.15 遠勝 Scal3R 4.45(Table 1, p. 6),但論文以 &quot;leading pose accuracy&quot; 作為總結;此勝負其實限縮於 &quot;RGB-only feed-forward&quot; 子類別,該前提沒有在 abstract 與 introduction 顯著標出。</li></ul>
+<h3 id="4-3-phyra-s-judgment-summary">4.3 Phyra&#x27;s Judgment (summary)</h3>
+<p>論文成功論證在 chunked feed-forward 3D reconstruction 中,真正的瓶頸是「跨 chunk 的全域脈絡共享」而非單純算力,並用 GCM(容量)+ GCS(共享)兩個機制把這個論點落地為可量測的精度提升。然而方法本身是 VGGT、VGGT-Long、LaCT、TTT 的組合工程化,真正新穎的部分僅在於把 chunk-level all-reduce 視為 context parallelism 並把它接到 TTT 框架上;AMU 的具體形式並非新模組。最關鍵的未解問題是:Scal3R 的勝出究竟來自 &quot;test-time 內迴圈梯度更新&quot; 這個語義,還是只是把一個更大的、可跨 GPU 同步權重的非線性 attention head 加到 VGGT 上——目前的 ablation 無法分辨這兩種解釋。</p>
+<h2 id="5-methodology-deep-dive">5. Methodology Deep Dive</h2>
+<h3 id="5-1-method-overview">5.1 Method Overview</h3>
+<p>Scal3R 將 VGGT 的「unified Transformer feed-forward 架構」直接搬過來作為幾何 backbone(DINOv2 patch encoder + 24 層交替注意力 + 多個 prediction heads),核心改動只有兩個:在 24 層 alternating attention 中的 4 層後方插入 <strong>Global Context Memory (GCM)</strong> 模組,並透過 <strong>Global Context Synchronization (GCS)</strong> 將 GCM 的內部「快權重 (fast weights)」更新跨 GPU 同步。整體推論時的執行單位是 <strong>chunk</strong>:輸入 $N$ 張 RGB 圖被切成 $K$ 個帶有 overlap $O$ 的 chunk(每個含 $M$ 張影像),分散到多個 GPU 並行處理。每個 chunk 在自身 GPU 上獨立跑一遍 backbone(包含與其他 chunk 同步的 GCM),最後 chunk 之間透過 VGGT-Long 的 similarity transform 對齊與融合,產生整段序列的 3D 重建。</p>
+<p>每個 GCM 模組是一個輕量子網路,在推論期間以自監督目標被更新,扮演 chunk 內 token 的「壓縮記憶」。具體流程是:當某層 global attention 輸出 token $\mathcal{X}_k^i \in \mathbb{R}^{M \cdot K_p \times d}$ 時($K_p$ 為每張圖的 patch 數,$d$ 為 model dim),GCM 將其投影為 $Q, K, V$,把整個 chunk 內的所有 token 視為 <strong>單一 update batch</strong>(受 LaCT 啟發的 large-chunk update),透過 dot-product loss $\mathcal{L} = \sum_i -f_W(k_i)^\top v_i$ 對 AMU 的快權重 $W$ 做一次梯度更新,然後用更新後的 $f_W$ 把 $Q$ 映射為輸出 token,並透過可學習的 gate $\alpha \in \mathbb{R}^d$ 加回 residual stream:$\bar{\mathcal{X}}_k^i = \alpha \otimes \mathrm{GCM}(\mathcal{X}_k^i) + \mathcal{X}_k^i$。AMU 本身是個 compact MLP,paper 在 ablation 中比較 1M / 2M / 4M 三種 state size。</p>
+<p>GCS 則是把「multi-chunk 分散在多 GPU」這件事重新詮釋為 <strong>context parallelism</strong>:在每個 GCM update step 上,各 GPU 計算自己 chunk 的本地梯度 $\nabla_W \sum_i \eta_i \mathcal{L}_i$,然後用 PyTorch 的 all-reduce 把 $K$ 個 chunk 的梯度求和並廣播,各 GPU 用同一個聚合梯度去更新各自的 $W$ 副本。由於 $W$ 的初始值同步,且每步聚合梯度也同步,所有 GPU 上的快權重在數學上等價於「在整段序列上做了一次全域更新」。實作上 communication overhead 很小,訓練時隨機把 32 張 A800 切成不同大小的 group(每 group 內做 GCS),讓 effective sequence length 在 1 到 32 chunk 間變動,以提升 length generalization。對齊階段沿用 VGGT-Long:用 overlap region 計算 chunk 間 similarity transform,有 revisit 時加上 retrieval-based loop closure 做 pose-graph refinement。</p>
+<h3 id="5-2-pipeline-diagram-with-tensor-shapes">5.2 Pipeline Diagram with Tensor Shapes</h3>
+<pre class="codeblock"><code>Input RGB sequence I = {I_i}_{i=1..N}
+   │  shape: [N, 3, H, W]
+   ▼
+[Chunk Partitioning] (M = chunk size, O = overlap)
+   │  shape per chunk: [M, 3, H, W],  K chunks total
+   │  distributed: chunk_k → GPU_k
+   ▼
+[DINOv2 Patch Encoder]   (per-chunk, on each GPU)
+   │  patches: [M, K_p, C]   (K_p = (H/p)·(W/p), p = patch size = ?)
+   │  flatten across frames: [M·K_p, C]  ← treat as X_k^0
+   ▼
+┌──────────────────────────────────────────────────┐
+│  ×24 layers of alternating attention             │
+│                                                  │
+│   X_k^i  ──[Frame Attention fattn]──► ...        │
+│         shape: [M, K_p, d]   (intra-frame)       │
+│                                                  │
+│         ──[Global Attention gattn]──► X̄_k^i     │
+│         shape: [M·K_p, d]    (inter-frame)       │
+│                                                  │
+│   if layer i ∈ {4 selected layers}:              │
+│     ┌──────── GCM module ────────┐               │
+│     │ X̄_k^i  shape [M·K_p, d]    │               │
+│     │   │                        │               │
+│     │   ├─►[QKV proj]            │               │
+│     │   │   Q,K,V: [M·K_p, d]    │               │
+│     │   │   η_i:   [M·K_p]       │               │
+│     │   │                        │               │
+│     │   ├─►[AMU update]          │               │
+│     │   │   W ∈ ℝ^H_state        │               │
+│     │   │   (H_state = 1M/2M/4M) │               │
+│     │   │   ── all-reduce(∇W) ──►│  GCS across   │
+│     │   │                        │  K GPUs       │
+│     │   │                        │               │
+│     │   ├─►[Apply]               │               │
+│     │   │   o = f_W(Q): [M·K_p,d]│               │
+│     │   │                        │               │
+│     │   └─►[Output proj + gate]  │               │
+│     │       α ⊗ GCM(X̄) + X̄       │               │
+│     │       shape: [M·K_p, d]    │               │
+│     └──────────────────────────────┘             │
+│                                                  │
+│   X_k^{i+1}  shape: [M·K_p, d]                   │
+└──────────────────────────────────────────────────┘
+   │
+   ▼
+[Output Heads]   (per chunk, per frame)
+   ├─► Camera head  c_k:  [M, 9]
+   ├─► Depth head   D_k:  [M, 1, H, W]
+   ├─► Pointmap     P_k:  [M, 3, H, W]
+   └─► Feature grid T_k:  [M, C, H, W]
+   │
+   ▼
+[Chunk-Wise Alignment]   (VGGT-Long-style, on single GPU)
+   │  overlap region → Sim(3) transform per chunk pair
+   │  loop closure (retrieval) + pose-graph refinement
+   ▼
+Final reconstruction: aligned poses + fused point cloud
+   shape: [N, 9] poses  +  fused [≈N·H·W, 3] point cloud</code></pre>
+<p>註:<code>K_p</code> 為每張影像的 patch 數量,<code>p</code> 為 DINOv2 patch size,<code>d</code> 為 backbone hidden dim,paper 沒在方法章節給出具體數值(見 §5.3 各模組的 Implementation Details)。</p>
+<h3 id="5-3-per-module-breakdown">5.3 Per-Module Breakdown</h3>
+<h4 id="5-3-1-chunk-partitioning">5.3.1 Chunk Partitioning</h4>
+<p><strong>Function:</strong> 將 long sequence 切成有 overlap 的 chunk,使每個 chunk 可以被單張 GPU 處理,同時 overlap 提供後續對齊所需的共視 token。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I = \{I_i\}_{i=1}^N$</li><li>Shape: <code>[N, 3, H, W]</code></li><li>Source: 原始 RGB 影片序列</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\{I_k\}_{k=1}^K$,$I_k = \{I_{(k-1)(M-O)+1}, \dots, I_{(k-1)(M-O)+M}\}$</li><li>Shape: 每個 chunk <code>[M, 3, H, W]</code>,共 $K$ 個 chunk</li><li>Consumer: 每個 chunk 分配到一張 GPU,送入 DINOv2 encoder</li></ul>
+<p><strong>Processing:</strong></p>
+<p>依照 chunk 大小 $M$ 和 overlap $O$,沿時間軸滑動切片,等同於 stride 為 $M-O$、window 為 $M$ 的 sliding window。Chunk 之間以 round-robin 方式分配到不同 GPU,<strong>訓練時</strong> 還會把 32 張 GPU 隨機分成多個 group,讓有效序列長度從 1 到 32 chunk 間變動。</p>
+<p><strong>Key Formulas:</strong> 無封閉形式公式;就是 sliding window 切片。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Paper 沒有在方法章節給出 $M$、$O$ 的具體數值。可以推測 chunk size 與 VGGT-Long 接近(約 32 frames),但需查 supplementary。<strong>訓練資源</strong>為 32 張 A800,訓練 60k iterations(約 3 天)。</p>
+<h4 id="5-3-2-dinov2-patch-encoder">5.3.2 DINOv2 Patch Encoder</h4>
+<p><strong>Function:</strong> 將每張 RGB 圖 patchify 並提取 per-frame token 特徵,作為 backbone 的輸入。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $I_k$</li><li>Shape: <code>[M, 3, H, W]</code></li><li>Source: Chunk Partitioning</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $F_k = \bigcup_{i \in \text{chunk}} F_i$,$F_i \in \mathbb{R}^{K_p \times C}$</li><li>Shape: <code>[M, K_p, C]</code>,展平為 <code>[M·K_p, C]</code> 作為下層 token</li><li>Consumer: 第一層 alternating attention block</li></ul>
+<p><strong>Processing:</strong></p>
+<p>沿用 VGGT 的設定:DINOv2 ViT 把每張影像切成 patch,經 ViT trunk 取出 per-patch token。Token 來自 DINOv2 預訓練特徵,因此 channel 數 $C$ 由 DINOv2 model size 決定。</p>
+<p><strong>Key Formulas:</strong> 無新公式,即標準 ViT patch embedding。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>Paper 引用 DINOv2 (Caron et al., ICCV 2021) 但沒指明 backbone 大小(ViT-S/B/L/g)。Patch size $p$、token 維度 $C$、$K_p$ 的具體數值在 §4 中均未出現,需要查 supplementary 或推測沿用 VGGT 的設定。</p>
+<h4 id="5-3-3-alternating-attention-block-frame-global">5.3.3 Alternating Attention Block (Frame + Global)</h4>
+<p><strong>Function:</strong> 在 backbone 中交替使用 frame-wise self-attention(intra-frame 細節)與 global self-attention(inter-frame 幾何一致性),共 24 層,是 VGGT 的幾何推理主體。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\mathcal{X}_k^i$</li><li>Shape: <code>[M·K_p, d]</code> (frame-wise 階段會 reshape 成 <code>[M, K_p, d]</code>)</li><li>Source: 上一層 attention block 或 patch encoder</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\bar{\mathcal{X}}_k^i$</li><li>Shape: <code>[M·K_p, d]</code></li><li>Consumer: 下一層 attention block,或 GCM 模組(若該層接 GCM)</li></ul>
+<p><strong>Processing:</strong></p>
+<p>每層先做 <strong>frame attention</strong> $\text{fattn}(\cdot)$ —— 對每張影像內部的 $K_p$ 個 patch token 做 self-attention,捕捉 intra-frame 細節;再做 <strong>global attention</strong> $\text{gattn}(\cdot)$ —— 把 chunk 內所有 $M \cdot K_p$ 個 token 拉平做 self-attention,捕捉 inter-frame 幾何一致性。Residual connection 串起兩個 sub-block:</p>
+<p>$$ \bar{\mathcal{X}}_k^i = \text{gattn}\bigl(\text{fattn}(\mathcal{X}_k^i)\bigr) + \mathcal{X}_k^i $當該層後方接 GCM 模組時,公式變為:$ \bar{\mathcal{X}}_k^i = \text{gate}\bigl(\mathrm{GCM}, \text{gattn}(\text{fattn}(\mathcal{X}_k^i)); \alpha\bigr) + \mathcal{X}_k^i $$</p>
+<p><strong>Key Formulas:</strong> 見上。</p>
+<p><strong>Implementation Details:</strong></p>
+<p>24 層中只有 4 層後方接 GCM(paper 第 5 頁文末說明)。Paper 沒具體列出是哪 4 層(例如 layer 6/12/18/24 還是其它配置),也沒給 attention head 數、$d$、FFN 寬度。</p>
+<h4 id="5-3-4-global-context-memory-gcm-module">5.3.4 Global Context Memory (GCM) Module</h4>
+<p><strong>Function:</strong> 用一個會在推論時被 self-supervised 更新的輕量神經網路 (AMU) 充當「壓縮記憶」,將 chunk 內所有 token 的脈絡寫入快權重 $W$,再用更新後的 $W$ 把 query 投影為帶有 chunk 上下文的輸出 token。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: $\mathcal{X}_k$ (= 該層 global attention 的輸出)</li><li>Shape: <code>[M·K_p, d]</code></li><li>Source: 接在某層 global attention 之後</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $\mathrm{GCM}(\mathcal{X}_k)$,經 gate 後再 residual 加回</li><li>Shape: <code>[M·K_p, d]</code></li><li>Consumer: 該層的 residual stream(送入下一層 attention)</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>QKV projection</strong>(linear layer):從 $\mathcal{X}_k$ 投出 $Q, K, V \in \mathbb{R}^{M \cdot K_p \times d}$。</li><li><strong>AMU update</strong>(內 loop):用 $K, V$ 算 dot-product loss(eq. 9),對 $W$ 做一次梯度下降(eq. 8)。</li><li><strong>GCS all-reduce</strong>:把本地梯度跨 GPU 求和廣播,所有 chunk 共用聚合梯度更新 $W$(見 §5.3.5)。</li><li><strong>Apply</strong>:用更新後的 $f_W$ 把 $Q$ 映射為輸出 token $o = f_W(Q) \in \mathbb{R}^{M \cdot K_p \times d}$。</li><li><strong>Output projection + gate</strong>:經輸出 linear,乘上可學習的 gate $\alpha \in \mathbb{R}^d$,再 residual 加回原 token。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>更新規則(eq. 8, 9):</p>
+<p>$$ W \leftarrow W - \nabla_W \sum_{i=1}^{M} \eta_i \, \mathcal{L}\bigl(f_W(k_i), v_i\bigr) $$</p>
+<p>$\mathcal{L}\bigl(f_W(K), V\bigr) = \sum_{i=1}^{M} -f_W(k_i)^\top v_i$</p>
+<p>Gate 與 residual(eq. 5):</p>
+<p>$$ \text{gate}(\mathrm{GCM}, \mathcal{X}_k^i; \alpha) = \alpha \otimes \mathrm{GCM}(\mathcal{X}_k^i) + \mathcal{X}_k^i $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>每個 GCM 包含三層:QKV projection (linear)、AMU(compact MLP,作為快權重 $W$)、output projection。</li><li>AMU state size $H_{\text{state}}$:ablation 比較 1M / 2M / 4M 參數,4M 最佳。</li><li>Token-wise learning rate $\eta_i$ 從輸入 token 預測得來(具體 head 結構 paper 沒寫)。</li><li>Eq. 8 中的 $M$ 在 paper 文字中先後被稱為「chunk size (M images)」和「token-wise」,實際展開應為 $M \cdot K_p$ tokens 一次更新;這是 paper 的 notation overloading,本筆記以 token 數為準。</li><li>Loss 採 LaCT/TTT 風格的 dot-product loss(沒用 cosine 或 MSE)。</li></ul>
+<h4 id="5-3-5-global-context-synchronization-gcs">5.3.5 Global Context Synchronization (GCS)</h4>
+<p><strong>Function:</strong> 把分散在 $K$ 張 GPU 上、各自在 chunk 內計算的本地 GCM 梯度 all-reduce 求和並廣播,讓所有 GPU 上的 $W$ 副本在每步更新後保持一致,等價於在整段序列上做一次全域 update。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 各 GPU 上的 local gradient $\nabla_W \sum_{i=1}^M \eta_i \mathcal{L}_i$</li><li>Shape: 與 $W$ 相同(<code>[H_state]</code>)</li><li>Source: 各 GPU 內 GCM 的反向傳播</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: 聚合梯度 $g$,廣播後在每張 GPU 上更新 $W$</li><li>Shape: 與 $W$ 相同</li><li>Consumer: 各 GPU 的 AMU update step</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li>各 GPU 計算本地 chunk 的梯度 $g_j = \nabla_W \sum_{i=1}^M \eta_i \mathcal{L}_i$。</li><li>透過 PyTorch all-reduce 對 $K$ 張 GPU 的梯度求和:$g = \sum_{j=1}^K g_j$(eq. 10)。</li><li>把 $g$ 廣播回所有 GPU,各 GPU 用同一個 $g$ 更新自己的 $W$ 副本。</li><li>因為 $W$ 初始同步、每步聚合梯度也同步,所有 GPU 上的 $W$ 始終一致,等同於在整段序列上做一次全域更新。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>$$ g = \nabla_W \sum_{j=1}^{K} \sum_{i=1}^{M} \eta_i \mathcal{L}_i = \sum_{j=1}^{K} \nabla_W \sum_{i=1}^{M} \eta_i \mathcal{L}_i $$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>用 PyTorch 內建的 all-reduce primitive,paper 強調 communication overhead 很小。</li><li><strong>訓練時</strong> 把 32 張 A800 隨機分成多個 group,每 group 內單獨做 GCS,使 effective sequence length 在 1 到 32 chunk 間變動。</li><li><strong>推論時</strong> 也照樣執行 GCS;若只有單張 GPU,則順序處理 chunks 並犧牲速度。</li></ul>
+<h4 id="5-3-6-output-heads-chunk-wise-alignment">5.3.6 Output Heads + Chunk-wise Alignment</h4>
+<p><strong>Function:</strong> 從每個 chunk 的最終 token 預測 camera、depth、pointmap、feature grid,然後跨 chunk 對齊融合成整段序列的 3D 重建。</p>
+<p><strong>Input:</strong></p>
+<ul><li>Name: 最後一層 attention 後的 token $\bar{\mathcal{X}}_k^{24}$</li><li>Shape: <code>[M·K_p, d]</code></li><li>Source: backbone 最後一層</li></ul>
+<p><strong>Output:</strong></p>
+<ul><li>Name: $(c_k, D_k, P_k, T_k)$ per chunk,然後 aligned trajectory + fused point cloud</li><li>Shape:</li><li>$c_k$: <code>[M, 9]</code>(camera intrinsic + extrinsic)</li><li>$D_k$: <code>[M, 1, H, W]</code></li><li>$P_k$: <code>[M, 3, H, W]</code></li><li>$T_k$: <code>[M, C, H, W]</code></li><li>對齊後:<code>[N, 9]</code> 全序列 pose + 融合點雲</li><li>Consumer: 下游評估(pose accuracy / Chamfer distance / F1)</li></ul>
+<p><strong>Processing:</strong></p>
+<ol><li><strong>Output heads</strong>:沿用 VGGT 的多任務 prediction heads(camera head、depth head、pointmap head、tracking feature head),每個 head 是輕量 conv/MLP,從 token 解出對應結構。</li><li><strong>Chunk-wise alignment</strong>(VGGT-Long-style):利用相鄰 chunk 的 overlap region $O$ 個共視 frame 算 Sim(3) similarity transform,把所有 chunk 對齊到統一座標系,最後融合 pointmap。</li><li><strong>Loop closure</strong>(僅當有 revisit):用 retrieval-based loop candidate discovery + pose-graph refinement 減少全域漂移。</li></ol>
+<p><strong>Key Formulas:</strong></p>
+<p>VGGT 的 unified mapping(eq. 1):</p>
+<p>$f\bigl(\{I_i\}_{i=1}^N\bigr) = \{\boldsymbol{c}_i, D_i, P_i, T_i\}_{i=1}^N$</p>
+<p>Multi-task training loss(eq. 11):</p>
+<p>$\mathcal{L} = \lambda \mathcal{L}_{cam} + \mathcal{L}_{dpt} + \mathcal{L}_{xyz}$</p>
+<p><strong>Implementation Details:</strong></p>
+<ul><li>$\mathcal{L}_{cam}$ 是 camera head 的 L1 loss;$\mathcal{L}_{dpt}, \mathcal{L}_{xyz}$ 結合 confidence-weighted term 與 gradient-based regularisation,paper 沒給 $\lambda$ 的具體數值。</li><li>Optimizer: AdamW,GCM lr = $1 \times 10^{-4}$,backbone lr = $1 \times 10^{-5}$,cosine decay + 2k warm-up,gradient clipping max norm 1.0。</li><li>對齊:用 Umeyama 算法做 Sim(3) 估計;loop closure 的 retrieval 細節 paper 沒描述。</li></ul>
+<h2 id="6-experiments">6. Experiments</h2>
+<h3 id="6-1-datasets">6.1 Datasets</h3>
+<table><thead><tr><th>Dataset</th><th>Task</th><th>Scale</th><th>Usage (train/val/test)</th></tr></thead><tbody><tr><td>Virtual KITTI (v2.0.3) [7]</td><td>Pose accuracy + 3D reconstruction</td><td>50 outdoor sequences, 223–837 frames, 52–711 m</td><td>Train + Test</td></tr><tr><td>KITTI Odometry [22]</td><td>Pose accuracy (zero-shot)</td><td>11 urban driving sequences, 271–4,661 frames, 0.39–5.07 km</td><td>Test only</td></tr><tr><td>Oxford Spires [70]</td><td>Pose accuracy + 3D reconstruction (zero-shot)</td><td>6 sequences with loop closures, 351–787 frames, 280–773 m</td><td>Test only</td></tr><tr><td>ETH3D [60]</td><td>3D reconstruction (zero-shot)</td><td>11 indoor/outdoor scenes, 14–76 frames</td><td>Test only</td></tr><tr><td>ScanNet++ [92]</td><td>Pose accuracy (supplementary)</td><td>5 sequences, avg. 924 frames</td><td>Test only</td></tr><tr><td>TUM-RGBD [64]</td><td>Pose accuracy (supplementary)</td><td>All scenes, avg. 926 frames</td><td>Test only</td></tr><tr><td>Waymo [66]</td><td>Pose accuracy (supplementary)</td><td>9 outdoor driving scenes, avg. 198 frames</td><td>Test only</td></tr><tr><td>Co3Dv2 [55], BlendedMVS [91], DL3DV [39], MegaDepth [36], WildRGB [86], ScanNet++ [92], HyperSim [56], Mapillary [2], Replica [63], MVS-Synth [28], Aria Synthetic Environments [46], Aria Digital Twin [46], Taskonomy [95], Tartanair [82], Mapfree [3], SceneNet RGB-D [42], MatrixCity [35]</td><td>Multi-task pretraining (depth, point, pose)</td><td>Mixed indoor/outdoor, synthetic/real, varied scales</td><td>Train only</td></tr></tbody></table>
+<h3 id="6-2-evaluation-metrics">6.2 Evaluation Metrics</h3>
+<table><thead><tr><th>Metric</th><th>Description</th><th>Primary?</th></tr></thead><tbody><tr><td>ATE (m)</td><td>Absolute Trajectory Error after $\mathrm{Sim}(3)$ alignment with ground truth</td><td>yes</td></tr><tr><td>RRE ($^{\circ}$/100m)</td><td>Relative Rotation Error normalized by trajectory length</td><td>yes</td></tr><tr><td>RTE (m/100m)</td><td>Relative Translation Error normalized by trajectory length</td><td>yes</td></tr><tr><td>Chamfer Distance (CD)</td><td>Average of accuracy $\mathrm{dist}(\mathcal{P}\to\mathcal{G})$ and completeness $\mathrm{dist}(\mathcal{G}\to\mathcal{P})$ on aligned point clouds</td><td>yes</td></tr><tr><td>F1 score</td><td>Harmonic mean of precision and recall under a dataset-specific distance threshold $d$ (ETH3D: 0.25, VKITTI: 1.0, Oxford Spires: 4.0)</td><td>yes</td></tr><tr><td>RPE (m)</td><td>Relative Pose Error reported in the runtime-scaling analysis (supplementary Table 5)</td><td>no</td></tr><tr><td>Peak GPU Memory</td><td>Peak memory usage during inference on KITTI seq. 03/04/10</td><td>no</td></tr><tr><td>Inference Time / FPS</td><td>Total wall-clock and throughput on KITTI seq. 03/04/10 (avg. 758 frames)</td><td>no</td></tr></tbody></table>
+<h3 id="6-3-training-and-inference-settings">6.3 Training and Inference Settings</h3>
+<ul><li><strong>Hardware (main training):</strong> 32 NVIDIA A800 GPUs; training completes in roughly 3 days over 60k iterations.</li><li><strong>Optimizer:</strong> AdamW with peak learning rate $1\times10^{-4}$ for the GCM modules and $1\times10^{-5}$ for the VGGT backbone; cosine decay with a 2k-iteration linear warm-up; gradient clipping at max norm 1.0.</li><li><strong>Batch / sequence construction:</strong> at each iteration the 32 GPUs are randomly partitioned into groups; each group runs Global Context Synchronization (GCS) only within the group, yielding variable effective sequence lengths from 1 to 32 chunks for length generalization.</li><li><strong>Loss:</strong> multi-task objective $\mathcal{L} = \lambda \mathcal{L}_{cam} + \mathcal{L}_{dpt} + \mathcal{L}_{xyz}$ following VGGT [78]; $\lambda$ 的具體數值 the paper does not specify.</li><li><strong>Inference (main):</strong> chunk size $M = 60$, overlap $O = 30$ across all main benchmarks (the same setting is also applied to the VGGT-Long baseline for fairness); on ScanNet++ and TUM-RGBD the supplementary uses $M=120$, $O=60$; on Waymo $M=60$, $O=30$. Chunks are distributed across GPUs and run in parallel; alignment follows VGGT-Long [17] with retrieval-based loop discovery and pose-graph refinement on revisit trajectories. Single-GPU sequential execution is supported but slower.</li><li><strong>GCM module:</strong> 4 GCM modules attached after the 4th, 11th, 17th, and 24th global attention layers (Appendix A); each AMU is a 3-layer MLP with gating $f_W(x) = W_2\bigl(\mathrm{SiLU}(W_1 x)\circ(W_3 x)\bigr)$; number of heads $n_h = 1$, scaling factor $k = 4$; total newly added parameters 75.55M (≈0.076B).</li><li><strong>Resource benchmark hardware:</strong> all methods run on a single RTX 4090 except FastVGGT, which requires an A800.</li><li><strong>Ablation training:</strong> state-size ablations on 16 A800 GPUs for 60k iterations; global-context ablations on 8 A800 GPUs for 60k iterations; both use a subset of the training mix that excludes the object-centric WildRGB, Co3Dv2, and Aria Digital Twin (Appendix B.2).</li></ul>
+<h3 id="6-4-main-results">6.4 Main Results</h3>
+<p>Pose accuracy (Table 1, dataset-average ATE in m; failed scenes assigned the worst valid score):</p>
+<table><thead><tr><th>Method</th><th>VKITTI2 ATE ↓</th><th>KITTI ATE ↓</th><th>Oxford Spires ATE ↓</th><th>Notes</th></tr></thead><tbody><tr><td>MASt3R-SLAM [44]</td><td>78.33</td><td>191.71</td><td>29.22</td><td>learning-based SLAM</td></tr><tr><td>VGGT-SLAM [41]</td><td>17.18</td><td>214.88</td><td>26.85</td><td></td></tr><tr><td>StreamVGGT [101]</td><td>68.97</td><td>226.15</td><td>34.35</td><td>streaming</td></tr><tr><td>STream3R [33]</td><td>70.87</td><td>227.77</td><td>34.65</td><td>causal Transformer</td></tr><tr><td>CUT3R [80]</td><td>50.75</td><td>209.78</td><td>28.01</td><td>memory-token model</td></tr><tr><td>TTT3R [11]</td><td>23.49</td><td>177.73</td><td>31.57</td><td>TTT-based memory</td></tr><tr><td>FastVGGT [61]</td><td>21.83</td><td>206.69</td><td>31.18</td><td>token merging</td></tr><tr><td>VGGT-Long [17]</td><td>1.03</td><td>25.94</td><td>15.46</td><td>strongest feed-forward baseline</td></tr><tr><td>COLMAP [59]</td><td>9.09</td><td>37.79</td><td>0.15</td><td>classical SfM, very slow</td></tr><tr><td>MASt3R-SfM [34]</td><td>40.57</td><td>171.28</td><td>25.83</td><td></td></tr><tr><td>DROID-SLAM† [71]</td><td>2.47</td><td>50.71</td><td>23.97</td><td>requires intrinsics</td></tr><tr><td>DPVO++† [40]</td><td>0.48</td><td>52.69</td><td>29.17</td><td>requires intrinsics</td></tr><tr><td><strong>Ours (Scal3R)</strong></td><td><strong>0.85</strong></td><td><strong>14.55</strong></td><td><strong>4.45</strong></td><td>best on all three; second-best RRE on VKITTI2</td></tr></tbody></table>
+<p>3D reconstruction (Table 2):</p>
+<table><thead><tr><th>Method</th><th>ETH3D CD ↓ / F1 ↑</th><th>Oxford Spires CD ↓ / F1 ↑</th><th>VKITTI2 CD ↓ / F1 ↑</th></tr></thead><tbody><tr><td>VGGT-Long [17]</td><td>0.24 / 0.84</td><td>3.41 / 0.80</td><td>1.78 / 0.70</td></tr><tr><td>FastVGGT [61]</td><td>0.50 / 0.70</td><td>2.76 / 0.76</td><td>1.73 / 0.67</td></tr><tr><td>TTT3R [11]</td><td>0.43 / 0.59</td><td>9.03 / 0.31</td><td>3.49 / 0.49</td></tr><tr><td>CUT3R [80]</td><td>0.41 / 0.60</td><td>6.93 / 0.45</td><td>5.67 / 0.39</td></tr><tr><td><strong>Ours (Scal3R)</strong></td><td><strong>0.11 / 0.91</strong></td><td><strong>0.96 / 0.96</strong></td><td><strong>0.40 / 0.91</strong></td></tr></tbody></table>
+<p>Resource cost on KITTI 03/04/10 (avg. 758 frames, single RTX 4090 unless noted): Scal3R uses 10.32 GB peak memory and 300.76 s total time at 2.53 FPS — moderate memory, slower than lightweight online systems (DPVO++ 35.35 FPS, CUT3R 32.87 FPS) but ~22× faster than COLMAP (6614.73 s) and avoiding the OOM that FastVGGT hits on a 4090. Supplementary Table 4 additionally reports best ATE on ScanNet++ (0.08) and TUM-RGBD (0.07) and a competitive 1.52 on Waymo.</p>
+<h3 id="6-5-ablation-studies">6.5 Ablation Studies</h3>
+<ul><li><strong>State size of the AMU sub-networks</strong> (Table 3 left): increasing the GCM state size from 1M $\to$ 2M $\to$ 4M monotonically improves ATE (0.99 $\to$ 0.93 $\to$ 0.85), RTE (1.01 $\to$ 0.91 $\to$ 0.84), and RRE (1.01 $\to$ 0.95 $\to$ 0.87). This is a <em>diagnostic</em> experiment that directly tests the central claim that larger non-linear memory better preserves long-range context, and the monotone trend supports it.</li><li><strong>Global context mechanism</strong> (Table 3 right, complementary long-sequence subset): removing the cross-chunk synchronization (<code>w/o GCS</code>) raises ATE from 13.70 to 15.80, and removing the entire memory module (<code>w/o GCM</code>) raises ATE further to 19.00 with RTE 7.03 and RRE 1.30. The decomposition is <em>diagnostic</em> — it isolates the two proposed components and shows GCM carries the primary long-range signal while GCS contributes additional cross-chunk propagation.</li><li><strong>Caveat on comparability:</strong> the paper explicitly notes that the two ablation blocks are not directly comparable (different training sets, different GPU counts, different evaluation subsets — Appendix B.2). This means absolute numbers across the two blocks should not be cross-read, only intra-block trends.</li><li><strong>Missing diagnostic ablations:</strong> chunk size $M$ and overlap $O$, the gate $\alpha$, the number of GCM modules (4) and their attached layers, the scaling factor $k = 4$, the number of heads $n_h = 1$, and the choice of dot-product self-supervised loss are all design choices that are <em>not</em> ablated. The runtime-scaling table (Table 5) is closer to a sanity check than a diagnostic — it shows RPE stays in 0.07–0.08 m as length grows from 150 to 990 frames, but does not isolate which component delivers that stability.</li></ul>
+<h3 id="6-6-phyra-experiment-assessment">6.6 Phyra Experiment Assessment</h3>
+<ul><li>[covered] Has at least one strong baseline (a current SoTA on the chosen task) — VGGT-Long [17], the strongest published feed-forward baseline, is included alongside FastVGGT, TTT3R, CUT3R, STream3R, and learning-based SLAMs, and Scal3R outperforms all on the three primary benchmarks (Table 1).</li><li>[covered] Has cross-task / cross-dataset evaluation (not just one benchmark) — pose evaluated on VKITTI2, KITTI, Oxford Spires, plus supplementary ScanNet++, TUM-RGBD, Waymo; reconstruction evaluated on ETH3D, Oxford Spires, VKITTI2 (Tables 1, 2, 4).</li><li>[covered] Has ablations that diagnose the new components (not just sanity checks) — Table 3 ablates GCM state size and separately removes GCM and GCS, isolating the two contributions claimed in the method.</li><li>[partial] Has a scaling study (size, length, or compute) — supplementary Table 5 reports runtime/RPE scaling with sequence length (150 $\to$ 990 frames), and Table 3 sweeps GCM state size 1M/2M/4M; no scaling on backbone size, GPU count, or training compute is reported.</li><li>[covered] Has an efficiency / wall-clock comparison — Table 1 reports peak memory, total time, and FPS on KITTI 03/04/10 against all baselines; Table 5 adds runtime scaling with length.</li><li>[missing] Reports variance / standard deviation / multiple seeds where relevant — all reported numbers are single-run point estimates; no seed averaging or confidence intervals appear in any table.</li><li>[partial] Releases code / weights / data sufficient for reproducibility — the abstract advertises a project page at <code>https://zju3dv.github.io/scal3r</code>, but the paper does not specify whether trained weights, training code, or evaluation scripts are released; the training data list is fully enumerated (Sec. 4.3).</li></ul>
+<h2 id="7-phyra-s-judgment">7. Phyra&#x27;s Judgment</h2>
+<h3 id="7-1-claimed-vs-supported-contributions">7.1 Claimed vs. Supported Contributions</h3>
+<ul><li><strong>C1: 公里級 RGB-only 重建</strong> — Supported。Figure 1 與 Oxford Spires 上 280–773m 的軌跡展示具體達成尺度;Table 1/2 在 Oxford Spires 上的 ATE 4.45 與 F1 0.96 為直接量化證據。</li><li><strong>C2: 神經式 global context representation 能壓縮並保留長距資訊</strong> — Partially supported。Table 3 右側 &quot;w/o GCM&quot; 使 ATE 從 13.70 退化至 19.00,證實 GCM 重要;但缺少對照實驗確認效果來自 inner-loop 更新而非單純多 75M 參數,因此「神經 + 線上自監督」這個語義成份未被獨立驗證。</li><li><strong>C3: GCS 把 chunk-wise 計算視為 context parallelism 並有效共享脈絡</strong> — Supported but small effect。&quot;w/o GCS&quot; 使 ATE 由 13.70 升至 15.80(差 2.10),相對 GCM 的貢獻 5.30 而言為次要組件;論文的論述等比看待兩者,稍嫌過度。</li><li><strong>C4: SOTA pose accuracy</strong> — Supported within RGB-only feed-forward category。Table 1 與 Table 4 的比較對象多為同類 baseline,在這個範圍內 Scal3R 一致勝出;但 COLMAP 在 Oxford Spires 與 ScanNet++ 仍是 ATE 上的強對手,論文的「SOTA」應理解為類別內冠軍。</li><li><strong>C5: SOTA 3D reconstruction accuracy 同時保有效率</strong> — Supported on accuracy, overclaimed on efficiency。Table 2 的 F1 與 CD 全面領先;但 Table 1 顯示對最相近的 VGGT-Long,Scal3R 是「更準但更慢、記憶體類似」,「保有效率」更接近「未顯著退化」而非「兼具最佳吞吐」。</li></ul>
+<h3 id="7-2-fundamental-limitations-of-the-method">7.2 Fundamental Limitations of the Method</h3>
+<p>第一,AMU 的具體形式 $f_W(x) = W_2\bigl(\mathrm{SiLU}(W_1 x) \circ (W_3 x)\bigr)$ 是一個 SwiGLU MLP,inner-loop 更新規則是對 $\sum_i -f_W(k_i)^\top v_i$ 做梯度下降。這在數學上等價於把一個非線性 fast-weight attention head 接到 VGGT,並用 chunk-level 自監督 loss 線上調整其 key–value 映射。它沒有引入新的 3D 幾何先驗,只是擴大了「可在序列上動態調整的參數量」。因此方法的天花板由 VGGT backbone 的幾何推理力決定,GCM 是在 backbone 給出的特徵分佈內做更好的長距聚合,而非彌補 backbone 的幾何盲點。</p>
+<p>第二,GCS 仰賴在每個 GCM-augmented layer 對 AMU 梯度做一次跨 GPU all-reduce(Eq. 10, p. 5)。這個設計把 inference 的 wall-clock 與 GPU 數量、互連拓撲耦合;在單機多卡且 NVLink 連通的訓練/評測環境中通訊近乎免費,但跨節點部署時 all-reduce 延遲會成為主導,Scal3R 的 &quot;scalable&quot; 並未在此情境下被驗證。</p>
+<p>第三,失敗模式(Figure 7, p. 16)顯示在劇烈光照變化下對應失效。GCM 操作的是 frozen DINOv2 encoder 的特徵,當 encoder 本身對 appearance shift 不穩定時,inner-loop 的梯度步驟並不能合成不存在的對應訊號;瓶頸已從「記憶體容量」轉移到「特徵穩定性」,而後者方法本身無法處理。</p>
+<p>第四,長序列重建仍依賴 VGGT-Long 的 chunk-wise alignment 與 retrieval-based loop closure 做最終融合(Section 4.4, p. 6)。GCM 並不執行 loop closure,因此在沒有 revisit 的單向長軌跡上,累積漂移仍透過 chunk-by-chunk Sim(3) 對齊累加;global context 提升的是局部一致性而非全域閉環。</p>
+<h3 id="7-3-citations-worth-tracking">7.3 Citations Worth Tracking</h3>
+<ul><li><strong>LaCT [100]</strong> (Zhang et al., 2025, &quot;Test-time training done right&quot;) — Scal3R 的 chunk-as-update-unit 設計直接源於此,理解 LaCT 的並行化分析才能看懂 Scal3R 為何能在 GPU 上跑得動 inner loop。</li><li><strong>TTT3R [11]</strong> (Chen et al., 2025) — 與 Scal3R 同期、最直接的 baseline,論文以「fixed-size token set 不足」作為差異化主軸,讀完才能判斷 Scal3R 真正的 delta 是否如其所宣稱。</li><li><strong>VGGT-Long [17]</strong> (Deng et al., 2025) — Scal3R 的 chunking、alignment、loop closure 流程幾乎全盤繼承,讀此論文有助於把 Scal3R 的貢獻切離為「architectural」與「pipeline-inherited」兩部分。</li><li><strong>VGGT [78]</strong> (Wang et al., CVPR 2025) — base model,定義了 alternating frame/global attention 與 output heads,Scal3R 在其上嫁接 GCM。</li><li><strong>Test-time regression unifying framework [79]</strong> (Wang et al., 2025) — 將 TTT 與 fast-weight attention、associative memory 統一在同一座標系下,提供判斷 GCM 是否「實質上等價於某種已知 attention」的理論工具。</li></ul>
+<h2 id="8-open-questions-and-improvement-ideas">8. Open Questions and Improvement Ideas</h2>
+<h3 id="8-1-outstanding-questions">8.1 Outstanding Questions</h3>
+<ul><li>[ ] 在不切 chunk、單 GPU 順序執行下,Scal3R 處理 KITTI 00(4542 frames)的 peak memory 與 wall-clock 為何?目前 Table 1 與 Table 5 都未涵蓋這個極限情境。</li><li>[ ] 若把 AMU 改為「相同架構、相同參數量,但不做 inner-loop 更新,只在 outer loop 端到端訓練」,ATE/RRE 會退化多少?這是分離「TTT 語義」與「多塞參數」唯一直接的對照。</li><li>[ ] Chunk size $M$ 與 overlap $O$ 的敏感度為何?ScanNet++/TUM 用 $M=120$、KITTI 用 $M=60$,這是被調出來的還是有理論依據?</li><li>[ ] GCS 的 all-reduce 在跨節點(InfiniBand 而非 NVLink)場景下,通訊延遲佔 inference 時間的比例為何?這決定 &quot;scalable&quot; 是否能延伸到資料中心級部署。</li><li>[ ] AMU 的最小可用 state size 為多少?是否存在一個閾值,低於此值 GCS 帶來的同步不再有正面效益?</li><li>[ ] DINOv2 encoder 凍結是否就是 Figure 7 失敗模式的根本原因?若把 encoder 一同 fine-tune 並加入 appearance augmentation,跨 chunk 對應穩定性能否改善?</li><li>[ ] 在 Oxford Spires 的長閉環序列上,最終 ATE 中由 GCM 帶來的局部一致性貢獻、與由 retrieval-based loop closure + pose-graph refinement 帶來的全域對齊貢獻,各佔多少?</li></ul>
+<h3 id="8-2-improvement-directions">8.2 Improvement Directions</h3>
+<ol><li><strong>新增「fixed-weight AMU」對照組</strong>(可行性最高):保留 GCM 模組架構與參數量,但在 inference 時關閉 inner-loop 梯度更新,只用 outer-loop 學到的 $W_1, W_2, W_3$。若效果掉得有限,代表 Scal3R 的增益主要來自架構與 GCS,而非「test-time training」;這個結果無論正反都對社群極有價值。</li><li><strong>加入 chunk-size sensitivity sweep</strong>(可行性高):在固定模型權重下,把 $M$ 從 30 掃到 240、$O$ 從 0 掃到 $M/2$,報告 ATE 與 wall-clock 的 Pareto 曲線。這可以驗證論文選的 $M=60/120$ 是否為 sweet spot,還是僅止於 baseline 比照公平。</li><li><strong>量化 GCS 通訊開銷並嘗試階層化 all-reduce</strong>(中等可行性):先 profile 每層 GCM 的 all-reduce 時間,再用 ring/tree all-reduce 或 hierarchical reduce-scatter + all-gather 取代直接 all-reduce,讓跨節點延遲下降。</li><li><strong>在 outer loop 同步 fine-tune DINOv2 encoder 並加入光照/色彩 augmentation</strong>(中等可行性):針對 Figure 7 的 failure mode,讓 encoder 學到對 appearance 不變的特徵,再給 GCM 接手做長距聚合,從根本上解決跨 chunk 對應不穩。</li><li><strong>把 loop closure 內化進 GCM</strong>(較難):目前 retrieval + pose-graph refinement 是 post-hoc 步驟,可嘗試讓 AMU 的 key/value 帶有 global descriptor,並在 GCS 同步時加入「跨 chunk 相似度檢索」做為 inner-loop 額外損失,使 GCM 自身具備閉環能力,而非依賴外掛模組。</li></ol>
+        </main>
+        </div>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '$', right: '$', display: false}
+            ]
+          });">
+        </script>
+        <script>
+(function () {
+  var t = document.querySelector(".theme-toggle");
+  if (!t) return;
+  var btns = t.querySelectorAll("button[data-mode]");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var mode = localStorage.getItem("phyra-theme") || "system";
+  function resolve(m) { return m === "system" ? (mq.matches ? "dark" : "light") : m; }
+  function apply(m) {
+    mode = m;
+    document.documentElement.setAttribute("data-theme", resolve(m));
+    btns.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === m);
+    });
+    localStorage.setItem("phyra-theme", m);
+  }
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.mode); });
+  });
+  if (mq.addEventListener) mq.addEventListener("change", function () {
+    if (mode === "system") apply("system");
+  });
+  apply(mode);
+})();
+</script>
+</body>
+        </html>
