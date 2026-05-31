@@ -62,6 +62,7 @@ c "啟動 phyra-archbase（:$AB_PORT）"
 # 透傳 PHYRA_CENTER_PORT：server.py 刪論文後會就地重生首頁，banner port 需一致。
 # PHYRA_ARCHBASE_ADMIN_PASSWORD 若有設亦會被繼承。
 PORT="$AB_PORT" HOST="$HOST" PHYRA_CENTER_PORT="$CT_PORT" \
+  PHYRA_DUALTRANS_PORT="$DT_PORT" \
   bash "$AB_DIR/script/serve.sh" >"$LOG_DIR/archbase.log" 2>&1 &
 pids+=($!)
 

@@ -57,7 +57,7 @@ SERVICES: list[dict] = [
         "key": "phyra-dualtrans",
         "name": "phyra-dualtrans",
         "label": "📝 phyra-dualtrans",
-        "tagline": "雙語翻譯 · BabelDOC + your model",
+        "tagline": "雙語翻譯 · BabelDOC + AI",
         "port": DUALTRANS_PORT,
         "health_path": "/healthz",
     },

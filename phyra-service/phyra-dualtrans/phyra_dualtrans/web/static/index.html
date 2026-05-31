@@ -1,182 +1,211 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phyra DualTrans</title>
-<link rel="stylesheet" href="/styles.css">
-<script>
-  /* no-flash theme init — ported verbatim from paper-base, key renamed */
-  (function () {
-    const mode = localStorage.getItem("phyra-dualtrans-theme") || "system";
-    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
-    document.documentElement.setAttribute("data-theme", actual);
-  })();
-</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phyra DualTrans</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script>
+    /* no-flash theme init — ported verbatim from paper-base, key renamed */
+    (function () {
+      const mode = localStorage.getItem("phyra-dualtrans-theme") || "system";
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const actual = mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+      document.documentElement.setAttribute("data-theme", actual);
+    })();
+  </script>
 </head>
+
 <body>
-<div class="hub-bar" id="hub-bar">
-  <a class="hub-link" id="center-link" href="#"><span class="hub-arrow">←</span> <span class="hub-brand">🜂 Phyra Center</span></a>
-</div>
-<header>
-  <div class="hdr-left">
-    <h1>Phyra DualTrans</h1>
-    <div class="stats">Bilingual paper PDF translation · BabelDOC + your model</div>
+  <div class="hub-bar" id="hub-bar">
+    <a class="hub-link" id="center-link" href="#"><span class="hub-arrow">←</span> <span class="hub-brand">🜂 Phyra
+        Center</span></a>
   </div>
-  <div class="theme-toggle" role="group" aria-label="Appearance">
-    <button type="button" data-mode="system" title="System" aria-label="System">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-    </button>
-    <button type="button" data-mode="light" title="Light" aria-label="Light">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-    </button>
-    <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
-      <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-  </div>
-</header>
-
-<main>
-  <div class="tabs" role="tablist">
-    <button type="button" class="tab" data-tab="single" aria-selected="true">Single</button>
-    <button type="button" class="tab" data-tab="batch" aria-selected="false">Batch</button>
-  </div>
-
-  <section class="card" id="card-single">
-    <h2>Input</h2>
-    <div id="dropzone" class="dropzone">
-      <p><strong>Drop a PDF here</strong> or click to choose</p>
-      <p id="file-name" style="font-size:12px"></p>
-      <input id="file" type="file" accept="application/pdf" hidden>
+  <header>
+    <div class="hdr-left">
+      <h1>Phyra DualTrans</h1>
+      <div class="stats">Bilingual paper PDF translation · BabelDOC + AI</div>
     </div>
-    <div class="or-sep">— or —</div>
-    <label for="arxiv">arXiv URL or id</label>
-    <input id="arxiv" type="text" placeholder="https://arxiv.org/abs/2503.06132  ·  2503.06132">
-  </section>
-
-  <section class="card" id="card-batch" style="display:none">
-    <h2>Batch input</h2>
-    <div id="dropzone-b" class="dropzone">
-      <p><strong>Drop multiple PDFs here</strong> or click to choose</p>
-      <p id="batch-files" style="font-size:12px"></p>
-      <input id="file-b" type="file" accept="application/pdf" multiple hidden>
+    <div class="theme-toggle" role="group" aria-label="Appearance">
+      <button type="button" data-mode="system" title="System" aria-label="System">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="13" rx="2" />
+          <path d="M8 21h8M12 17v4" />
+        </svg>
+      </button>
+      <button type="button" data-mode="light" title="Light" aria-label="Light">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      </button>
+      <button type="button" data-mode="dark" title="Dark" aria-label="Dark">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
     </div>
-    <div class="or-sep">— and / or —</div>
-    <label for="arxiv-b">arXiv URLs or ids — one per line</label>
-    <textarea id="arxiv-b" rows="4" placeholder="2503.06132&#10;https://arxiv.org/abs/2505.12345"></textarea>
-    <p class="hint" style="margin:8px 0 0">Files run first in the order added, then arXiv links top→bottom. Jobs run strictly one after another, in that order, using the shared Settings below.</p>
-    <div class="btn-row">
-      <button type="button" id="translate-batch" class="btn">Translate batch</button>
-    </div>
-  </section>
+  </header>
 
-  <section class="card">
-    <h2>Settings</h2>
-    <div class="settings-grid">
-      <div>
-        <label for="backend">Backend</label>
-        <select id="backend"></select>
+  <main>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" data-tab="single" aria-selected="true">Single</button>
+      <button type="button" class="tab" data-tab="batch" aria-selected="false">Batch</button>
+    </div>
+
+    <section class="card" id="card-single">
+      <h2>Input</h2>
+      <div id="dropzone" class="dropzone">
+        <p><strong>Drop a PDF here</strong> or click to choose</p>
+        <p id="file-name" style="font-size:12px"></p>
+        <input id="file" type="file" accept="application/pdf" hidden>
       </div>
-      <div>
-        <label for="model">Model</label>
-        <div class="field-row">
-          <input id="model" type="text" list="model-list" placeholder="model id">
-          <button type="button" id="list-models" class="btn ghost" title="List Ollama models" style="flex:0 0 auto">↻</button>
+      <div class="or-sep">— or —</div>
+      <label for="arxiv">arXiv URL or id</label>
+      <input id="arxiv" type="text" placeholder="https://arxiv.org/abs/2503.06132  ·  2503.06132">
+    </section>
+
+    <section class="card" id="card-batch" style="display:none">
+      <h2>Batch input</h2>
+      <div id="dropzone-b" class="dropzone">
+        <p><strong>Drop multiple PDFs here</strong> or click to choose</p>
+        <p id="batch-files" style="font-size:12px"></p>
+        <input id="file-b" type="file" accept="application/pdf" multiple hidden>
+      </div>
+      <div class="or-sep">— and / or —</div>
+      <label for="arxiv-b">arXiv URLs or ids — one per line</label>
+      <textarea id="arxiv-b" rows="4" placeholder="2503.06132&#10;https://arxiv.org/abs/2505.12345"></textarea>
+      <p class="hint" style="margin:8px 0 0">Files run first in the order added, then arXiv links top→bottom. Jobs run
+        strictly one after another, in that order, using the shared Settings below.</p>
+      <div class="btn-row">
+        <button type="button" id="translate-batch" class="btn">Translate batch</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <div class="settings-grid">
+        <div>
+          <label for="backend">Backend</label>
+          <select id="backend"></select>
         </div>
-        <datalist id="model-list"></datalist>
-      </div>
-      <div id="wrap-base-url">
-        <label for="base-url">Base URL</label>
-        <input id="base-url" type="text" placeholder="https://api.openai.com/v1">
-      </div>
-      <div id="wrap-api-key">
-        <label for="api-key">API key</label>
-        <input id="api-key" type="password" autocomplete="off" placeholder="API key — sent per request, never stored">
-      </div>
-      <div id="wrap-admin-pw" style="display:none">
-        <label for="admin-pw">Admin password</label>
-        <input id="admin-pw" type="password" autocomplete="off" placeholder="required for Claude CLI backend">
-      </div>
-      <div id="wrap-think" style="display:none">
-        <label>Ollama thinking</label>
-        <div class="inline" data-tip="讓模型在輸出前先「思考」（hybrid reasoning）。對翻譯沒有品質提升，卻會慢約 9 倍、吃更多 token——除非有特別理由，建議保持關閉。"><input id="think-mode" type="checkbox"><span>Enable thinking</span></div>
-      </div>
-      <div>
-        <label for="lang-in">Source language</label>
-        <input id="lang-in" type="text" value="en">
-      </div>
-      <div>
-        <label for="lang-out">Target language</label>
-        <input id="lang-out" type="text" list="lang-list" value="zh-TW">
-        <datalist id="lang-list">
-          <option value="zh-TW"></option><option value="zh-HK"></option>
-          <option value="zh-CN"></option><option value="ja"></option>
-          <option value="ko"></option>
-        </datalist>
-      </div>
-      <div>
-        <label for="qps">QPS (requests/sec)</label>
-        <input id="qps" type="number" min="1" max="20" value="2">
-      </div>
-      <div data-tip="輸出 PDF 的壓縮方式。off：不壓縮，檔案最大、最快；lossless：無損重新壓縮（re-deflate），略縮小、畫質不變；lossy：用 Ghostscript 依下方 DPI/preset 重新編碼影像，檔案最小但圖會失真。預設 lossy。">
-        <label>Compression</label>
-        <div class="segmented" id="compress" role="group">
-          <button type="button" data-v="off">off</button>
-          <button type="button" data-v="lossless">lossless</button>
-          <button type="button" data-v="lossy" aria-pressed="true">lossy</button>
+        <div>
+          <label for="model">Model</label>
+          <div class="field-row">
+            <input id="model" type="text" list="model-list" placeholder="model id">
+            <button type="button" id="list-models" class="btn ghost" title="List Ollama models"
+              style="flex:0 0 auto">↻</button>
+          </div>
+          <datalist id="model-list"></datalist>
+        </div>
+        <div id="wrap-base-url">
+          <label for="base-url">Base URL</label>
+          <input id="base-url" type="text" placeholder="https://api.openai.com/v1">
+        </div>
+        <div id="wrap-api-key">
+          <label for="api-key">API key</label>
+          <input id="api-key" type="password" autocomplete="off" placeholder="API key — sent per request, never stored">
+        </div>
+        <div id="wrap-admin-pw" style="display:none">
+          <label for="admin-pw">Admin password</label>
+          <input id="admin-pw" type="password" autocomplete="off" placeholder="required for Claude CLI backend">
+        </div>
+        <div id="wrap-think" style="display:none">
+          <label>Ollama thinking</label>
+          <div class="inline" data-tip="讓模型在輸出前先「思考」（hybrid reasoning）。對翻譯沒有品質提升，卻會慢約 9 倍、吃更多 token——除非有特別理由，建議保持關閉。">
+            <input id="think-mode" type="checkbox"><span>Enable thinking</span>
+          </div>
+        </div>
+        <div>
+          <label for="lang-in">Source language</label>
+          <input id="lang-in" type="text" value="en">
+        </div>
+        <div>
+          <label for="lang-out">Target language</label>
+          <input id="lang-out" type="text" list="lang-list" value="zh-TW">
+          <datalist id="lang-list">
+            <option value="zh-TW"></option>
+            <option value="zh-HK"></option>
+            <option value="zh-CN"></option>
+            <option value="ja"></option>
+            <option value="ko"></option>
+          </datalist>
+        </div>
+        <div>
+          <label for="qps">QPS (requests/sec)</label>
+          <input id="qps" type="number" min="1" max="20" value="2">
+        </div>
+        <div
+          data-tip="輸出 PDF 的壓縮方式。off：不壓縮，檔案最大、最快；lossless：無損重新壓縮（re-deflate），略縮小、畫質不變；lossy：用 Ghostscript 依下方 DPI/preset 重新編碼影像，檔案最小但圖會失真。預設 lossy。">
+          <label>Compression</label>
+          <div class="segmented" id="compress" role="group">
+            <button type="button" data-v="off">off</button>
+            <button type="button" data-v="lossless">lossless</button>
+            <button type="button" data-v="lossy" aria-pressed="true">lossy</button>
+          </div>
+        </div>
+        <div id="wrap-dpi">
+          <label for="dpi">Lossy image DPI</label>
+          <div class="field-row">
+            <input id="dpi" type="number" min="36" max="600" value="150">
+            <select id="preset" style="flex:0 0 120px">
+              <option value="screen">screen</option>
+              <option value="ebook" selected>ebook</option>
+              <option value="printer">printer</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label>Options</label>
+          <div class="inline" data-tip="預設只輸出雙語對照 PDF（左原文、右譯文）。勾選會額外再產出一份「只有譯文」的單語 PDF，頁數與原文相同——想要一份乾淨的純中文版本時用。"><input
+              id="mono" type="checkbox"><span>Mono PDF</span></div>
+          <div class="inline" data-tip="把複雜頁面（密集公式、雙欄排版）整頁點陣化後重建，保留原始版面不重排。代價是較慢、檔案較大、那些頁的文字不可選取。預設關，只有 PDF 渲染明顯出錯時才開。">
+            <input id="compat" type="checkbox"><span>Enhance compatibility</span>
+          </div>
+          <div class="inline"
+            data-tip="翻譯前先讀過全文，產生一份術語對照、專有名詞、文體風格的「翻譯指南」，注入每一段翻譯，讓全文術語一致；對小 context 的本地模型特別友善。代價是多一次前置 LLM 呼叫。"><input
+              id="distill" type="checkbox"><span>Distill guide</span></div>
+        </div>
+        <div id="wrap-runtime">
+          <label><span
+              data-tip="遇到處理時間過長、翻譯失敗等狀況，可以先看這裡的 GPU / Ollama 狀態；若異常（例如顯示在 CPU、偵測不到 GPU），請檢查 GPU 驅動，或聯繫管理員。">狀態</span>
+            <button type="button" id="runtime-refresh" class="btn ghost" title="重新偵測"
+              style="flex:0 0 auto;padding:0 8px;margin-left:6px">↻</button>
+          </label>
+          <div id="runtime-status" class="runtime-status" data-level="" title="偵測 GPU / Ollama 狀態中…">偵測中…</div>
         </div>
       </div>
-      <div id="wrap-dpi">
-        <label for="dpi">Lossy image DPI</label>
-        <div class="field-row">
-          <input id="dpi" type="number" min="36" max="600" value="150">
-          <select id="preset" style="flex:0 0 120px">
-            <option value="screen">screen</option>
-            <option value="ebook" selected>ebook</option>
-            <option value="printer">printer</option>
-          </select>
+      <div class="btn-row">
+        <button type="button" id="translate" class="btn">Translate</button>
+        <button type="button" id="preflight" class="btn ghost">Run preflight</button>
+        <button type="button" id="save-defaults" class="btn ghost">Save as defaults</button>
+      </div>
+      <ul id="checks" class="checks"></ul>
+    </section>
+
+    <section class="card">
+      <div class="jobs-head">
+        <h2>Jobs</h2>
+        <div class="jobs-controls">
+          <input type="search" id="job-search" placeholder="搜尋檔名…" autocomplete="off">
+          <label class="jobs-limit">顯示
+            <select id="job-limit">
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="all">全部</option>
+            </select>
+          </label>
         </div>
       </div>
-      <div>
-        <label>Options</label>
-        <div class="inline" data-tip="預設只輸出雙語對照 PDF（左原文、右譯文）。勾選會額外再產出一份「只有譯文」的單語 PDF，頁數與原文相同——想要一份乾淨的純中文版本時用。"><input id="mono" type="checkbox"><span>Mono PDF</span></div>
-        <div class="inline" data-tip="把複雜頁面（密集公式、雙欄排版）整頁點陣化後重建，保留原始版面不重排。代價是較慢、檔案較大、那些頁的文字不可選取。預設關，只有 PDF 渲染明顯出錯時才開。"><input id="compat" type="checkbox"><span>Enhance compatibility</span></div>
-        <div class="inline" data-tip="翻譯前先讀過全文，產生一份術語對照、專有名詞、文體風格的「翻譯指南」，注入每一段翻譯，讓全文術語一致；對小 context 的本地模型特別友善。代價是多一次前置 LLM 呼叫。"><input id="distill" type="checkbox"><span>Distill guide</span></div>
+      <div id="jobs">
+        <div class="empty">No jobs yet.</div>
       </div>
-      <div id="wrap-runtime">
-        <label><span data-tip="遇到處理時間過長、翻譯失敗等狀況，可以先看這裡的 GPU / Ollama 狀態；若異常（例如顯示在 CPU、偵測不到 GPU），請檢查 GPU 驅動，或聯繫管理員。">狀態</span>
-          <button type="button" id="runtime-refresh" class="btn ghost" title="重新偵測" style="flex:0 0 auto;padding:0 8px;margin-left:6px">↻</button>
-        </label>
-        <div id="runtime-status" class="runtime-status" data-level="" title="偵測 GPU / Ollama 狀態中…">偵測中…</div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button type="button" id="translate" class="btn">Translate</button>
-      <button type="button" id="preflight" class="btn ghost">Run preflight</button>
-      <button type="button" id="save-defaults" class="btn ghost">Save as defaults</button>
-    </div>
-    <ul id="checks" class="checks"></ul>
-  </section>
+    </section>
+  </main>
 
-  <section class="card">
-    <div class="jobs-head">
-      <h2>Jobs</h2>
-      <div class="jobs-controls">
-        <input type="search" id="job-search" placeholder="搜尋檔名…" autocomplete="off">
-        <label class="jobs-limit">顯示
-          <select id="job-limit">
-            <option value="20" selected>20</option>
-            <option value="50">50</option>
-            <option value="all">全部</option>
-          </select>
-        </label>
-      </div>
-    </div>
-    <div id="jobs"><div class="empty">No jobs yet.</div></div>
-  </section>
-</main>
-
-<script src="/app.js"></script>
+  <script src="/app.js"></script>
 </body>
+
 </html>

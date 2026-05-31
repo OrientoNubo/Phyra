@@ -275,7 +275,18 @@ def resolve_backend(
     settings = get_settings()
     ms = model_settings()
 
-    eff_model = model or ("sonnet" if kind == "claude_cli" else "")
+    # An empty model must still resolve to something usable: claude_cli →
+    # "sonnet"; ollama → the managed/configured model (e.g. "phyra-trans"),
+    # so callers that omit the model (e.g. archbase's auto-translate) don't
+    # send a blank model that Ollama rejects on every request.
+    if model:
+        eff_model = model
+    elif kind == "claude_cli":
+        eff_model = "sonnet"
+    elif kind == "ollama":
+        eff_model = ms.model
+    else:
+        eff_model = ""
 
     caller_base = (base_url or "").strip() or None
     eff_base = caller_base

@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import shutil
 import sys
 import time
@@ -26,17 +27,48 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..config import get_settings
+from ..config import archbase_paths, get_settings
 from ..models import JobView, TranslateParams
 from ..pipeline.build_dual import build as build_dual
 from ..pipeline.compress import compress_pdf
 from ..pipeline.slice_pdf import slice_pdf
-from ..vendor.resolve_input import detect_arxiv_id
+from ..vendor.resolve_input import build_stem, detect_arxiv_id
 from ..vendor.resolve_input import resolve as resolve_input
 from ..vendor.resolve_input import sanitize_title_for_stem
 
 SENTINEL = None  # closes an SSE subscriber queue
 _TERMINAL = {"succeeded", "failed", "canceled"}
+
+# Short-lived cache of the stems that already have a bilingual PDF in the
+# sibling phyra-archbase collection, so a job's "already in library" status
+# (the 已入庫 vs 存入 button) reflects the library — not just whether THIS job
+# clicked save. Recomputed at most every couple seconds.
+_ARCHBASE_CACHE: dict = {"t": 0.0, "stems": set()}
+
+
+def _archbase_bilingual_stems() -> set:
+    """Set of stems with a ``*_bilingual.<lang>.dual.pdf`` in the archbase
+    collection (any target language). Cached briefly; empty when archbase
+    integration is unavailable."""
+    paths = archbase_paths()
+    if paths is None:
+        return set()
+    now = time.time()
+    if now - _ARCHBASE_CACHE["t"] < 2.0:
+        return _ARCHBASE_CACHE["stems"]
+    coll = paths[0]
+    stems = set()
+    try:
+        for p in coll.iterdir():
+            n = p.name
+            i = n.find("_bilingual.")
+            if i > 0 and n.endswith(".dual.pdf"):
+                stems.add(n[:i])
+    except OSError:
+        pass
+    _ARCHBASE_CACHE["t"] = now
+    _ARCHBASE_CACHE["stems"] = stems
+    return stems
 
 
 @dataclass
@@ -74,6 +106,23 @@ class Job:
     _done_evt: asyncio.Event = field(default_factory=asyncio.Event)
     _after: asyncio.Event | None = None
 
+    def _in_archbase(self) -> bool:
+        """True if this paper already has a bilingual PDF in the archbase
+        library — checked by stem (and its re-sanitized form), so the status
+        reflects the library even when another job (e.g. archbase's own
+        auto-translate) did the archiving."""
+        stems = _archbase_bilingual_stems()
+        if not stems or not self.stem:
+            return False
+        if self.stem in stems:
+            return True
+        m = re.match(r"^(\d{4})_(.*)$", self.stem)
+        if m:
+            title = m.group(2).replace("__", ": ").replace("_", " ")
+            if build_stem(m.group(1), title) in stems:
+                return True
+        return False
+
     def view(self) -> JobView:
         return JobView(
             id=self.id,
@@ -85,7 +134,7 @@ class Job:
             outputs=self.outputs,
             error=self.error,
             compress_stats=self.compress_stats,
-            archived=self.archived,
+            archived=self.archived or self._in_archbase(),
             created_at=self.created_at,
             started_at=self.started_at,
             finished_at=self.finished_at,
