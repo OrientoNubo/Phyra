@@ -41,3 +41,9 @@ _backups/
 .claude/
 .DS_Store
 *.swp
+
+# ── Scratch / not part of the project ──
+# root-level screenshots & scratch references
+/reference/
+# plugin local test scratch
+phyra-plugin/test/
